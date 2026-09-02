@@ -819,7 +819,14 @@ function rates(dv,band,sqm){
   const oe=oscEfficiency(dv.c,band,sp);
   const cfa=oe.eta;
   const osc=1;                                   // assorbito in oe: non si moltiplica piu'
-  const k=qeAt(dv.c,lam)*sp.T*cfa;
+  /* CORRETTO 2026-09 (v1.6). Prima era  k = qeAt x T x eta,  senza la larghezza di
+     banda — mentre il cielo la conteneva. Per una RIGA e' giusto cosi'; per un
+     CONTINUO no, e la differenza non si semplifica quando le due configurazioni
+     usano larghezze diverse. Un mono riprende RGB con un filtro da ~90 nm, una
+     matrice con una finestra da 250: 2.78x che finiva tutto sul cielo e niente sul
+     segnale. La larghezza ora entra da bandThroughput(), dalla stessa funzione e
+     con la stessa convenzione del fondo, cosi' le due non possono divergere. */
+  const k=bandThroughput(dv,sp,'signal')*cfa;
   /* Dove il modello NON e' validato lo dichiara, invece di restituire un numero
      sicuro di se'. Banda larga su matrice: OSC_BB e f_CFA si sovrappongono. Per L
      la scheda dichiara f_CFA=1.00 e il conto e' pulito (il fattore ~8.8x della 2600MC
@@ -1761,11 +1768,53 @@ function bandSpec(band,cam){
               dual:true,narrow:f.fwhm_nm<50,windows:cam.cfa_penalty?1:lines.length};
     }
   }
+  /* RGB su MONOCROMATICA non e' una banda sola: e' un insieme SEQUENZIALE di tre
+     filtri, e in ogni istante la camera raccoglie attraverso UNO di essi. Le ore
+     della banda si dividono secondo il rapporto dichiarato dal costruttore —
+     Optolong dichiara 1:1:1 — e il tasso medio sul totale della banda e' la media
+     pesata dei tre. Prima il motore usava il solo filtro VERDE come procura per
+     tutti e tre: una scelta ragionevole finche' la larghezza non entrava nel
+     conto, e sbagliata da quando ci entra (il rosso e' 110 nm, il verde 80).
+     Su una camera a MATRICE questo non si applica: li' la posa e' una sola e
+     larga, e a separare i colori e' il mosaico — se ne occupa oscEfficiency(). */
+  if(band==='RGB'&&!cam.cfa_penalty){
+    const subs=['R','G','B'].map(b=>{const ff=filterFor(b,cam); return ff?{
+      band:b,lam:ff.lambda_nm!=null?ff.lambda_nm:(BAND_LAMBDA[b]||550),
+      fwhm:ff.fwhm_nm,T:ff.peak_t!=null?ff.peak_t:0.9,filter:ff,
+      w:(ff.time_share!=null?ff.time_share:1)}:null;}).filter(Boolean);
+    if(subs.length===3){
+      const ws=subs.reduce((a,x)=>a+x.w,0);
+      return {lines:subs.map(x=>x.lam),
+              fwhm:subs.reduce((a,x)=>a+x.w*x.fwhm,0)/ws,      // larghezza media pesata
+              T:subs.reduce((a,x)=>a+x.w*x.T,0)/ws,
+              filter:subs[1].filter,sub:subs,dual:false,narrow:false,windows:1,
+              composite:'sequenziale 1:1:1'};
+    }
+  }
   const f=filterFor(band,cam);
   const w=f?f.fwhm_nm:BB_NM;
   return {lines:[BAND_LAMBDA[band]||550],fwhm:w,
           T:f?(f.peak_t!=null?f.peak_t:0.9):0.97,filter:f||null,
           dual:false,narrow:w<50,windows:1};
+}
+/* Il prodotto spettrale della banda: QE(lambda) x T_filtro x larghezza, mediato
+   sulle sotto-bande quando la banda e' composita e sequenziale.
+   La distinzione che conta, e che il motore non faceva:
+     - il FONDO CIELO e' un continuo, e scala sempre con la larghezza;
+     - il SEGNALE scala con la larghezza solo se anch'esso e' un continuo. Su una
+       RIGA no: un filtro da 3 nm e uno da 7 nm raccolgono lo stesso Ha, e cambia
+       solo quanto cielo ci entra dentro. E' esattamente il motivo per cui la banda
+       stretta funziona, e il motivo per cui questa correzione non la tocca. */
+function bandThroughput(dv,sp,kind){
+  const subs=sp.sub||[{lam:sp.lines[0],fwhm:sp.fwhm,T:sp.T,w:1}];
+  const line=(kind==='signal')&&sp.narrow;
+  let tot=0,wsum=0;
+  for(const x of subs){
+    const w=x.w!=null?x.w:1;
+    tot+=w*qeAt(dv.c,x.lam)*x.T*(line?1:x.fwhm*10);   // larghezza in angstrom
+    wsum+=w;
+  }
+  return wsum>0?tot/wsum:0;
 }
 const specQE=(dv,sp)=>sp.lines.reduce((a,l)=>a+qeAt(dv.c,l),0)/sp.lines.length;
 
@@ -1787,7 +1836,7 @@ function skyRateFor(dv,band,sqm,opts){
   const sp=o.spec||bandSpec(band,dv.c);
   const osc=(o.mosaic||!dv.c.cfa_penalty||sp.narrow)?1:OSC_BB;
   return PHOT_V0*Math.pow(10,-0.4*sqm)*(dv.Aeff/100)*Math.pow(dv.scale,2)
-         *specQE(dv,sp)*sp.T*(sp.fwhm*10)*sp.windows*osc;
+         *bandThroughput(dv,sp,'sky')*sp.windows*osc;
 }
 /* Elettroni al secondo nel pixel centrale di una stella di magnitudine V=m.
    Qui il binning NON aiuta: a saturare è il fotosito vero, e il fotosito vero
@@ -1798,7 +1847,7 @@ function starPeakRate(dv,band,mag,fwhm,opts){
   const sp=o.spec||bandSpec(band,dv.c);
   const osc=(dv.c.cfa_penalty&&!sp.narrow)?OSC_BB:1;
   const tot=PHOT_V0*Math.pow(10,-0.4*mag)*(dv.Aeff/100)
-            *specQE(dv,sp)*sp.T*(sp.fwhm*10)*sp.windows*osc;
+            *bandThroughput(dv,sp,'sky')*sp.windows*osc;
   const peak=Math.min(1,Math.pow(dv.scale0/Math.max(0.5,fwhm),2)*4*Math.LN2/Math.PI);
   return tot*peak;
 }

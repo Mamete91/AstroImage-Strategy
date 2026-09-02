@@ -18,7 +18,7 @@ let OWNED=DB.default_filters.slice();
 const ctx={DB,TG,CAT:CAT.objects,CITIES:CIT.cities,OWNED,console,Math,Date,Object,JSON,isFinite,parseFloat,Number,window:{}};
 const fn=new Function(...Object.keys(ctx), pure+`
   return {derive,refCfg,timeFactor,rates,varRate,factorValidated,skyRateFor,bandSpec,cfaFraction,
-          oscEfficiency,bayerDye,mosaicFrac,
+          oscEfficiency,bayerDye,mosaicFrac,bandThroughput,
           qeAt,interp,samplingVerdict,framing,nightProfile,
           altaz,lstDeg,toJD,parseCoords,
           sunPos,moonPos,moonIllum,sep,airmass,kExt,moonSkyV,nL2mag,moonPenalty,
@@ -331,9 +331,19 @@ console.log(`      stessa ottica, 1600MM  → ×${M.timeFactor(c1600,'OIII').toF
 const oscCam=DB.cameras.find(c=>c.id==='asi2600mc');
 console.log('      fotositi che raccolgono la riga: '+
   ['Ha','OIII','SII','RGB','L'].map(b=>b+' '+(M.cfaFraction(oscCam,b)*100).toFixed(0)+'%').join('  '));
-chk('l Ha cade solo sui pixel rossi, cioe un quarto della matrice',
-  M.cfaFraction(oscCam,'Ha')<0.35,true);
-chk('l OIII cade su verdi e blu, cioe tre quarti',M.cfaFraction(oscCam,'OIII')>0.6,true);
+/* AGGIORNATO v1.6. I valori della 2600MC vengono ora dalla carta QE per canale di
+   ZWO (letture di terzi a 656.3 / 500.7 / 672.4 nm) invece che da una derivazione a
+   mano su curve tipiche: Ha 0.29→0.357, OIII 0.71→0.641, SII 0.28→0.393. Verificati
+   contro il modello spettrale indipendente costruito su IMX219, che concorda entro
+   il 6%. Vedi docs/studio-osc.md e il blocco cfa_fraction_source nella scheda. */
+chk('l Ha cade soprattutto sui pixel rossi: circa un terzo della matrice',
+  M.cfaFraction(oscCam,'Ha')>0.30&&M.cfaFraction(oscCam,'Ha')<0.45,true,
+  M.cfaFraction(oscCam,'Ha').toFixed(3));
+chk('l OIII cade su verdi e blu: ben piu di un quarto',M.cfaFraction(oscCam,'OIII')>0.6,true);
+chk('e l OIII resta il piu favorito dei tre',
+  M.cfaFraction(oscCam,'OIII')>M.cfaFraction(oscCam,'Ha')&&
+  M.cfaFraction(oscCam,'OIII')>M.cfaFraction(oscCam,'SII'),true);
+chk('i valori dichiarano la propria fonte',!!oscCam.cfa_fraction_source,true);
 chk('e su una mono non c e nessuna matrice',M.cfaFraction(DB.cameras.find(c=>c.id==='asi2600mm'),'OIII'),1);
 chk('la frazione e dichiarata con la sua derivazione',!!oscCam.cfa_fraction_note,true);
 const rHa=M.timeFactor(oscRef,'Ha')/M.timeFactor(monoRef,'Ha');
@@ -1351,7 +1361,12 @@ const skyMos=M.skyRateFor(dvOsc,'L',sqm,{spec:r.sp,mosaic:true});     // media s
 console.log(`      cielo per fotosito ${skyPix.toFixed(4)}  ·  base mosaico ${skyMos.toFixed(4)}  ·  R_b ${r.R_b.toFixed(4)}`);
 chk('il cielo del mosaico non porta OSC_BB dentro di se',skyMos>skyPix,true);
 chk('R_b = base mosaico x eta, una volta sola',r.R_b,skyMos*r.oe.eta,1e-12);
-chk('e k usa la STESSA eta del cielo',r.k,M.qeAt(dvOsc.c,r.lam)*r.sp.T*r.oe.eta,1e-12);
+/* AGGIORNATO v1.6: k contiene ora anche la larghezza di banda, per un continuo.
+   La verifica resta la stessa nella sostanza — segnale e cielo passano per la
+   stessa eta e per la stessa funzione di throughput, quindi non possono divergere. */
+chk('e k usa la STESSA eta del cielo',r.k,M.bandThroughput(dvOsc,r.sp,'signal')*r.oe.eta,1e-12);
+chk('e la stessa funzione di throughput di segnale e cielo',
+  M.bandThroughput(dvOsc,r.sp,'signal'),M.bandThroughput(dvOsc,r.sp,'sky'),1e-12);
 /* Per la SATURAZIONE e la POSA serve invece il fotosito come lo leggi: li OSC_BB
    e al posto giusto e non va toccato. */
 chk('per pixel la normalizzazione resta quella del fotosito',skyPix<skyMos,true);

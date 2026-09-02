@@ -616,6 +616,20 @@ window.__SETUPS__={
       ],
       "full_well_note": "il campo full_well_e qui sopra e' un valore ereditato e non usato dal motore: per la posa fa fede gain_modes, dove il pozzetto e' dichiarato per modo di guadagno",
       "cfa_fraction": {
+        "Ha": 0.357,
+        "SII": 0.393,
+        "OIII": 0.641,
+        "HaOIII": 0.5,
+        "R": 0.29,
+        "G": 0.62,
+        "B": 0.3,
+        "L": 1.0,
+        "RGB": 0.62
+      },
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove).",
+      "cfa_response": "sony_bayer_generic",
+      "cfa_fraction_source": "Ha 0.357 · OIII 0.641 · SII 0.393 — ricavate dalla carta QE per canale della ASI2600MC (letture di terzi a 656.3 / 500.7 / 672.4 nm) con la definizione eta = (R + 2G + B)/4 / max(R,G,B). Verificate contro il modello spettrale indipendente costruito su IMX219: le due fonti concordano entro il 6% fra loro. Sostituiscono i valori 0.29 / 0.71 / 0.28, derivati a mano da curve tipiche di sensore, che sottostimavano Ha (-22%) e SII (-32%) e sopravvalutavano OIII (+11%). Le altre camere a matrice conservano i valori generici: per i loro sensori non esiste alcun dato per canale, e sostituirli con questi sarebbe trasferire una misura da un sensore a un altro senza titolo.",
+      "cfa_fraction_previous": {
         "Ha": 0.29,
         "SII": 0.28,
         "OIII": 0.71,
@@ -625,9 +639,7 @@ window.__SETUPS__={
         "B": 0.3,
         "L": 1.0,
         "RGB": 0.62
-      },
-      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove).",
-      "cfa_response": "sony_bayer_generic"
+      }
     },
     {
       "id": "asi294mm",
@@ -1822,23 +1834,38 @@ window.__SETUPS__={
       "band": "L",
       "lambda_nm": 550.0,
       "fwhm_nm": 300.0,
-      "peak_t": 0.95
+      "peak_t": 0.95,
+      "range_nm": [
+        400,
+        700
+      ],
+      "range_source": "intervalli ricavati dalla curva di trasmissione pubblicata da Optolong per il set LRGB. NON sono FWHM certificate: sono i bordi a cui la curva sale e scende, letti sul grafico. Il motore li usa come larghezza equivalente rettangolare, che e' l'approssimazione coerente con il resto della fotometria (anche i filtri a banda stretta entrano cosi'). Optolong dichiara inoltre il rapporto RGB 1:1:1, ed e' quello che il motore usa per ripartire il tempo."
     },
     {
       "id": "red",
       "name": "Rosso R",
       "band": "R",
-      "lambda_nm": 630.0,
-      "fwhm_nm": 90.0,
-      "peak_t": 0.95
+      "lambda_nm": 645.0,
+      "fwhm_nm": 110.0,
+      "peak_t": 0.95,
+      "range_nm": [
+        590,
+        700
+      ],
+      "range_source": "intervalli ricavati dalla curva di trasmissione pubblicata da Optolong per il set LRGB. NON sono FWHM certificate: sono i bordi a cui la curva sale e scende, letti sul grafico. Il motore li usa come larghezza equivalente rettangolare, che e' l'approssimazione coerente con il resto della fotometria (anche i filtri a banda stretta entrano cosi'). Optolong dichiara inoltre il rapporto RGB 1:1:1, ed e' quello che il motore usa per ripartire il tempo."
     },
     {
       "id": "grn",
       "name": "Verde G",
       "band": "G",
-      "lambda_nm": 535.0,
-      "fwhm_nm": 90.0,
-      "peak_t": 0.95
+      "lambda_nm": 540.0,
+      "fwhm_nm": 80.0,
+      "peak_t": 0.95,
+      "range_nm": [
+        500,
+        580
+      ],
+      "range_source": "intervalli ricavati dalla curva di trasmissione pubblicata da Optolong per il set LRGB. NON sono FWHM certificate: sono i bordi a cui la curva sale e scende, letti sul grafico. Il motore li usa come larghezza equivalente rettangolare, che e' l'approssimazione coerente con il resto della fotometria (anche i filtri a banda stretta entrano cosi'). Optolong dichiara inoltre il rapporto RGB 1:1:1, ed e' quello che il motore usa per ripartire il tempo."
     },
     {
       "id": "blu",
@@ -1846,7 +1873,12 @@ window.__SETUPS__={
       "band": "B",
       "lambda_nm": 465.0,
       "fwhm_nm": 90.0,
-      "peak_t": 0.95
+      "peak_t": 0.95,
+      "range_nm": [
+        420,
+        510
+      ],
+      "range_source": "intervalli ricavati dalla curva di trasmissione pubblicata da Optolong per il set LRGB. NON sono FWHM certificate: sono i bordi a cui la curva sale e scende, letti sul grafico. Il motore li usa come larghezza equivalente rettangolare, che e' l'approssimazione coerente con il resto della fotometria (anche i filtri a banda stretta entrano cosi'). Optolong dichiara inoltre il rapporto RGB 1:1:1, ed e' quello che il motore usa per ripartire il tempo."
     },
     {
       "id": "uvir",
@@ -2113,7 +2145,8 @@ window.__SETUPS__={
       8.6,
       9
     ]
-  }
+  },
+  "lrgb_note": "Il set LRGB e' un insieme SEQUENZIALE: le ore della banda RGB si dividono fra R, G e B secondo il rapporto dichiarato 1:1:1, e in ogni istante la camera raccoglie attraverso UN filtro. La luminanza NON e' un quarto canale RGB: e' una banda a se', con la sua riga di budget e la sua larghezza."
 };
 window.__TARGETS__={
   "schema_version": "1.0",
@@ -8310,7 +8343,14 @@ function rates(dv,band,sqm){
   const oe=oscEfficiency(dv.c,band,sp);
   const cfa=oe.eta;
   const osc=1;                                   // assorbito in oe: non si moltiplica piu'
-  const k=qeAt(dv.c,lam)*sp.T*cfa;
+  /* CORRETTO 2026-09 (v1.6). Prima era  k = qeAt x T x eta,  senza la larghezza di
+     banda — mentre il cielo la conteneva. Per una RIGA e' giusto cosi'; per un
+     CONTINUO no, e la differenza non si semplifica quando le due configurazioni
+     usano larghezze diverse. Un mono riprende RGB con un filtro da ~90 nm, una
+     matrice con una finestra da 250: 2.78x che finiva tutto sul cielo e niente sul
+     segnale. La larghezza ora entra da bandThroughput(), dalla stessa funzione e
+     con la stessa convenzione del fondo, cosi' le due non possono divergere. */
+  const k=bandThroughput(dv,sp,'signal')*cfa;
   /* Dove il modello NON e' validato lo dichiara, invece di restituire un numero
      sicuro di se'. Banda larga su matrice: OSC_BB e f_CFA si sovrappongono. Per L
      la scheda dichiara f_CFA=1.00 e il conto e' pulito (il fattore ~8.8x della 2600MC
@@ -9252,11 +9292,53 @@ function bandSpec(band,cam){
               dual:true,narrow:f.fwhm_nm<50,windows:cam.cfa_penalty?1:lines.length};
     }
   }
+  /* RGB su MONOCROMATICA non e' una banda sola: e' un insieme SEQUENZIALE di tre
+     filtri, e in ogni istante la camera raccoglie attraverso UNO di essi. Le ore
+     della banda si dividono secondo il rapporto dichiarato dal costruttore —
+     Optolong dichiara 1:1:1 — e il tasso medio sul totale della banda e' la media
+     pesata dei tre. Prima il motore usava il solo filtro VERDE come procura per
+     tutti e tre: una scelta ragionevole finche' la larghezza non entrava nel
+     conto, e sbagliata da quando ci entra (il rosso e' 110 nm, il verde 80).
+     Su una camera a MATRICE questo non si applica: li' la posa e' una sola e
+     larga, e a separare i colori e' il mosaico — se ne occupa oscEfficiency(). */
+  if(band==='RGB'&&!cam.cfa_penalty){
+    const subs=['R','G','B'].map(b=>{const ff=filterFor(b,cam); return ff?{
+      band:b,lam:ff.lambda_nm!=null?ff.lambda_nm:(BAND_LAMBDA[b]||550),
+      fwhm:ff.fwhm_nm,T:ff.peak_t!=null?ff.peak_t:0.9,filter:ff,
+      w:(ff.time_share!=null?ff.time_share:1)}:null;}).filter(Boolean);
+    if(subs.length===3){
+      const ws=subs.reduce((a,x)=>a+x.w,0);
+      return {lines:subs.map(x=>x.lam),
+              fwhm:subs.reduce((a,x)=>a+x.w*x.fwhm,0)/ws,      // larghezza media pesata
+              T:subs.reduce((a,x)=>a+x.w*x.T,0)/ws,
+              filter:subs[1].filter,sub:subs,dual:false,narrow:false,windows:1,
+              composite:'sequenziale 1:1:1'};
+    }
+  }
   const f=filterFor(band,cam);
   const w=f?f.fwhm_nm:BB_NM;
   return {lines:[BAND_LAMBDA[band]||550],fwhm:w,
           T:f?(f.peak_t!=null?f.peak_t:0.9):0.97,filter:f||null,
           dual:false,narrow:w<50,windows:1};
+}
+/* Il prodotto spettrale della banda: QE(lambda) x T_filtro x larghezza, mediato
+   sulle sotto-bande quando la banda e' composita e sequenziale.
+   La distinzione che conta, e che il motore non faceva:
+     - il FONDO CIELO e' un continuo, e scala sempre con la larghezza;
+     - il SEGNALE scala con la larghezza solo se anch'esso e' un continuo. Su una
+       RIGA no: un filtro da 3 nm e uno da 7 nm raccolgono lo stesso Ha, e cambia
+       solo quanto cielo ci entra dentro. E' esattamente il motivo per cui la banda
+       stretta funziona, e il motivo per cui questa correzione non la tocca. */
+function bandThroughput(dv,sp,kind){
+  const subs=sp.sub||[{lam:sp.lines[0],fwhm:sp.fwhm,T:sp.T,w:1}];
+  const line=(kind==='signal')&&sp.narrow;
+  let tot=0,wsum=0;
+  for(const x of subs){
+    const w=x.w!=null?x.w:1;
+    tot+=w*qeAt(dv.c,x.lam)*x.T*(line?1:x.fwhm*10);   // larghezza in angstrom
+    wsum+=w;
+  }
+  return wsum>0?tot/wsum:0;
 }
 const specQE=(dv,sp)=>sp.lines.reduce((a,l)=>a+qeAt(dv.c,l),0)/sp.lines.length;
 
@@ -9278,7 +9360,7 @@ function skyRateFor(dv,band,sqm,opts){
   const sp=o.spec||bandSpec(band,dv.c);
   const osc=(o.mosaic||!dv.c.cfa_penalty||sp.narrow)?1:OSC_BB;
   return PHOT_V0*Math.pow(10,-0.4*sqm)*(dv.Aeff/100)*Math.pow(dv.scale,2)
-         *specQE(dv,sp)*sp.T*(sp.fwhm*10)*sp.windows*osc;
+         *bandThroughput(dv,sp,'sky')*sp.windows*osc;
 }
 /* Elettroni al secondo nel pixel centrale di una stella di magnitudine V=m.
    Qui il binning NON aiuta: a saturare è il fotosito vero, e il fotosito vero
@@ -9289,7 +9371,7 @@ function starPeakRate(dv,band,mag,fwhm,opts){
   const sp=o.spec||bandSpec(band,dv.c);
   const osc=(dv.c.cfa_penalty&&!sp.narrow)?OSC_BB:1;
   const tot=PHOT_V0*Math.pow(10,-0.4*mag)*(dv.Aeff/100)
-            *specQE(dv,sp)*sp.T*(sp.fwhm*10)*sp.windows*osc;
+            *bandThroughput(dv,sp,'sky')*sp.windows*osc;
   const peak=Math.min(1,Math.pow(dv.scale0/Math.max(0.5,fwhm),2)*4*Math.LN2/Math.PI);
   return tot*peak;
 }
