@@ -106,7 +106,8 @@
         "L": 1.0,
         "RGB": 0.62
       },
-      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove).",
+      "cfa_response": "sony_bayer_generic"
     },
     {
       "id": "asi294mm",
@@ -142,7 +143,8 @@
         "L": 1.0,
         "RGB": 0.62
       },
-      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove).",
+      "cfa_response": "sony_bayer_generic"
     },
     {
       "id": "asi533mm",
@@ -177,7 +179,8 @@
         "L": 1.0,
         "RGB": 0.62
       },
-      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove).",
+      "cfa_response": "sony_bayer_generic"
     },
     {
       "id": "asi6200mm",
@@ -212,7 +215,8 @@
         "L": 1.0,
         "RGB": 0.62
       },
-      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove).",
+      "cfa_response": "sony_bayer_generic"
     },
     {
       "id": "asi1600mm",
@@ -258,7 +262,8 @@
         "L": 1.0,
         "RGB": 0.62
       },
-      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove).",
+      "cfa_response": "sony_bayer_generic"
     },
     {
       "id": "asi071mc",
@@ -282,7 +287,8 @@
         "L": 1.0,
         "RGB": 0.62
       },
-      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove).",
+      "cfa_response": "sony_bayer_generic"
     },
     {
       "id": "asi2400mc",
@@ -306,7 +312,8 @@
         "L": 1.0,
         "RGB": 0.62
       },
-      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove).",
+      "cfa_response": "sony_bayer_generic"
     },
     {
       "id": "qhy268m",
@@ -352,7 +359,8 @@
         "L": 1.0,
         "RGB": 0.62
       },
-      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove).",
+      "cfa_response": "sony_bayer_generic"
     },
     {
       "id": "dslr_ff",
@@ -376,7 +384,8 @@
         "L": 1.0,
         "RGB": 0.62
       },
-      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove).",
+      "cfa_response": "sony_bayer_generic"
     }
   ],
   "cameras_note": "Le camere con 'qe_peak' invece della curva completa usano una forma CMOS retroilluminata tipica normalizzata su quel picco: errore di qualche punto percentuale, ben sotto l'incertezza sul dato dell'oggetto. Read noise ai gain di uso comune. Tutti i valori sono modificabili dall'interfaccia. | gain_modes: modi di guadagno usati SOLO dal calcolo della posa (sommersione del rumore di lettura e saturazione stellare). Non entrano nei fattori di tempo ne' in nessun'altra parte del motore.",
@@ -1493,5 +1502,96 @@
     "ha7",
     "lult",
     "idas"
-  ]
+  ],
+  "cfa_response": {
+    "id": "sony_bayer_generic",
+    "note": "Trasmissione dei coloranti di una matrice di Bayer RGGB, normalizzazione COMUNE fra i tre canali (scala 0-100). Serve a calcolare UNA sola grandezza: la frazione di segnale che il mosaico raccoglie rispetto al canale migliore — cioe' quello che mostra la curva QE pubblicata. In banda stretta quella frazione e' cfa_fraction; in banda larga e' il suo integrale pesato sulla banda. Sono la STESSA cosa, ed e' il motivo per cui OSC_BB e cfa_fraction non vanno mai moltiplicati fra loro.",
+    "source": "Sony IMX219 digitalizzata a normalizzazione comune (bluegreen-labs/raspberry_pi_camera_responses, 400-700 nm passo 1 nm). E' l'unica base pubblica trovata che conservi il rapporto FRA i canali: quasi tutti i database normalizzano ogni canale a 1 e distruggono proprio quell'informazione. Per IMX571/455/533/294/183 a colori curve per canale pubbliche NON esistono — verificato sui flyer Sony (nessuna figura spettrale, datasheet completi sotto NDA), su ZWO/QHY (nessun dato tracciabile) e in letteratura (ogni misura pubblicata e' del sensore mono).",
+    "validation": "Verificato contro letture di terzi della carta ZWO ASI2600MC (IMX571) a 656.3, 500.7 e 672.4 nm: il VERDE — che pesa doppio nel mosaico — concorda entro il 7% su tutte e tre le righe. Il BLU e' 1.5-1.7x piu' alto nell'IMX219, atteso per un sensore nudo da telefono contro una camera astronomica. Contro le due curve ZWO mono/colore l'accordo e' ottimo fra 500 e 600 nm (-1%, +1%, -7%) e degrada nel rosso (+26% a 656 nm, +44% a 672 nm): il colorante rosso dell'IMX219 cade piu' in fretta di quello dell'IMX571, oppure la carta ZWO e' ottimista. E' il limite onesto del trapianto.",
+    "domain": "banda LARGA: +-6% sulla fuga nel rosso, +-3% sullo spettro della sorgente -> AFFIDABILE. banda stretta nel VERDE (OIII): +-2% -> AFFIDABILE. banda stretta nel ROSSO (Ha, SII): +-35-40%, dominata da un parametro non misurato per questi sensori -> NON affidabile, e infatti li' vince il dato dichiarato in cfa_fraction.",
+    "grid_nm": [
+      400,
+      430,
+      440,
+      457,
+      477,
+      483,
+      500.7,
+      504,
+      521,
+      530,
+      560,
+      582,
+      595,
+      597,
+      600,
+      620,
+      656.3,
+      672.4,
+      700
+    ],
+    "R": [
+      1.5,
+      1.2,
+      1.1,
+      1.0,
+      1.1,
+      1.2,
+      6.39,
+      7.5,
+      12,
+      18,
+      42,
+      62,
+      90,
+      97.19,
+      96,
+      92,
+      68.73,
+      59.53,
+      44
+    ],
+    "G": [
+      6,
+      16,
+      22,
+      34,
+      49.73,
+      57,
+      93.8,
+      94,
+      99.46,
+      97,
+      88,
+      62,
+      49.73,
+      46,
+      42,
+      22,
+      13.38,
+      15.23,
+      16
+    ],
+    "B": [
+      66,
+      80,
+      80.5,
+      83.12,
+      66,
+      57,
+      46.23,
+      41.56,
+      30,
+      22,
+      12,
+      8.5,
+      7.9,
+      7.8,
+      7.6,
+      7.4,
+      7.31,
+      8.6,
+      9
+    ]
+  }
 }

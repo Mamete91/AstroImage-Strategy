@@ -89,6 +89,12 @@ console.log(`
   NON scelgo un numero nuovo. Serve ricostruire il conto per canale
   (integrale di QE_c x T su ciascuna banda, mediato sui 4 fotositi) e confrontarlo
   con la forma attuale. E' un lavoro con la sua verifica.
+
+  >>> CHIUSO IN v1.5 — vedi docs/studio-osc.md. Erano la STESSA grandezza valutata
+  >>> a una riga oppure integrata su una banda, e per questo moltiplicarle era
+  >>> sempre un errore. Una sola funzione, oscEfficiency(), le sostituisce entrambe.
+  >>> Banda larga: modello spettrale, +-6%. Banda stretta: vince il dato dichiarato.
+  >>> Questo modulo resta com'era: e' il verbale della validazione v1.4.
 `);
 {const dv=D('askar71f',0.75,'asi2600mc');
  console.log('  '+P('banda',8)+P('narrow',9)+P('f_CFA',8)+P('OSC_BB',9)+P('prodotto',10)+P('stato',22));

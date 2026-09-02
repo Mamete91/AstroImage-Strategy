@@ -18,6 +18,7 @@ let OWNED=DB.default_filters.slice();
 const ctx={DB,TG,CAT:CAT.objects,CITIES:CIT.cities,OWNED,console,Math,Date,Object,JSON,isFinite,parseFloat,Number,window:{}};
 const fn=new Function(...Object.keys(ctx), pure+`
   return {derive,refCfg,timeFactor,rates,varRate,factorValidated,skyRateFor,bandSpec,cfaFraction,
+          oscEfficiency,bayerDye,mosaicFrac,
           qeAt,interp,samplingVerdict,framing,nightProfile,
           altaz,lstDeg,toJD,parseCoords,
           sunPos,moonPos,moonIllum,sep,airmass,kExt,moonSkyV,nL2mag,moonPenalty,
@@ -666,14 +667,13 @@ console.log(`      OSC: critico ${critOsc.id} ${critOsc.hours.toFixed(1)}h su ${
 chk('il canale critico non resta schiacciato da un canale additivo piu costoso',
   addOsc.every(g=>critOsc.hours>=critOsc.floor-1e-9),true);
 chk('il canale critico ha la precedenza sul budget',critOsc.hours>0,true);
-/* Su matrice di Bayer in banda LARGA il modello e dichiarato NON VALIDATO
-   (OSC_BB e f_CFA si sovrappongono su RGB: 0.62 x 0.34 conta due volte la stessa
-   perdita). Il motore non aggiusta il numero: lo marca. */
+/* Il ramo OSC in banda larga NON e piu un ramo morto: dalla v1.5 lo copre il
+   modello di risposta spettrale della matrice, che sostituisce OSC_BB e toglie
+   il doppio conteggio su RGB. Vedi docs/studio-osc.md. */
 console.log(`      validazione per banda su 2600MC: `+
   ['Ha','OIII','SII','L','RGB'].map(b=>b+':'+(M.factorValidated(dvM31osc,b)?'si':'NO')).join(' '));
-chk('la banda stretta su OSC e validata',
-  ['Ha','OIII','SII'].every(b=>M.factorValidated(dvM31osc,b)),true);
-chk('RGB su OSC e dichiarato non validato',M.factorValidated(dvM31osc,'RGB'),false);
+chk('ogni banda su OSC ha ora una stima con confidenza dichiarata',
+  ['Ha','OIII','SII','L','RGB'].every(b=>M.factorValidated(dvM31osc,b)),true);
 chk('su camera mono tutto e validato',
   ['Ha','OIII','SII','L','RGB'].every(b=>M.factorValidated(dvM31mono,b)),true);
 
@@ -1261,6 +1261,105 @@ chk('il vecchio comportamento e rimosso: 15 h non sono piu insufficienti',15>flo
 chk('le 8 h reali superano il pavimento del modello',8>floor,true);
 chk('e restano sotto l utile: livello «ridotto», non «pieno»',8<useful,true);
 chk('il pavimento non e sceso sotto meta del risultato reale',floor>4,true);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RISPOSTA SPETTRALE DELLA MATRICE DI BAYER  (docs/studio-osc.md)
+   ═══════════════════════════════════════════════════════════════════════════ */
+console.log('\n--- matrice di Bayer: il modello contro i dati indipendenti ---');
+{
+const mc=DB.cameras.find(c=>c.id==='asi2600mc');
+const mm=DB.cameras.find(c=>c.id==='asi2600mm');
+/* Le curve per canale di IMX571/455/533/294/183 a colori NON esistono pubbliche.
+   Il modello viene da IMX219 (unica base pubblica a normalizzazione COMUNE fra
+   canali) e si verifica contro letture di terzi della carta ZWO ASI2600MC. */
+const ZWO={656.3:{R:0.82,G:0.15,B:0.05},500.7:{R:0.03,G:0.94,B:0.50},672.4:{R:0.75,G:0.18,B:0.07}};
+chk('il modello di matrice e caricato dai dati',M.mosaicFrac(550)!=null,true);
+let gOK=true, gWorst=0;
+for(const [lam,z] of Object.entries(ZWO)){
+  const R=M.bayerDye('R',+lam),G=M.bayerDye('G',+lam),B=M.bayerDye('B',+lam);
+  const mx=Math.max(R,G,B), zx=Math.max(z.R,z.G,z.B);
+  const d=Math.abs((G/mx)/(z.G/zx)-1); gWorst=Math.max(gWorst,d);
+  if(d>0.15) gOK=false;
+}
+console.log(`      verde: scarto massimo contro le letture ZWO ${(100*gWorst).toFixed(0)}%`);
+/* Il verde e cio che conta: pesa DOPPIO nel mosaico RGGB. Il blu e sistematicamente
+   piu alto nell IMX219 (sensore nudo da telefono) ed e il parametro debole. */
+chk('il canale verde concorda con la carta ZWO entro il 15%',gOK,true);
+const zEta=l=>{const z=ZWO[l];return (z.R+2*z.G+z.B)/4/Math.max(z.R,z.G,z.B);};
+console.log(`      eta a OIII: modello ${M.mosaicFrac(500.7).toFixed(3)}  ZWO ${zEta(500.7).toFixed(3)}`);
+chk('eta a OIII concorda con la carta ZWO entro il 5%',
+  Math.abs(M.mosaicFrac(500.7)/zEta(500.7)-1)<0.05,true);
+/* La definizione e UNA sola: mosaico/migliore. Su una riga e cfa_fraction,
+   su una banda e il suo integrale. Non sono due correzioni da moltiplicare. */
+chk('mosaico = (R + 2G + B)/4 diviso il canale migliore',
+  M.mosaicFrac(500.7),
+  (M.bayerDye('R',500.7)+2*M.bayerDye('G',500.7)+M.bayerDye('B',500.7))/4/
+    Math.max(M.bayerDye('R',500.7),M.bayerDye('G',500.7),M.bayerDye('B',500.7)),1e-12);
+}
+
+console.log('\n--- matrice di Bayer: precedenza, dominio e ripiego ---');
+{
+const mc=DB.cameras.find(c=>c.id==='asi2600mc');
+const mm=DB.cameras.find(c=>c.id==='asi2600mm');
+const oe=b=>M.oscEfficiency(mc,b,M.bandSpec(b,mc));
+console.log('      '+['Ha','OIII','SII','L','RGB'].map(b=>
+  `${b} ${oe(b).eta.toFixed(3)} (${oe(b).src.split(' ')[0]})`).join('  ·  '));
+/* Chi ha il DATO vince sul modello — la stessa regola con cui il catalogo curato
+   vince su OpenNGC. In banda stretta cfa_fraction e misurato sulle curve del
+   sensore e resta al comando; il modello si calcola per il confronto. */
+for(const b of ['Ha','OIII','SII']){
+  chk('banda stretta '+b+': vince il dato dichiarato',oe(b).eta,mc.cfa_fraction[b],1e-12);
+  chk('  e il modello resta disponibile per il confronto',oe(b).model!=null,true);
+}
+/* In banda larga il dato dichiarato conteneva il doppio conteggio (RGB 0.62 che
+   veniva poi moltiplicato per OSC_BB 0.34): li vince il modello. */
+chk('banda larga L: vince il modello',oe('L').src,'modello spettrale');
+chk('banda larga RGB: vince il modello',oe('RGB').src,'modello spettrale');
+chk('e NON e piu il prodotto dichiarato x OSC_BB',
+  Math.abs(oe('RGB').eta-0.62*0.34)>0.1,true);
+console.log(`      RGB: modello ${oe('RGB').eta.toFixed(3)}  contro il vecchio 0.62 x 0.34 = ${(0.62*0.34).toFixed(3)}`);
+/* Il dominio di validita e dichiarato per regione, non "validato/non validato":
+   la banda stretta nel rosso e il punto fragile, non la banda larga. */
+chk('OIII dichiara confidenza alta',/alta/.test(oe('OIII').conf),true);
+chk('Ha dichiara l incertezza sulla fuga nel rosso',/35%/.test(oe('Ha').conf),true);
+chk('la banda larga dichiara la propria confidenza',/±6%/.test(oe('L').conf),true);
+// mono: nessuna correzione, ed e esatta
+const oeM=M.oscEfficiency(mm,'L',M.bandSpec('L',mm));
+chk('su camera mono eta = 1 esatto',oeM.eta,1,1e-15);
+chk('e dichiarata esatta',oeM.conf,'esatta');
+// ripiego: senza il blocco dati si torna a OSC_BB, dichiarato
+const keep=DB.cfa_response; delete DB.cfa_response;
+const fb=M.oscEfficiency(mc,'L',M.bandSpec('L',mc));
+console.log(`      senza dati di matrice: eta ${fb.eta.toFixed(3)} — ${fb.src}`);
+chk('senza dati di matrice si ripiega su OSC_BB',fb.src,'ripiego OSC_BB');
+chk('e il ripiego si dichiara non validato',/non validata/.test(fb.conf),true);
+DB.cfa_response=keep;
+chk('e ripristinando i dati si torna al modello',
+  M.oscEfficiency(mc,'L',M.bandSpec('L',mc)).src,'modello spettrale');
+}
+
+console.log('\n--- matrice di Bayer: una sola correzione, mai due ---');
+{
+const dvOsc=M.derive({tel:'askar71f',red:0.75,cam:'asi2600mc',mnt:'am5',bin:1});
+const sqm=DB.reference_config.sqm_zenith;
+/* Il difetto strutturale da cui parte tutto: la stessa perdita applicata due
+   volte. Segnale e cielo devono passare per la STESSA efficienza. */
+const r=M.rates(dvOsc,'L',sqm);
+const skyPix=M.skyRateFor(dvOsc,'L',sqm,{spec:r.sp});                 // per fotosito
+const skyMos=M.skyRateFor(dvOsc,'L',sqm,{spec:r.sp,mosaic:true});     // media sul mosaico
+console.log(`      cielo per fotosito ${skyPix.toFixed(4)}  ·  base mosaico ${skyMos.toFixed(4)}  ·  R_b ${r.R_b.toFixed(4)}`);
+chk('il cielo del mosaico non porta OSC_BB dentro di se',skyMos>skyPix,true);
+chk('R_b = base mosaico x eta, una volta sola',r.R_b,skyMos*r.oe.eta,1e-12);
+chk('e k usa la STESSA eta del cielo',r.k,M.qeAt(dvOsc.c,r.lam)*r.sp.T*r.oe.eta,1e-12);
+/* Per la SATURAZIONE e la POSA serve invece il fotosito come lo leggi: li OSC_BB
+   e al posto giusto e non va toccato. */
+chk('per pixel la normalizzazione resta quella del fotosito',skyPix<skyMos,true);
+// la banda stretta non e toccata da nulla di tutto questo
+const rn=M.rates(dvOsc,'OIII',sqm);
+chk('in banda stretta le due normalizzazioni coincidono',
+  M.skyRateFor(dvOsc,'OIII',sqm,{spec:rn.sp}),
+  M.skyRateFor(dvOsc,'OIII',sqm,{spec:rn.sp,mosaic:true}),1e-15);
 }
 
 console.log(`\n${pass} verifiche superate, ${fail} fallite\n`);

@@ -712,6 +712,96 @@ function refCfg(){
    proprieta' del telescopio ma della strategia di acquisizione, e va calcolato
    con la posa che il planner usa davvero. Vive nello strato EFFICIENCY e riceve
    t_posa da OPERATIONS. */
+/* ── RISPOSTA SPETTRALE DI UNA MATRICE DI BAYER ───────────────────────────
+   Introdotto 2026-09, vedi docs/studio-osc.md.
+
+   Prima c'erano DUE correzioni moltiplicate fra loro:
+     f_CFA    "quanti fotositi raccolgono questa RIGA"      (per banda stretta)
+     OSC_BB   "un fotosito colorato vede ~1/3 dello spettro" (per banda larga)
+   Non sono due grandezze: sono la STESSA, valutata a una riga oppure integrata
+   su una banda. Moltiplicarle contava due volte la stessa perdita, ed e' il
+   motivo per cui RGB su OSC dava 0.62 x 0.34 = 0.21 e un fattore di tempo assurdo.
+
+   Una sola definizione, valida in entrambi i regimi:
+
+       eta(banda) = <mosaico> / <canale migliore>,  pesato su S(lam)*T_filtro(lam)
+       mosaico    = (T_R + 2*T_G + T_B)/4          RGGB: 1 rosso, 2 verdi, 1 blu
+       migliore   = max(T_R,T_G,T_B)               cio' che mostra la curva pubblicata
+
+   Su una riga si riduce esattamente a cfa_fraction. Su una banda larga da'
+   l'integrale, che al posto di 0.34 vale ~0.48: 0.34 era il valore a crosstalk
+   ZERO — (1/4 rosso + 1/2 verde + 1/4 blu)/3 = 0.333 — e la fuga fra canali,
+   misurata, lo alza del 40%.
+
+   DOMINIO DI VALIDITA', misurato (docs/studio-osc.md §5):
+     banda larga            +-6% sulla fuga, +-3% sullo spettro  -> si usa il modello
+     banda stretta, verde   +-2%                                 -> concorda col dato
+     banda stretta, rosso   +-35-40%                             -> vince il dato dichiarato
+   Il parametro debole e' la coda rossa di verde e blu, che fra sensori reali varia
+   di quasi due ordini di grandezza e per questi sensori non e' misurata. In banda
+   larga e' una perturbazione piccola su un segnale grande; sull'Ha e' TUTTO il
+   contributo di verde e blu, ed e' per questo che li' il modello non decide. */
+function bayerDye(ch,lam){
+  const r=DB.cfa_response; if(!r) return null;
+  const g=r.grid_nm, y=r[ch];
+  if(lam<=g[0]) return y[0]/100;
+  if(lam>=g[g.length-1]) return y[y.length-1]/100;
+  for(let i=1;i<g.length;i++) if(lam<=g[i])
+    return (y[i-1]+(y[i]-y[i-1])*(lam-g[i-1])/(g[i]-g[i-1]))/100;
+  return null;
+}
+function mosaicFrac(lam){
+  const R=bayerDye('R',lam),G=bayerDye('G',lam),B=bayerDye('B',lam);
+  if(R==null) return null;
+  const best=Math.max(R,G,B);
+  return best>0 ? (R+2*G+B)/4/best : null;
+}
+/* L'efficienza del mosaico per una banda, con la sua confidenza dichiarata.
+   Regola di precedenza: chi ha il DATO vince sul modello — la stessa regola che
+   il catalogo curato usa contro OpenNGC. In banda stretta il dato dichiarato in
+   cfa_fraction e' misurato sulle curve del sensore e resta al comando; il modello
+   si calcola comunque, per poterlo confrontare nella diagnostica. */
+function oscEfficiency(cam,band,sp){
+  if(!cam.cfa_penalty) return {eta:1,src:'mono',conf:'esatta',model:null,declared:null};
+  const decl=(cam.cfa_fraction&&cam.cfa_fraction[band]!=null)?cam.cfa_fraction[band]:null;
+  if(sp.narrow){
+    const lam=sp.lines[0], model=mosaicFrac(lam);
+    const green=lam>=470&&lam<=580;                 // dove il modello e' solido
+    if(decl!=null) return {eta:decl,src:'dato dichiarato',model,declared:decl,
+      conf:green?'alta (±5%)':'media (±35%: la fuga nel rosso non e misurata su questo sensore)'};
+    if(model!=null) return {eta:model,src:'modello spettrale',model,declared:null,
+      conf:green?'alta (±5%)':'bassa (±35%)'};
+    return {eta:cfaLegacy(cam,band),src:'regola di ripiego',model:null,declared:null,conf:'bassa'};
+  }
+  /* Banda larga: l'integrale sulla banda. Il motore modella il tasso come
+       QE_pubblicata(lam_eff) x T_filtro x larghezza x eta
+     mentre il vero conto e'
+       integrale[ QE_mono(lam) x T_filtro(lam) x mosaico(lam) ] dlam
+     Poiche' la curva pubblicata di una OSC E' QE_mono x colorante_migliore, si ha
+     QE_mono(lam) = QE_pub(lam)/migliore(lam), e quindi
+
+       eta = < QE_pub(lam) x mosaico(lam)/migliore(lam) >_banda  /  QE_pub(lam_eff)
+
+     cioe' la media della frazione di mosaico PESATA PER LA QE della camera stessa,
+     riportata al punto in cui il motore valuta la curva. Nessun dato esterno. */
+  const le=sp.lines[0];
+  const lo=Math.max(380,le-sp.fwhm/2), hi=Math.min(720,le+sp.fwhm/2);
+  let num=0,w=0,ok=true;
+  for(let l=lo;l<=hi;l+=2){
+    const fr=mosaicFrac(l); if(fr==null){ok=false;break;}
+    const q=qeAt(cam,l); num+=q*fr; w+=1;
+  }
+  const qe0=qeAt(cam,le);
+  if(ok&&w>0&&qe0>0){
+    const eta=(num/w)/qe0;
+    return {eta,src:'modello spettrale',model:eta,declared:decl,
+      conf:'media-alta (±6%): in banda larga la fuga fra canali e una correzione piccola'};
+  }
+  return {eta:OSC_BB,src:'ripiego OSC_BB',model:null,declared:decl,conf:'bassa (non validata)'};
+}
+/* La vecchia regola, quando manca tutto. Documentata, non cancellata. */
+const cfaLegacy=(cam,band)=>['OIII','B','Ha','SII','R'].includes(band)?0.25:0.5;
+
 /* I quattro tassi, in un posto solo. Per pixel quelli strumentali, per arcsec²
    quelli che vengono dal cielo — la conversione e' l'unico punto in cui la scala
    del pixel tocca la fotometria.
@@ -724,15 +814,12 @@ function refCfg(){
      RN       e- RMS per lettura del pixel binnato */
 function rates(dv,band,sqm){
   const sp=bandSpec(band,dv.c), lam=sp.lines[0]||BAND_LAMBDA[band]||550;
-  const cfa=cfaFraction(dv.c,band);
-  /* OSC_BB corregge la BANDA (un fotosito colorato vede circa un terzo dello
-     spettro), f_CFA corregge il NUMERO di fotositi che raccolgono una RIGA. In
-     banda stretta non si toccano. In banda larga si sovrappongono: vedi §F del
-     gate — il caso RGB su OSC e' dichiarato NON VALIDATO e non va usato per
-     convalidare nulla. Qui il fattore si applica identico a segnale e cielo,
-     perche' misurarli con due efficienze diverse era un errore. */
-  const osc=(dv.c.cfa_penalty&&!sp.narrow)?OSC_BB:1;
-  const k=qeAt(dv.c,lam)*sp.T*cfa*osc;
+  /* UNA sola correzione di mosaico, non due moltiplicate. Vale identica su
+     segnale e cielo: misurarli con efficienze diverse era un errore. */
+  const oe=oscEfficiency(dv.c,band,sp);
+  const cfa=oe.eta;
+  const osc=1;                                   // assorbito in oe: non si moltiplica piu'
+  const k=qeAt(dv.c,lam)*sp.T*cfa;
   /* Dove il modello NON e' validato lo dichiara, invece di restituire un numero
      sicuro di se'. Banda larga su matrice: OSC_BB e f_CFA si sovrappongono. Per L
      la scheda dichiara f_CFA=1.00 e il conto e' pulito (il fattore ~8.8x della 2600MC
@@ -740,11 +827,11 @@ function rates(dv,band,sqm){
      su ogni fotosito, una OSC un terzo). Per RGB la scheda dichiara 0.62 e
      0.62x0.34=0.21 conta due volte la stessa perdita. NON si sceglie qui un numero
      nuovo: si dichiara il ramo non validato e lo si dice in interfaccia. */
-  const validated=!(dv.c.cfa_penalty&&!sp.narrow&&cfa<0.999);
-  return {sp,lam,cfa,osc,k,validated,
+  const validated=oe.conf.indexOf('bassa')!==0&&oe.conf.indexOf('non valid')<0;
+  return {sp,lam,cfa,osc,k,validated,oe,
     om:dv.scale*dv.scale,                                   // arcsec²/px
     collect:(dv.Aeff/100)*k,                                // cm² adimensionalizzati
-    R_b:skyRateFor(dv,band,sqm,{spec:sp})*cfa,              // e-/px/s
+    R_b:skyRateFor(dv,band,sqm,{spec:sp,mosaic:true})*cfa,  // e-/px/s, media sul mosaico
     R_d:(dv.c.dark_e_s||0)*dv.bin*dv.bin,                   // e-/px/s
     RN :dv.rnEff||dv.c.read_noise_e||0};                    // e- per lettura
 }
@@ -1686,10 +1773,19 @@ const specQE=(dv,sp)=>sp.lines.reduce((a,l)=>a+qeAt(dv.c,l),0)/sp.lines.length;
    Nota che il binning si semplifica: il fondo cresce con bin², il rumore di
    lettura con bin, quindi il rapporto σ²_sky/RN² non cambia. La posa ottimale
    è la stessa a bin 1 e a bin 2 — non è ovvio, ed è giusto. */
+/* Due usi, due normalizzazioni, e vanno tenute distinte.
+     - PER PIXEL (default): il tasso nel fotosito come lo leggi. Serve alla
+       saturazione e alla posa, che sono grandezze del singolo pixel. Su una OSC in
+       banda larga il fotosito vede circa un terzo dello spettro, e OSC_BB e' li'
+       per quello: la curva pubblicata e' quella del canale migliore, moltiplicarla
+       per l'intera larghezza conterebbe tre volte.
+     - MOSAICO (o.mosaic): la media sul mosaico, che serve alla fotometria per
+       arcsec². La corregge oscEfficiency() a valle, quindi qui NON si applica
+       OSC_BB: applicarlo due volte era esattamente il difetto da cui parte tutto. */
 function skyRateFor(dv,band,sqm,opts){
   const o=opts||{};
   const sp=o.spec||bandSpec(band,dv.c);
-  const osc=(dv.c.cfa_penalty&&!sp.narrow)?OSC_BB:1;
+  const osc=(o.mosaic||!dv.c.cfa_penalty||sp.narrow)?1:OSC_BB;
   return PHOT_V0*Math.pow(10,-0.4*sqm)*(dv.Aeff/100)*Math.pow(dv.scale,2)
          *specQE(dv,sp)*sp.T*(sp.fwhm*10)*sp.windows*osc;
 }
@@ -4694,12 +4790,26 @@ function rxDiagHtml(pr,e,dv,t){
     const ok=rr.validated;
     return `<tr><td><b style="color:${RXCOL[b]||'var(--fg)'}">${b}</b></td><td>${fmt(rr.lam,1)}</td>
       <td>${fmt(qeAt(rdv.c,rr.lam),3)}</td><td>${fmt(qeAt(dv.c,rr.lam),3)}</td>
-      <td>${fmt(rr.cfa,2)}${rr.osc<1?' <span class="off">×'+fmt(rr.osc,2)+'</span>':''}</td>
+      <td>${fmt(rr.cfa,2)}${rr.oe&&rr.oe.src!=='mono'?
+        ' <span class="off" data-tip="'+esc(rr.oe.src+' — '+rr.oe.conf+
+        (rr.oe.model!=null?'. Modello spettrale: '+fmt(rr.oe.model,3):'')+
+        (rr.oe.declared!=null?'. Dato dichiarato: '+fmt(rr.oe.declared,3):''))+'">'+
+        (rr.oe.src==='dato dichiarato'?'dato':'modello')+'</span>':''}</td>
       <td>${ts} s</td>
       <td>${fmt(rr.R_b/rr.om,4)}</td><td>${fmt(rr.R_d/rr.om,4)}</td>
       <td>${fmt(rr.RN*rr.RN/(rr.om*ts),4)}</td>
       <td><b${ok?'':' class="p-warn"'}>×${fmt(timeFactor(dv,b,ts),2)}</b>${ok?'':
-        ' <span class="off" data-tip="Su matrice di Bayer in banda larga OSC_BB e la frazione CFA si sovrappongono: dicono entrambe che un fotosito colorato raccoglie meno, e moltiplicarle conta due volta la stessa perdita. Il numero non è stato aggiustato per farlo tornare: il ramo è dichiarato non validato finché il conto per canale non sarà rifatto.">non validato</span>'}</td></tr>`;}).join('')}</table>
+        ' <span class="off" data-tip="Stima di ripiego: mancano i dati di risposta spettrale della matrice per questa camera, e il motore torna alla vecchia costante. Il numero non è stato aggiustato per farlo tornare.">ripiego</span>'}</td></tr>`;}).join('')}</table>
+  ${dv.c.cfa_penalty?`<p class="off"><b>Matrice di Bayer.</b> La colonna CFA è
+     l'efficienza del mosaico: <code>(T_R + 2·T_G + T_B)/4</code> diviso il canale
+     migliore — cioè quello che mostra la curva QE pubblicata. È <b>una</b> grandezza,
+     non due: su una riga vale la frazione misurata, su una banda larga il suo
+     integrale pesato per la QE. Fino alla v1.4 erano due correzioni moltiplicate fra
+     loro, e su RGB contavano due volte la stessa perdita.
+     In banda stretta <b>vince il dato dichiarato</b> nella scheda della camera; il
+     modello spettrale resta a disposizione per il confronto. Nel rosso (Hα, SII) il
+     modello porta ±35% perché la fuga fra canali non è misurata su questi sensori:
+     è il punto debole, e per questo lì non decide lui.</p>`:''}
   <p class="off">Cielo, buio e lettura sono in e⁻ (o e⁻²) per arcsec² al secondo.
      Il <b>binning</b> non compare: <code>RN</code> cresce come il lato e <code>Ω_px</code>
      come il quadrato, quindi i due rapporti non si muovono — binnare non crea fotoni.
