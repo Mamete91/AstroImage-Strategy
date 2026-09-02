@@ -1,8 +1,13 @@
 # Gate v1.6 — RGB monocromatico sequenziale · CFA banda stretta misurata
 
 *I due punti rimasti aperti dopo la v1.5. Suite **389/389**, gate **94/94**, zero
-regressioni. Eseguibile: `node tools/gate-v16.js` (carica il motore prima e dopo
-fianco a fianco).*
+regressioni. Commit `63572cf`.*
+
+*Eseguibile: `node tools/gate-v16.js`. Carica il motore prima e dopo fianco a
+fianco, e il «prima» lo ricostruisce da `git show 9c548ec` — non da una cartella
+temporanea sulla macchina di chi ha scritto il gate. Il confronto resta quindi
+riproducibile da chiunque, anche fra un anno. `OLD_REF` sposta la base,
+`OLD_DIR` la scavalca con una copia già estratta.*
 
 ---
 
