@@ -1,0 +1,1267 @@
+/* Verifica del motore: estrae le funzioni pure da index.html e le controlla
+   contro valori calcolabili indipendentemente. Non tocca il DOM. */
+const fs=require('fs');
+
+const html=fs.readFileSync(__dirname+'/index.html','utf8');
+const script=html.split('<script>')[1].split('</script>')[0];
+const SRC=script;                       // per i controlli sul sorgente
+const pure=script.split('/* =====================================================================\n   UI')[0];
+
+const DB=JSON.parse(fs.readFileSync(__dirname+'/data/setups.json','utf8'));
+const TG=JSON.parse(fs.readFileSync(__dirname+'/data/targets.json','utf8'));
+const CAT=JSON.parse(fs.readFileSync(__dirname+'/data/catalog.json','utf8'));
+const CIT=JSON.parse(fs.readFileSync(__dirname+'/data/cities.json','utf8'));
+const ONGC=fs.existsSync(__dirname+'/data/openngc.json')
+  ?JSON.parse(fs.readFileSync(__dirname+'/data/openngc.json','utf8')):null;
+
+let OWNED=DB.default_filters.slice();
+const ctx={DB,TG,CAT:CAT.objects,CITIES:CIT.cities,OWNED,console,Math,Date,Object,JSON,isFinite,parseFloat,Number,window:{}};
+const fn=new Function(...Object.keys(ctx), pure+`
+  return {derive,refCfg,timeFactor,rates,varRate,factorValidated,skyRateFor,bandSpec,cfaFraction,
+          qeAt,interp,samplingVerdict,framing,nightProfile,
+          altaz,lstDeg,toJD,parseCoords,
+          sunPos,moonPos,moonIllum,sep,airmass,kExt,moonSkyV,nL2mag,moonPenalty,
+          lpPenalty,lpSkyRatio,bortleFor,BORTLE,estimateSQM,nearestCity,haversine,
+          leakOf,filterFor,dualPass,feasibility,ownedFilters,effFWHM,
+          binOptions,binAdvice,accessibleH,evaluate,fmt,mosaicPanels,fieldCorners,
+          prescribe,fitAlternatives,roadChannels,roadSum,costGroups,fillBudget,expectFor,
+          synthTarget,inRoad,planNights,moonTolerance,objectExtent,bestRotation,
+          nightWindows,nightsBounds,bestStart,balanceSessions,moonExcessMag,moonExcessFlux,lpExcessFlux,skyRef,subExposure,exposurePlan,
+          subPlan,skyRateFor,starPeakRate,gainModes,bandSpec,ninaSequence,ninaCheck,mountRms,
+          cfaFraction,objectSatTime,framingCenter};`);
+const M=fn(...Object.values(ctx));
+
+const nrm=x=>String(x).toLowerCase().replace(/[\s_'\u2019-]+/g,'');
+let pass=0,fail=0;
+function chk(name,got,exp,tol){
+  const ok = tol==null ? got===exp : Math.abs(got-exp)<=tol;
+  console.log(`${ok?'  ok  ':' FAIL '} ${name}  =  ${typeof got==='number'?got.toFixed(3):got}` +
+    (ok?'':`   (atteso ${exp}${tol?' ±'+tol:''})`));
+  ok?pass++:fail++;
+}
+
+console.log('\n--- JSON ---');
+console.log(`      catalogo: ${DB.telescopes.length} telescopi, ${DB.cameras.length} camere, ${DB.mounts.length} montature, ${DB.filters.length} filtri`);
+chk('catalogo telescopi ampio',DB.telescopes.length>=25,true);
+chk('catalogo camere ampio',DB.cameras.length>=15,true);
+chk('catalogo montature ampio',DB.mounts.length>=12,true);
+const allIds=[...DB.telescopes,...DB.cameras,...DB.mounts].map(x=>x.id);
+chk('nessun id duplicato',new Set(allIds).size,allIds.length);
+chk('ogni telescopio ha la focale nativa',
+  DB.telescopes.every(t=>t.reducers.some(r=>r.factor===1)),true);
+chk('focali ridotte coerenti col fattore',
+  DB.telescopes.every(t=>t.reducers.every(r=>Math.abs(r.focal_mm-t.focal_mm*r.factor)<=2)),true);
+chk('ogni camera ha qe oppure qe_peak',
+  DB.cameras.every(c=>c.qe||c.qe_peak),true);
+chk('setups: preset',DB.presets.length,6);
+chk('targets: numero',TG.targets.length,13);
+const archUsed=new Set(TG.targets.map(t=>t.archetype));
+chk('archetipi tutti definiti',[...archUsed].every(a=>TG.archetypes[a]),true);
+chk('ogni target ha una strada default',
+  TG.targets.every(t=>t.roads.some(r=>r.default)),true);
+chk('ogni riga ha confidenza dichiarata',
+  TG.targets.every(t=>t.lines.every(l=>!!l.confidence&&!!l.source)),true);
+chk('ogni target ha budget con canale critico',
+  TG.targets.every(t=>Object.values(t.budget).some(v=>v.critical)),true);
+
+
+console.log('\n--- catalogo di ricerca ---');
+console.log(`      ${CAT.objects.length} oggetti, ${CAT.objects.reduce((a,o)=>a+o.aliases.length,0)} alias`);
+chk('catalogo ampio',CAT.objects.length>=160,true);
+chk('coordinate tutte nel range',
+  CAT.objects.every(o=>o.ra_deg>=0&&o.ra_deg<360&&Math.abs(o.dec_deg)<=90),true);
+chk('dimensioni positive e maggiore >= minore',
+  CAT.objects.every(o=>o.size_arcmin[0]>0&&o.size_arcmin[0]>=o.size_arcmin[1]),true);
+const cn=CAT.objects.map(o=>o.name);
+chk('nomi unici',new Set(cn).size,cn.length);
+const ca=CAT.objects.flatMap(o=>o.aliases);
+chk('alias unici',new Set(ca).size,ca.length);
+chk('tutti i 110 Messier presenti',
+  Array.from({length:110},(_,i)=>'M'+(i+1)).every(n=>cn.includes(n)),true);
+
+
+
+console.log('\n--- stima dell inquinamento luminoso dalle coordinate ---');
+console.log(`      ${CIT.cities.length} centri abitati in tabella`);
+const SQ=(la,lo)=>M.estimateSQM(la,lo);
+for(const [n,la,lo] of [['Milano centro',45.464,9.190],['Monza',45.584,9.274],
+  ['Brescia',45.539,10.220],['Sondrio',46.170,9.870],['Borno',45.950,10.200],
+  ['Passo del Tonale',46.258,10.586],['Livigno',46.538,10.135]]){
+  const q=SQ(la,lo);
+  console.log(`      ${n.padEnd(18)} SQM ${q.toFixed(2)}  Bortle ${M.bortleFor(q).n}`);
+}
+chk('Milano centro ~17.8',SQ(45.464,9.190),17.8,0.25);
+chk('Borno ~20.8 (misura di campo)',SQ(45.950,10.200),20.8,0.25);
+chk('Sondrio ~19.4',SQ(46.170,9.870),19.4,0.4);
+chk('nessun sito italiano risulta Bortle 1',
+  [[45.95,10.20],[46.258,10.586],[46.538,10.135],[45.874,11.510]]
+    .every(([a,b])=>SQ(a,b)<21.75),true);
+chk('il sito di riferimento in setups.json e coerente col modello',
+  Math.abs(DB.sites[0].sqm_zenith-SQ(DB.sites[0].lat_deg,DB.sites[0].lon_deg)),0,0.2);
+chk('un passo alpino e piu buio di Milano',SQ(46.258,10.586)>SQ(45.464,9.190)+3,true);
+chk('mai fuori dai limiti fisici',
+  [[45,9],[41.9,12.5],[46.5,10],[38,15]].every(([a,b])=>{const q=SQ(a,b);return q>=16.5&&q<=21.9}),true);
+chk('citta piu vicina a Borno riconosciuta',
+  ['Darfo Boario Terme','Lovere','Borno'].includes(M.nearestCity(45.95,10.20).n),true);
+chk('distanza Milano-Roma plausibile',M.haversine(45.464,9.19,41.9,12.483),477,25);
+
+console.log('\n--- il leak dipende dalla larghezza del filtro ---');
+for(const w of [3,5,7,12,250]) console.log(`      ${String(w).padStart(3)} nm → passa ${(M.leakOf(w)*100).toFixed(1)}% del continuo`);
+chk('un 7 nm lascia passare piu di un 3 nm',M.leakOf(7)>M.leakOf(3),true);
+chk('7 nm circa il doppio di 3 nm',M.leakOf(7)/M.leakOf(3),2.33,0.05);
+const q17=17.8;
+console.log(`      da Milano: 3 nm ×${(1/M.lpPenalty(q17,3)).toFixed(2)}  `+
+  `7 nm ×${(1/M.lpPenalty(q17,7)).toFixed(2)}  `+
+  `12 nm ×${(1/M.lpPenalty(q17,12)).toFixed(2)}  `+
+  `banda larga ×${(1/M.lpPenalty(q17,250)).toFixed(1)}`);
+chk('da Milano un 3 nm resta praticabile',1/M.lpPenalty(17.8,3)<2,true);
+chk('da Milano la banda larga no',1/M.lpPenalty(17.8,250)>20,true);
+
+console.log('\n--- filtri e disponibilita delle bande ---');
+const mono=DB.cameras.find(c=>c.id==='asi2600mm'), osc=DB.cameras.find(c=>c.id==='asi2600mc');
+chk('con il set completo tutte le righe sono disponibili',
+  ['Ha','OIII','SII'].every(b=>!!M.filterFor(b,mono)),true);
+chk('sceglie il filtro piu stretto disponibile',M.filterFor('Ha',mono).fwhm_nm,3);
+OWNED.length=0; DB.default_filters.filter(x=>x!=='s2_3'&&x!=='lult').forEach(x=>OWNED.push(x));
+chk('senza filtro SII la banda non e disponibile',M.filterFor('SII',mono),null);
+chk('ma Ha e OIII restano',!!M.filterFor('Ha',mono)&&!!M.filterFor('OIII',mono),true);
+OWNED.length=0; ['lum','red','grn','blu'].forEach(x=>OWNED.push(x));
+chk('senza narrowband nessuna riga',['Ha','OIII','SII'].every(b=>!M.filterFor(b,mono)),true);
+chk('su sensore a colori la banda larga e sempre disponibile',!!M.filterFor('L',osc),true);
+OWNED.length=0; DB.default_filters.forEach(x=>OWNED.push(x));
+chk('dual-band riconosciuto solo su sensore a colori',
+  !!M.dualPass(osc)&&!M.dualPass(mono),true);
+chk('il dual-band scelto copre Ha e OIII',
+  M.dualPass(osc).bands.includes('Ha')&&M.dualPass(osc).bands.includes('OIII'),true);
+
+console.log('\n--- indice di fattibilita ---');
+for(const w of [0.8,3,9,30]) console.log(`      ${String(w).padStart(4)} settimane → ${M.feasibility(w,[]).k}`);
+chk('meno di due settimane e fattibile',M.feasibility(1,[]).k,'fattibile');
+chk('oltre quattordici e fuori portata',M.feasibility(30,[]).k,'fuori portata');
+chk('un filtro mancante batte qualunque durata',M.feasibility(0.5,['SII']).k,'manca SII');
+chk('punteggio di fattibilita monotono',
+  [1,3,9,30].every((w,i,a)=>i===0||M.feasibility(a[i-1],[]).score>=M.feasibility(w,[]).score),true);
+
+console.log('\n--- archetipi curati e profili fisici ---');
+const withPhys=CAT.objects.filter(o=>o.physics);
+console.log(`      ${CAT.objects.length} oggetti con archetipo curato, ${withPhys.length} con profilo fisico scritto`);
+chk('ogni oggetto ha un archetipo',CAT.objects.every(o=>!!o.archetype),true);
+chk('archetipi tutti esistenti',CAT.objects.every(o=>!!TG.archetypes[o.archetype]),true);
+chk('profili fisici non vuoti',withPhys.every(o=>o.physics.length>80),true);
+chk('profili con confidenza dichiarata',withPhys.every(o=>!!o.physics_confidence),true);
+const A=n=>CAT.objects.find(o=>o.name===n);
+console.log('      correzioni rispetto alla deduzione dal solo tipo:');
+for(const n of ['Abell 31','Jones-Emberson 1','M97','M87','NGC 4565','NGC 2359','M82','M1'])
+  console.log(`        ${n.padEnd(20)} → ${A(n).archetype}`);
+chk('planetarie evolute classificate come deboli',
+  ['Abell 21','Abell 31','Abell 33','Jones-Emberson 1','M97','NGC 7293'].every(n=>A(n).archetype==='pn_faint'),true);
+chk('planetarie compatte restano brillanti',
+  ['M57','NGC 2392','NGC 6543'].every(n=>A(n).archetype==='pn_bright'),true);
+chk('ellittiche non classificate come spirali con HII',
+  ['M87','M84','M86','M49','M104'].every(n=>A(n).archetype==='elliptical_group'),true);
+chk('Elmo di Thor riconosciuto come bolla WR',A('NGC 2359').archetype,'wr_bubble');
+chk('ammassi mai in banda stretta',
+  ['cluster_globular','cluster_open'].every(k=>TG.archetypes[k].default_budget.OIII.useful===0),true);
+chk('M56 riconosciuto come globulare, non come regione HII',A('M56').archetype,'cluster_globular');
+chk('i globulari separati dagli aperti',
+  A('M13').archetype==='cluster_globular'&&A('M11').archetype==='cluster_open',true);
+// M45 resta "riflessione": il soggetto fotografico delle Pleiadi e' la nebulosita', non l'ammasso
+chk('le Pleiadi restano riflessione, non ammasso aperto',A('M45').archetype,'reflection');
+chk('nessun oggetto di catalogo resta sul vecchio archetipo cluster',
+  CAT.objects.some(o=>o.archetype==='cluster'),false);
+
+console.log('\n--- lettura del fattore riduttore ---');
+const readRed=raw=>{const m=String(raw).replace(',','.').match(/(\d*\.?\d+)/);
+  const f=m?parseFloat(m[1]):NaN; return (f>0.2&&f<3)?f:null;};
+for(const [inp,exp] of [['0.8',0.8],['0.8x',0.8],['0,63x',0.63],['x0.7',0.7],
+                        ['1.5x',1.5],['riduttore 0.75',0.75],['abc',null],['12x',null]]){
+  const got=readRed(inp);
+  const ok=got===exp;
+  console.log(`${ok?'  ok  ':' FAIL '} "${inp}" → ${got}`);
+  ok?pass++:fail++;
+}
+
+console.log('\n--- inquinamento luminoso per banda ---');
+/* `lpPenalty` e' un fattore TEMPO riferito al cielo delle schede: il costo in ore e'
+   il suo reciproco, non il reciproco del quadrato. Prima era un fattore di SNR usato
+   dove serve un fattore di tempo, e il testo dell'app diceva gia' la cosa giusta
+   mentre l'aritmetica ne faceva un'altra. */
+const REF=DB.reference_config.sqm_zenith;
+for(const [n,q] of [['riferimento',REF],['Borno',20.8],['periferia',20.0],['Milano',17.8]]){
+  const b=1/M.lpPenalty(q,250), nb=1/M.lpPenalty(q,3);
+  console.log(`      ${n.padEnd(11)} SQM ${q}  Bortle ${M.bortleFor(q).n}  →  banda larga x${b.toFixed(1)}, 3 nm x${nb.toFixed(2)}`);
+}
+chk('il cielo di riferimento e dichiarato',typeof REF,'number');
+chk('sotto il cielo di riferimento il fattore e esattamente 1',M.lpPenalty(REF,250),1,1e-9);
+chk('un cielo migliore del riferimento vale un bonus, non 1',M.lpPenalty(21.9,250)>1.2,true);
+chk('il costo in ore e il rapporto dei flussi, non la sua radice',
+  1/M.lpPenalty(17.8,250), M.lpSkyRatio(17.8,250)/M.lpSkyRatio(REF,250), 0.001);
+chk('da Milano la banda larga costa oltre 20x',1/M.lpPenalty(17.8,250)>20,true);
+chk('da Milano la banda stretta costa meno di 2x',1/M.lpPenalty(17.8,3)<2,true);
+/* ─── il fondo cielo: Luna e lampioni, la stessa fisica ─── */
+console.log('\n--- Luna: somma di flussi, non differenza di magnitudini ---');
+console.log('      Vluna vs SQM 20.8 →  vecchia formula  |  somma dei flussi');
+for(const v of [22.5,21.0,20.8,20.0,19.0]){
+  console.log(`      Vluna ${v.toFixed(1)}  →  ${Math.max(0,20.8-v).toFixed(2)} mag  |  ${M.moonExcessMag(20.8,v).toFixed(2)} mag`);
+}
+chk('una Luna piu debole del cielo alza comunque il fondo',M.moonExcessMag(20.8,21.0)>0.5,true);
+chk('e la vecchia formula diceva zero',Math.max(0,20.8-21.0),0);
+chk('due fondi uguali raddoppiano il flusso: +0.75 mag',M.moonExcessMag(20.8,20.8),0.7526,0.001);
+chk('una Luna trascurabile resta trascurabile',M.moonExcessMag(20.8,25.0)<0.03,true);
+/* Una Luna che da sola vale dieci volte il fondo naturale porta il totale a undici,
+   non a dieci: 2.5·log10(11) = 2.60. Il conto e' sul FLUSSO TOTALE, ed e' esattamente
+   il punto che la vecchia formula sbagliava. */
+chk('il fondo naturale continua a contare anche sotto la Luna piena',
+  M.moonExcessMag(20.8,18.3),2.5*Math.log10(11),0.001);
+/* La penalita' e' un fattore TEMPO e ha la stessa forma dell'IL: 1/(1+eccesso di flusso). */
+chk('un fondo raddoppiato costa il doppio delle ore',
+  M.moonPenalty('L',M.moonExcessMag(20.8,20.8),250,false),0.5,0.01);
+chk('la banda stretta quasi non se ne accorge',
+  M.moonPenalty('Ha',M.moonExcessMag(20.8,20.8),3,false)>0.98,true);
+chk('l OIII prende piu Luna dell Ha, per Rayleigh',
+  M.moonPenalty('OIII',1.0,3,false)<M.moonPenalty('Ha',1.0,3,false),true);
+chk('su un soggetto stellare la Luna pesa un quarto',
+  (1/M.moonPenalty('L',1.0,250,true)-1)/(1/M.moonPenalty('L',1.0,250,false)-1),0.25,0.001);
+chk('con un fondo gia alto la Luna costa meno al margine',
+  M.moonPenalty('L',1.0,250,false,5)>M.moonPenalty('L',1.0,250,false,0),true);
+
+chk('narrowband sempre meno penalizzata della larga',
+  [17.4,18.5,20,21].every(q=>M.lpPenalty(q,true)>M.lpPenalty(q,false)),true);
+chk('scala Bortle monotona',
+  M.BORTLE.every((b,i,a)=>i===0||a[i-1].sqm>b.sqm),true);
+chk('SQM 17.8 e Bortle 8',M.bortleFor(17.8).n,8);
+chk('SQM 21.5 e Bortle 3',M.bortleFor(21.5).n,3);
+
+console.log('\n--- budget tipici per archetipo (target aggiunti dall utente) ---');
+const arch=Object.entries(TG.archetypes);
+chk('ogni archetipo ha un budget tipico',arch.every(([,a])=>a.default_budget),true);
+chk('ogni budget tipico ha un canale critico',
+  arch.every(([,a])=>Object.values(a.default_budget).some(v=>v.critical)),true);
+chk('confidenza dichiarata bassa',arch.every(([,a])=>a.default_confidence==='bassa'),true);
+/* Un oggetto di catalogo senza scheda curata deve comunque produrre una prescrizione
+   sensata: e' l'intero senso dei due strati. Serve che l'archetipo porti con se'
+   anche ordine, resa attesa e trappole di classe, non solo i numeri. */
+chk('ogni archetipo ha ordine, resa attesa e trappole di classe',
+  arch.every(([,a])=>a.order&&a.expect&&Object.keys(a.expect).length>=2&&a.traps&&a.traps.length>=2),true);
+chk('le trappole di classe sono scritte, non segnaposto',
+  arch.every(([,a])=>a.traps.every(t=>t.length>60)),true);
+for(const k of ['hii_classic','pn_faint','reflection','cluster_globular','cluster_open']){
+  const b=TG.archetypes[k].default_budget;
+  const c=Object.entries(b).find(([,v])=>v.critical)[0];
+  console.log(`      ${k.padEnd(18)} canale critico: ${c}, soglia ${b[c].floor} h`);
+}
+chk('riflessione non prevede banda stretta',
+  TG.archetypes.reflection.default_budget.OIII.useful,0);
+chk('PN debole ha OIII critico',
+  TG.archetypes.pn_faint.default_budget.OIII.critical,true);
+
+console.log('\n--- geometria strumentale ---');
+const cfgs=[
+  ['RC8 nativo',    {tel:'rc8',red:1.0,cam:'asi2600mm',mnt:'cem70g'}, 1624, 0.478],
+  ['RC8 0.80x',     {tel:'rc8',red:0.80,cam:'asi2600mm',mnt:'cem70g'},1300, 0.597],
+  ['Tecnosky 0.80x',{tel:'tecnosky115',red:0.80,cam:'asi2600mm',mnt:'am5'},640,1.212],
+  ['Askar 0.75x',   {tel:'askar71f',red:0.75,cam:'asi2600mm',mnt:'am5'},367, 2.113],
+];
+for(const [name,cfg,F,sc] of cfgs){
+  const d=M.derive(cfg);
+  chk(name+' focale',d.F,F);
+  chk(name+' scala ″/px',d.scale,sc,0.005);
+}
+const rc8=M.derive({tel:'rc8',red:1.0,cam:'asi2600mm',mnt:'cem70g'});
+const tecR=M.derive({tel:'tecnosky115',red:0.80,cam:'asi2600mm',mnt:'am5'});
+console.log(`      RC8 nativo:       f/${rc8.fRatio.toFixed(1)}  trasmissione ${(rc8.thru*100).toFixed(0)}% (ostruzione 45% + 2 specchi)`);
+console.log(`      Tecnosky ridotto: f/${tecR.fRatio.toFixed(1)}  trasmissione ${(tecR.thru*100).toFixed(0)}%`);
+chk('RC8 nativo e f/8 esatti',rc8.fRatio,8.0,0.01);
+chk('RC8 ridotto 0.80x e f/6.4',M.derive({tel:'rc8',red:0.80,cam:'asi2600mm'}).fRatio,6.4,0.01);
+chk('Tecnosky ridotto e f/5.6',tecR.fRatio,5.57,0.02);
+chk('Askar ridotto 0.75x e f/5.2',M.derive({tel:'askar71f',red:0.75,cam:'asi2600mm'}).fRatio,5.17,0.02);
+chk('trasmissione RC8 ~71%',rc8.thru,0.705,0.01);
+chk('trasmissione rifrattore = throughput dichiarato',tecR.thru,0.96,0.001);
+
+/* Il fattore tempo, rifatto 2026-09 (docs/gate-fisico.md).
+   Prima era  (A_rif/A)·(Om_rif/Om_px)·(QE_rif/QE)/f_CFA : il secondo termine e' un
+   rapporto di AREE DI PIXEL, ed entrava nel tempo come se fossero fotoni persi.
+   Ora la metrica e' SNR per unita' di angolo solido, e la verifica a mano ricostruisce
+   i quattro tassi di varianza esattamente come la forma ESO/STScI/Rubin. */
+const TSUB=600;
+function handFactor(dv,band,tsub){
+  const sqm=DB.reference_config.sqm_zenith, sp=M.bandSpec(band,dv.c);
+  const lam=sp.lines[0], cfa=M.cfaFraction(dv.c,band);
+  const osc=(dv.c.cfa_penalty&&!sp.narrow)?0.34:1;
+  const k=M.qeAt(dv.c,lam)*sp.T*cfa*osc, om=dv.scale*dv.scale;
+  const collect=(dv.Aeff/100)*k;
+  const V=M.skyRateFor(dv,band,sqm,{spec:sp})*cfa/om          // cielo per arcsec2
+        +(dv.c.dark_e_s||0)*dv.bin*dv.bin/om                   // buio, cresce con F^2
+        +Math.pow(dv.rnEff||dv.c.read_noise_e,2)/(om*tsub);    // lettura, idem
+  return {V,collect,q:V/(collect*collect)};
+}
+const tf=M.timeFactor(rc8,'SII',TSUB);
+const hRC8=handFactor(rc8,'SII',TSUB), hRef=handFactor(tecR,'SII',TSUB);
+const byHand=hRC8.q/hRef.q;
+console.log(`      Fattore tempo RC8 nativo vs riferimento: ×${tf.toFixed(3)}  (verifica a mano ×${byHand.toFixed(3)})`);
+console.log(`      raccolta A·k ${hRC8.collect.toFixed(1)} contro ${hRef.collect.toFixed(1)}  ·  varianza ${hRC8.V.toFixed(5)} contro ${hRef.V.toFixed(5)}`);
+chk('fattore tempo coerente col calcolo a mano',tf,byHand,0.0005);
+chk('fattore RC8 nativo nel range atteso',tf>0.6&&tf<1.0,true);
+chk('riferimento ha fattore 1.00',M.timeFactor(tecR,'SII',TSUB),1.0,0.001);
+/* Il rapporto di aree di pixel NON deve piu' comparire: se comparisse, il fattore
+   sarebbe ~6.4 volte piu' alto. E' la regressione da cui e' partito tutto. */
+const spurio=(Math.pow(tecR.scale,2)/Math.pow(rc8.scale,2));
+console.log(`      il termine spurio di campionamento valeva ×${spurio.toFixed(2)} — ora e' fuori`);
+chk('il rapporto di aree di pixel non entra piu nel tempo',tf<byHand*spurio*0.5,true);
+/* Il fattore e' di CATEGORIA B: dipende dalla posa, perche' il rumore di lettura si
+   paga per lettura. Non e' una proprieta' del telescopio e va dichiarato come tale. */
+console.log(`      stessa ottica, pose diverse: 120 s ×${M.timeFactor(rc8,'OIII',120).toFixed(3)}  600 s ×${M.timeFactor(rc8,'OIII',600).toFixed(3)}  1800 s ×${M.timeFactor(rc8,'OIII',1800).toFixed(3)}`);
+chk('il fattore dipende dalla posa (categoria B, dichiarata)',
+  M.timeFactor(rc8,'OIII',120)-M.timeFactor(rc8,'OIII',1800)>0.1,true);
+chk('pose piu lunghe costano meno tempo totale',M.timeFactor(rc8,'OIII',1800)<M.timeFactor(rc8,'OIII',120),true);
+
+console.log('\n--- la QE entra nel calcolo del tempo ---');
+const monoRef=M.derive({tel:'tecnosky115',red:0.80,cam:'asi2600mm'});
+const oscRef =M.derive({tel:'tecnosky115',red:0.80,cam:'asi2600mc'});
+const c1600  =M.derive({tel:'tecnosky115',red:0.80,cam:'asi1600mm'});
+console.log(`      stessa ottica, 2600MM  → ×${M.timeFactor(monoRef,'OIII').toFixed(2)} in OIII`);
+console.log(`      stessa ottica, 2600MC  → ×${M.timeFactor(oscRef,'OIII').toFixed(2)} in OIII (matrice di Bayer)`);
+console.log(`      stessa ottica, 1600MM  → ×${M.timeFactor(c1600,'OIII').toFixed(2)} in OIII (QE 60%, pixel 3.8 µm)`);
+/* ─── quanti fotositi raccolgono la riga, su una matrice di Bayer ───
+   La vecchia regola dava 0.25 a tutta la banda stretta: assumeva che l'OIII
+   cadesse su un quarto della matrice come l'Ha. Non e' vero — a 656 nm rispondono
+   solo i pixel rossi, a 500.7 nm rispondono verdi E blu — ed e' la ragione fisica
+   per cui il dual-band su OSC funziona. */
+const oscCam=DB.cameras.find(c=>c.id==='asi2600mc');
+console.log('      fotositi che raccolgono la riga: '+
+  ['Ha','OIII','SII','RGB','L'].map(b=>b+' '+(M.cfaFraction(oscCam,b)*100).toFixed(0)+'%').join('  '));
+chk('l Ha cade solo sui pixel rossi, cioe un quarto della matrice',
+  M.cfaFraction(oscCam,'Ha')<0.35,true);
+chk('l OIII cade su verdi e blu, cioe tre quarti',M.cfaFraction(oscCam,'OIII')>0.6,true);
+chk('e su una mono non c e nessuna matrice',M.cfaFraction(DB.cameras.find(c=>c.id==='asi2600mm'),'OIII'),1);
+chk('la frazione e dichiarata con la sua derivazione',!!oscCam.cfa_fraction_note,true);
+const rHa=M.timeFactor(oscRef,'Ha')/M.timeFactor(monoRef,'Ha');
+const rO3=M.timeFactor(oscRef,'OIII')/M.timeFactor(monoRef,'OIII');
+console.log(`      OSC vs mono, stessa ottica: Ha ×${rHa.toFixed(2)}  OIII ×${rO3.toFixed(2)}`);
+chk('l OSC resta piu lenta della mono in entrambe le righe',rHa>1&&rO3>1,true);
+chk('ma sull Ha molto piu che sull OIII, ed e il punto',rHa/rO3>2,true);
+chk('camera a QE bassa piu lenta di una a QE alta',
+  M.timeFactor(c1600,'OIII')>M.timeFactor(monoRef,'OIII'),true);
+chk('la QE cambia il risultato per banda',
+  Math.abs(M.timeFactor(c1600,'Ha')-M.timeFactor(c1600,'OIII'))>0.01,true);
+console.log(`      QE 2600MM: ${(M.qeAt(monoRef.c,500.7)*100).toFixed(0)}% a 500 nm, ${(M.qeAt(monoRef.c,656.3)*100).toFixed(0)}% a 656 nm`);
+const fake={qe_peak:0.85};
+chk('camera con solo qe_peak usa la forma tipica',M.qeAt(fake,500),0.85,0.001);
+chk('e decade nel rosso',M.qeAt(fake,656)<M.qeAt(fake,500),true);
+
+console.log('\n--- lettura coordinate incollate ---');
+const cases=[
+  ['45.95, 10.20',45.95,10.20],
+  ['45.9512 10.1987',45.9512,10.1987],
+  ['45.95,10.20',45.95,10.20],
+  ["45°57'04\"N 10°12'00\"E",45.9511,10.2000],
+  ['-33.86, 151.20',-33.86,151.20]
+];
+for(const [txt,la,lo] of cases){
+  const c=M.parseCoords(txt);
+  const ok=c&&Math.abs(c.lat-la)<0.01&&Math.abs(c.lon-lo)<0.01;
+  console.log(`${ok?'  ok  ':' FAIL '} "${txt}" → ${c?c.lat.toFixed(4)+', '+c.lon.toFixed(4):'null'}`);
+  ok?pass++:fail++;
+}
+chk('testo non coordinato viene rifiutato',M.parseCoords('ciao mondo'),null);
+chk('latitudine impossibile rifiutata',M.parseCoords('120.0 10.0'),null);
+
+console.log('\n--- campionamento con seeing reale 1.0-2.4″ ---');
+for(const s of [1.0,1.6,2.4]){
+  const v=M.samplingVerdict(rc8.scale,s);
+  console.log(`      RC8 nativo 0.48″/px con seeing ${s}″ → ${v.k} (${v.n})`);
+}
+chk('RC8 nativo corretto a seeing 1.6″',M.samplingVerdict(rc8.scale,1.6).k,'corretto');
+chk('Tecnosky ridotto sottocampionato a 1.6″',M.samplingVerdict(tecR.scale,1.6).k,'sottocampionato');
+
+console.log('\n--- seeing e guida si sommano in quadratura ---');
+for(const [see,rms] of [[1.6,0.0],[1.6,0.6],[1.6,1.0],[1.6,1.3],[2.4,0.6]]){
+  const f=M.effFWHM(see,rms);
+  console.log(`      seeing ${see}″ + RMS ${rms.toFixed(1)}″  →  FWHM reale ${f.toFixed(2)}″  (+${Math.round((f/see-1)*100)}%)`);
+}
+chk('senza errore di guida la FWHM resta il seeing',M.effFWHM(1.6,0),1.6,0.001);
+chk('RMS 0.6″ su seeing 1.6″ porta la FWHM a ~1.9″',M.effFWHM(1.6,0.6),1.90,0.03);
+chk('RMS 1.3″ su seeing 1.6″ porta la FWHM oltre 2.6″',M.effFWHM(1.6,1.3)>2.6,true);
+chk('la FWHM non scende mai sotto il seeing',
+  [[1.0,0.5],[2.0,0.3],[1.6,1.5]].every(([s,r])=>M.effFWHM(s,r)>=s),true);
+chk('la guida cambia il verdetto sul campionamento',
+  M.samplingVerdict(rc8.scale,M.effFWHM(1.6,0)).k!==
+  M.samplingVerdict(rc8.scale,M.effFWHM(1.6,1.3)).k,true);
+console.log(`      RC8 nativo 0.48″/px: guida 0.0″ → ${M.samplingVerdict(rc8.scale,M.effFWHM(1.6,0)).k}`+
+  `, guida 1.3″ → ${M.samplingVerdict(rc8.scale,M.effFWHM(1.6,1.3)).k}`);
+
+console.log('\n--- RMS: il tuo valore vince su quello di catalogo ---');
+const rmsMap={};
+const rmsFor=(id,scale)=>{ const saved=rmsMap[id];
+  if(saved!=null) return saved;
+  const m=DB.mounts.find(x=>x.id===id)||DB.mounts[0];
+  return (scale<0.8?m.rms_long_fl_arcsec:m.rms_typ_arcsec)||0.8; };
+chk('a lunga focale usa il valore realistico della montatura',
+  rmsFor('am5',0.48),DB.mounts.find(m=>m.id==='am5').rms_long_fl_arcsec);
+chk('a focale corta usa il valore tipico',
+  rmsFor('am5',1.5),DB.mounts.find(m=>m.id==='am5').rms_typ_arcsec);
+rmsMap['am5']=0.75;
+chk('un valore salvato batte entrambi',rmsFor('am5',0.48),0.75);
+chk('ogni montatura dichiara i due valori',
+  DB.mounts.every(m=>m.rms_typ_arcsec>0&&m.rms_long_fl_arcsec>0),true);
+
+console.log('\n--- notte a Borno (45.95°N) ---');
+const lat=45.95, lon=10.20;
+const jun=M.nightProfile(new Date(2026,5,21),lat,lon);
+const dec=M.nightProfile(new Date(2026,11,21),lat,lon);
+const sep_=M.nightProfile(new Date(2026,8,15),lat,lon);
+console.log(`      21 giu: ${jun.darkH.toFixed(2)} h di buio astronomico`);
+console.log(`      15 set: ${sep_.darkH.toFixed(2)} h`);
+console.log(`      21 dic: ${dec.darkH.toFixed(2)} h`);
+chk('buio al solstizio estivo ~2.8 h',jun.darkH,2.8,0.4);
+chk('buio a meta settembre ~8 h',sep_.darkH,8.1,0.5);
+chk('buio al solstizio invernale ~11.7 h',dec.darkH,11.7,0.5);
+chk('rapporto inverno/estate ~4',dec.darkH/jun.darkH,4.2,0.7);
+
+console.log('\n--- geometria dei target da 45.95°N ---');
+function culmination(dec_){ return 90-Math.abs(lat-dec_); }
+for(const id of ['abell61','ngc6888','m27','ngc7331']){
+  const t=TG.targets.find(x=>x.id===id);
+  console.log(`      ${t.names[0].padEnd(12)} dec ${t.dec_deg.toFixed(1).padStart(6)}°  culmina a ${culmination(t.dec_deg).toFixed(1)}°`);
+}
+const a61=TG.targets.find(t=>t.id==='abell61');
+chk('Abell 61 culmina quasi allo zenit',culmination(a61.dec_deg),89.7,0.5);
+chk('Abell 61 circumpolare (dec > 90-lat)',a61.dec_deg>90-lat,true);
+
+console.log('\n--- estinzione per banda ---');
+console.log(`      k(500nm OIII) = ${M.kExt(500.7).toFixed(3)}   k(656nm Ha) = ${M.kExt(656.3).toFixed(3)}`);
+chk('estinzione OIII circa doppia di Ha',M.kExt(500.7)/M.kExt(656.3),2.2,0.4);
+
+console.log('\n--- penalizzazione lunare per banda ---');
+const dm=2.0; // la Luna alza il fondo di 2 mag in V
+const pO=M.moonPenalty('OIII',dm,true), pH=M.moonPenalty('Ha',dm,true), pL=M.moonPenalty('L',dm,false);
+console.log(`      con +2 mag di fondo:  OIII ${(100*(1-pO)).toFixed(0)}%  Ha ${(100*(1-pH)).toFixed(0)}%  L ${(100*(1-pL)).toFixed(0)}% di penalizzazione`);
+chk('OIII penalizzato piu di Ha',pO<pH,true);
+chk('banda larga penalizzata molto piu della stretta',pL<pO,true);
+
+console.log('\n--- soglie riscalate: il caso NGC 6888 di Alessandro ---');
+const t6888=TG.targets.find(t=>t.id==='ngc6888');
+/* REGRESSION TEST, non calibrazione. Alessandro ha ripreso 1.5 h di SII sulla
+   Crescent con RC8 nativo e il master era rumore con un accenno di arco: il
+   pavimento vero sta appena sopra 1.5 h. Il vecchio modello diceva 14.0 h — 9.4x
+   sotto soglia — che e' incompatibile con l'esperienza. Le 1.5 h NON entrano in
+   nessuna formula: sono una verifica indipendente. */
+const fSII=M.timeFactor(rc8,'SII',600);
+const floorRef=t6888.budget.SII.floor, floorRC8=floorRef*fSII;
+console.log(`      soglia SII riferimento: ${floorRef} h  →  su RC8 nativo: ${floorRC8.toFixed(1)} h  (fattore ×${fSII.toFixed(2)})`);
+console.log(`      ripreso: 1.5 h  →  ${(floorRC8/1.5).toFixed(1)}× sotto soglia  (col vecchio modello era 9.4×)`);
+chk('il pavimento resta SOPRA le 1.5 h che hanno dato rumore',floorRC8>1.5,true);
+chk('ma non piu di 3x: compatibile con l esperienza reale',floorRC8/1.5<3,true);
+
+console.log('\n--- binning: la catena pixel -> scala -> tempo ---');
+const rc8b1={tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1};
+const rc8b2={...rc8b1,bin:2};
+const d1=M.derive(rc8b1), d2=M.derive(rc8b2);
+console.log(`      RC8 nativo + 2600MM:  bin 1 ${d1.scale.toFixed(3)}"/px   bin 2 ${d2.scale.toFixed(3)}"/px`);
+chk('bin 2 raddoppia la scala',d2.scale/d1.scale,2,0.001);
+chk('bin 2 non cambia il campo inquadrato',d2.fovX,d1.fovX,0.001);
+chk('bin 2 raddoppia il read noise (somma in quadratura, non CCD)',d2.rnEff/d1.rnEff,2,0.001);
+/* CORRETTO 2026-09. Qui c'era «bin 2 divide il tempo per 4»: vero PER PIXEL, falso
+   per unita' di angolo solido. Sui CMOS la somma e' digitale dopo la lettura, quindi
+   RN_binnato = RN·bin mentre Om_px cresce come bin²: i rapporti RN²/Om_px e d_px/Om_px
+   non si muovono. Il binning NON crea fotoni ed e' esattamente neutro sul tempo. */
+console.log(`      fattore Ha:  bin1 ×${M.timeFactor(d1,'Ha',600).toFixed(4)}  bin2 ×${M.timeFactor(d2,'Ha',600).toFixed(4)}  bin3 ×${M.timeFactor(M.derive({...rc8b1,bin:3}),'Ha',600).toFixed(4)}`);
+chk('il binning non moltiplica la raccolta fotonica (bin 2)',
+  M.timeFactor(d1,'Ha',600)/M.timeFactor(d2,'Ha',600),1,0.001);
+chk('il binning non moltiplica la raccolta fotonica (bin 3)',
+  M.timeFactor(d1,'Ha',600)/M.timeFactor(M.derive({...rc8b1,bin:3}),'Ha',600),1,0.001);
+chk('e nemmeno a bin 4',
+  M.timeFactor(d1,'Ha',600)/M.timeFactor(M.derive({...rc8b1,bin:4}),'Ha',600),1,0.001);
+// FWHM reale a Borno con l'AM5 sull'RC8: seeing 1.6" + RMS 1.0" -> 2.36"
+const fwhmBad=M.effFWHM(1.6,1.0), fwhmGood=M.effFWHM(1.2,0.4);
+const advBad=M.binAdvice(rc8b1,fwhmBad), advGood=M.binAdvice(rc8b1,fwhmGood);
+console.log(`      FWHM ${fwhmBad.toFixed(2)}" -> ${advBad.k}  |  FWHM ${fwhmGood.toFixed(2)}" -> ${advGood.k}`);
+chk('con FWHM larga consiglia di binnare',advBad.best>1,true);
+chk('il consiglio dice che su CMOS la scelta e reversibile',/reversibil|elaborazione/.test(advBad.txt),true);
+// un rifrattore corto e gia sottocampionato: binnare non deve mai essere consigliato
+const askar={tel:'askar71f',red:1,cam:'asi2600mc',bin:1,mnt:'am5'};
+chk('su focale corta non consiglia mai di binnare',M.binAdvice(askar,fwhmBad).best,1);
+
+console.log('\n--- livello accessibile: meta tempo, mai sotto soglia ---');
+chk('canale critico tagliato al 60%',M.accessibleH({useful:10,floor:2,critical:true}),6,0.001);
+chk('canale non critico tagliato al 40%',M.accessibleH({useful:10,floor:2}),4,0.001);
+chk('mai sotto la soglia',M.accessibleH({useful:10,floor:8,critical:true}),8,0.001);
+chk('canale vuoto resta vuoto',M.accessibleH({useful:0,floor:0}),0);
+
+const bornoSite={lat:46.0167,lon:10.3333,sqm:20.8,seeing:1.6,rms:0.6,
+  horizonMin:20,clearFrac:0.35};
+bornoSite.fwhm=M.effFWHM(bornoSite.seeing,bornoSite.rms);
+const npB=M.nightProfile(new Date(2026,8,15),bornoSite.lat,bornoSite.lon);
+const tecno={tel:'tecnosky115',red:0.80,cam:'asi2600mm',mnt:'cem70g',bin:1};
+const dvT=M.derive(tecno);
+let accOk=true, accWithin=true;
+for(const tg of TG.targets){
+  const ev=M.evaluate(tg,dvT,bornoSite,npB,{});
+  for(const [b,v] of Object.entries(ev.budget)){
+    if(v.useful<=0) continue;
+    if(v.accessible>v.useful+1e-9||v.accessible<v.floor-1e-9) accOk=false;
+  }
+  if(ev.roadAccH>ev.roadH+1e-9||ev.roadAccH<0.35*ev.roadH-1e-9) accWithin=false;
+}
+chk('accessibile sempre fra soglia e utile, su tutti i target',accOk,true);
+chk('il totale ridotto sta fra il 35% e il 100% di quello pieno',accWithin,true);
+const e6888=M.evaluate(TG.targets.find(t=>t.id==='ngc6888'),dvT,bornoSite,npB,{});
+console.log(`      NGC 6888 su Tecnosky 0.8x + 2600MM:  pieno ${e6888.roadH.toFixed(1)} h  ridotto ${e6888.roadAccH.toFixed(1)} h  (${(100*e6888.roadAccH/e6888.roadH).toFixed(0)}%)`);
+chk('la versione ridotta della Crescent esiste',e6888.accReal,true);
+chk('il canale critico e tagliato meno degli altri',
+  e6888.budget[e6888.critBand].accessible/e6888.budget[e6888.critBand].useful>0.55,true);
+const binnedEv=M.evaluate(TG.targets.find(t=>t.id==='ngc6888'),M.derive({...tecno,bin:2}),bornoSite,npB,{});
+console.log(`      la stessa a bin 2:  pieno ${binnedEv.roadH.toFixed(1)} h  ridotto ${binnedEv.roadAccH.toFixed(1)} h`);
+/* Il binning cambia il CAMPIONAMENTO, non le ore: quello che risparmi e' spazio
+   disco e tempo di scarico, non fotoni. Prima qui si pretendeva un fattore 4. */
+chk('il binning non cambia le ore di progetto',e6888.roadH/binnedEv.roadH,1,0.001);
+chk('ma cambia la scala del pixel, ed e li che va guardato',
+  M.derive({...tecno,bin:2}).scale/M.derive(tecno).scale,2,0.001);
+
+console.log('\n--- motore di prescrizione: la strada segue le ore ---');
+const t6888b=TG.targets.find(t=>t.id==='ngc6888');
+const dvRef=M.derive({tel:'tecnosky115',red:0.80,cam:'asi2600mm',mnt:'cem70g',bin:1});
+const eRef=M.evaluate(t6888b,dvRef,bornoSite,npB,{});
+const pr8=M.prescribe(eRef,8,dvRef), pr14=M.prescribe(eRef,14,dvRef), pr30=M.prescribe(eRef,30,dvRef);
+const show=p=>`${p.road.id} / ${p.level} — ${p.alloc.filter(g=>!g.dropped).map(g=>g.id+' '+g.hours.toFixed(1)+'h').join(' · ')}${p.alloc.some(g=>g.dropped)?'  [fuori: '+p.alloc.filter(g=>g.dropped).map(g=>g.id).join(',')+']':''}`;
+console.log('       8h → '+show(pr8));
+console.log('      14h → '+show(pr14));
+console.log('      30h → '+show(pr30));
+chk('con 30h sceglie la strada SHO',pr30.road.id,'sho');
+chk('con 14h resta su HOO',pr14.road.id,'hoo');
+chk('con 8h resta su HOO in versione ridotta o minima',pr8.level!=='pieno'&&pr8.road.id==='hoo',true);
+chk('la prescrizione spende quello che ha, non di piu',pr14.spent<=14+1e-6,true);
+chk('e non lascia ore per strada quando la strada le assorbe',pr14.spent>13.5,true);
+chk('nessun canale finanziato sotto la propria soglia',
+  pr8.alloc.every(g=>g.hours===0||g.hours>=g.floor-1e-9),true);
+chk('il canale critico non viene mai scartato quando le ore bastano',
+  pr14.alloc.find(g=>g.critical).hours>0,true);
+// le ore di "cosa aspettarti" vanno riportate alla configurazione di riferimento
+const dvRC8=M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1});
+const eRC8=M.evaluate(t6888b,dvRC8,bornoSite,npB,{});
+const prRC8=M.prescribe(eRC8,14,dvRC8);
+const fEq=M.timeFactor(dvRC8,eRC8.critBand,(eRC8.tsub||{})[eRC8.critBand]);
+const hEq=prRC8.spent/fEq;
+console.log(`      RC8, ${prRC8.spent.toFixed(1)}h reali = ${hEq.toFixed(1)}h di riferimento (fattore ×${fEq.toFixed(2)}) → ${prRC8.level}, "cosa aspettarti" letto a ${prRC8.expect?prRC8.expect.key:'—'}`);
+/* L'intento del test non cambia: «cosa aspettarti» si legge sulle ore EQUIVALENTI di
+   riferimento, mai su quelle reali. Cambia il verso, ed e' il senso della revisione:
+   col vecchio modello l'RC8 aveva fattore >1 e 14 h reali valevano MENO di 14 di
+   riferimento; ora ha fattore <1 e ne valgono di piu'. */
+chk('le ore equivalenti non sono le ore reali',Math.abs(hEq-prRC8.spent)>1,true);
+chk('su RC8 le ore reali rendono piu delle stesse ore al riferimento',hEq>prRC8.spent,true);
+chk('e la riga di cosa aspettarti segue le equivalenti, non le reali',
+  !prRC8.expect||parseFloat(prRC8.expect.key)<=hEq+1e-9,true);
+
+console.log('\n--- quando le ore non bastano ---');
+/* La soglia si e' spostata con la revisione del fattore: sull'RC8 la strada HOO
+   completa costa ora 8.8 h invece di 34, quindi con 6 h la Crescent entra in versione
+   ridotta e a non entrare sono 2 h. L'invariante che il test difende resta lo stesso:
+   sotto il pavimento del canale critico il livello e 'insufficiente' e non si finanzia
+   nulla. */
+const prShort=M.prescribe(eRC8,2,dvRC8);
+console.log(`      RC8 nativo su NGC 6888:  2h → ${prShort.level}   6h → ${M.prescribe(eRC8,6,dvRC8).level}   10h → ${M.prescribe(eRC8,10,dvRC8).level}`);
+chk('sotto il pavimento del canale critico non entra',prShort.level,'insufficiente');
+chk('e in quel caso non si finanzia nessun canale',prShort.alloc.every(g=>g.hours===0),true);
+chk('con 6h invece entra in versione ridotta',M.prescribe(eRC8,6,dvRC8).level,'ridotto');
+const alts=M.fitAlternatives(t6888b,{tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1},
+  bornoSite,npB,{},6,DB.presets,3);
+console.log('      configurazioni tue in cui invece entra:');
+alts.forEach(a=>console.log(`        ${a.preset.label} bin ${a.bin} → ${a.pr.level} (${a.pr.spent.toFixed(1)}h, campionamento ${a.samp})`));
+chk('trova almeno una configurazione alternativa che ci sta',alts.length>0,true);
+chk('le alternative proposte sono davvero fattibili',alts.every(a=>a.pr.level!=='insufficiente'),true);
+
+console.log('\n--- gruppi di costo: il dual-band non si paga due volte ---');
+const dvOsc=M.derive({tel:'askar71f',red:0.75,cam:'asi2600mc',mnt:'am5',bin:1});
+const eOsc=M.evaluate(t6888b,dvOsc,bornoSite,npB,{});
+const gOsc=M.costGroups(M.roadChannels(eOsc.budget,'hoo'),eOsc.dual);
+const gMono=M.costGroups(M.roadChannels(eRef.budget,'hoo'),eRef.dual);
+console.log('      OSC dual-band: '+gOsc.map(g=>g.id).join(' · '));
+console.log('      mono:          '+gMono.map(g=>g.id).join(' · '));
+chk('su OSC dual-band Ha e OIII sono un solo gruppo di costo',
+  gOsc.some(g=>g.joint&&g.bands.length===2),true);
+chk('su mono restano canali separati',gMono.some(g=>g.joint),false);
+
+console.log('\n--- oggetti di catalogo senza scheda: i due strati ---');
+const catM56=CAT.objects.find(o=>o.name==='M56');
+const tM56=M.synthTarget(catM56);
+console.log(`      M56 → ${TG.archetypes[tM56.archetype].label}, ${tM56.size_arcmin[0]}' , ${tM56.constellation}`);
+chk('M56 composto dal catalogo, non da un modulo',!!tM56,true);
+chk('classe corretta: globulare',tM56.archetype,'cluster_globular');
+chk('canale critico RGB, non OIII',
+  Object.entries(tM56.budget).find(([,v])=>v.critical)[0],'RGB');
+chk('nessun canale a banda stretta previsto',
+  ['Ha','OIII','SII'].every(b=>!tM56.budget[b]||tM56.budget[b].useful===0),true);
+chk('la scheda di classe porta ordine, resa attesa e trappole',
+  !!tM56.order&&Object.keys(tM56.expect).length>=2&&tM56.traps.length>=2,true);
+chk('confidenza dichiarata bassa sulle righe',tM56.lines[0].confidence,'bassa');
+// la catena completa: catalogo -> archetipo -> valutazione -> prescrizione
+const eM56=M.evaluate(tM56,dvRef,bornoSite,npB,{});
+const prM56=M.prescribe(eM56,4,dvRef);
+console.log(`      4h su M56 (Tecnosky 0.8x + 2600MM): ${prM56.level} — `+
+  prM56.alloc.filter(g=>!g.dropped).map(g=>g.id+' '+g.hours.toFixed(1)+'h').join(' · '));
+chk('un globulare in 4h si chiude',['pieno','ridotto','minimo'].includes(prM56.level),true);
+chk('la prescrizione non propone mai banda stretta su un globulare',
+  prM56.alloc.every(g=>!['Ha','OIII','SII'].includes(g.id)||g.hours===0),true);
+// e la stessa catena su una HII di catalogo deve invece dare OIII critico
+const catRos=CAT.objects.find(o=>/rosett/i.test(o.name)||(o.aliases||[]).some(a=>/rosett/i.test(a)))
+  ||CAT.objects.find(o=>o.archetype==='hii_classic');
+const tRos=M.synthTarget(catRos);
+console.log(`      controprova: ${catRos.name} → ${TG.archetypes[tRos.archetype].label}`);
+chk('una HII di catalogo mantiene OIII critico',
+  Object.entries(tRos.budget).find(([,v])=>v.critical)[0],'OIII');
+/* La Luna su un ammasso: il modello di superficie non vale. Il fondo entra solo
+   attraverso l'area della PSF, quindi un globulare e' il soggetto delle notti che
+   altrimenti butteresti via — ed e' quello che l'ordine dell'archetipo dice a parole.
+   Senza questa correzione la scheda si contraddiceva: "fallo con la Luna" sopra,
+   "rimandalo" riga sotto. */
+const dmL=2.0;
+const pDiff=M.moonPenalty('RGB',dmL,250,false), pStar=M.moonPenalty('RGB',dmL,250,true);
+console.log(`      con +2 mag di fondo in banda larga:  nebulosa −${(100*(1-pDiff)).toFixed(0)}%  ammasso −${(100*(1-pStar)).toFixed(0)}%`);
+chk('la Luna penalizza molto meno un soggetto stellare',pStar>pDiff,true);
+chk('ma non e mai del tutto indifferente',pStar<1,true);
+chk('gli archetipi ammasso sono marcati come stellari',
+  TG.archetypes.cluster_globular.stellar===true&&TG.archetypes.cluster_open.stellar===true,true);
+chk('le nebulose non sono marcate stellari',!TG.archetypes.hii_classic.stellar,true);
+
+console.log('\n--- le strade: appartenenza dei canali e scelta ---');
+chk('nessun vincolo = il canale sta in tutte le strade',M.inRoad({},'qualunque'),true);
+chk('vincolo singolo',M.inRoad({road:'sho'},'sho')&&!M.inRoad({road:'sho'},'hoo'),true);
+chk('vincolo multiplo',M.inRoad({road:['hoo','sho']},'sho')&&!M.inRoad({road:['hoo','sho']},'hargb'),true);
+/* Ogni strada deve o avere un insieme di canali proprio, o dichiarare perche' no.
+   Senza questo, il 'when' scritto a mano promette una scelta che il motore non puo'
+   fare: tutte le strade costano uguale e la selezione in base alle ore e' finta. */
+let roadsOk=true, roadsBad=[];
+for(const t of TG.targets){
+  const sets=t.roads.map(r=>({r,key:Object.entries(t.budget)
+    .filter(([b,v])=>v.useful>0&&M.inRoad(v,r.id)).map(([b])=>b).sort().join('+')}));
+  sets.forEach((s,i)=>{
+    const dup=sets.findIndex(x=>x.key===s.key)!==i;
+    if(dup&&!s.r.same_budget){ roadsOk=false; roadsBad.push(t.names[0]+'/'+s.r.id); }
+  });
+}
+if(roadsBad.length) console.log('      strade senza budget proprio e senza spiegazione: '+roadsBad.join(', '));
+chk('ogni strada ha un budget proprio o dichiara perche no',roadsOk,true);
+
+const m31=TG.targets.find(t=>t.names[0]==='M31');
+const dvM31mono=M.derive({tel:'tecnosky115',red:0.80,cam:'asi2600mm',mnt:'am5',bin:1});
+const dvM31osc =M.derive({tel:'askar71f',red:0.75,cam:'asi2600mc',mnt:'am5',bin:1});
+const prMono=M.prescribe(M.evaluate(m31,dvM31mono,bornoSite,npB,{}),14.5,dvM31mono);
+const prOsc =M.prescribe(M.evaluate(m31,dvM31osc ,bornoSite,npB,{}),14.5,dvM31osc );
+console.log(`      M31 in 14.5h — mono: ${prMono.road.id} [${prMono.alloc.filter(g=>!g.dropped).map(g=>g.id+' '+g.hours.toFixed(1)).join(' ')}]`);
+console.log(`      M31 in 14.5h — OSC:  ${prOsc.road.id} [${prOsc.alloc.filter(g=>!g.dropped).map(g=>g.id+' '+g.hours.toFixed(1)).join(' ')}]`);
+chk('su mono l Ha additivo ci sta',prMono.road.id,'lrgb_ha');
+chk('su OSC l Ha costa 4x e la strada giusta e LRGB puro',prOsc.road.id,'lrgb');
+/* Il difetto che il tracciato ha trovato: prima della correzione, su OSC il canale
+   additivo Ha (soglia 8h) veniva finanziato PRIMA che la luminanza — il canale
+   critico, cioe' il soggetto — superasse la propria soglia. 8h su 14.5 all'Ha e
+   3.6h alla L: una strategia che nessuno sceglierebbe. */
+const critOsc=prOsc.alloc.find(g=>g.critical);
+/* L'invariante che questo test difende — il canale additivo non si finanzia prima
+   del canale critico — vale ancora, ma va scritto come invariante e non come una
+   soglia numerica: con la revisione del fattore, su OSC la luminanza costa cosi'
+   tanto che assorbe tutto il budget, e «>= 90% dell'utile» non e' piu raggiungibile
+   ne' significativo. */
+const addOsc=prOsc.alloc.filter(g=>!g.critical&&g.hours>0);
+console.log(`      OSC: critico ${critOsc.id} ${critOsc.hours.toFixed(1)}h su ${critOsc.useful.toFixed(1)}h utili · additivi finanziati: ${addOsc.length?addOsc.map(g=>g.id).join(','):'nessuno'}`);
+chk('il canale critico non resta schiacciato da un canale additivo piu costoso',
+  addOsc.every(g=>critOsc.hours>=critOsc.floor-1e-9),true);
+chk('il canale critico ha la precedenza sul budget',critOsc.hours>0,true);
+/* Su matrice di Bayer in banda LARGA il modello e dichiarato NON VALIDATO
+   (OSC_BB e f_CFA si sovrappongono su RGB: 0.62 x 0.34 conta due volte la stessa
+   perdita). Il motore non aggiusta il numero: lo marca. */
+console.log(`      validazione per banda su 2600MC: `+
+  ['Ha','OIII','SII','L','RGB'].map(b=>b+':'+(M.factorValidated(dvM31osc,b)?'si':'NO')).join(' '));
+chk('la banda stretta su OSC e validata',
+  ['Ha','OIII','SII'].every(b=>M.factorValidated(dvM31osc,b)),true);
+chk('RGB su OSC e dichiarato non validato',M.factorValidated(dvM31osc,'RGB'),false);
+chk('su camera mono tutto e validato',
+  ['Ha','OIII','SII','L','RGB'].every(b=>M.factorValidated(dvM31mono,b)),true);
+
+/* Il difetto piu' grave che il tracciato ha trovato: gli archetipi avevano una
+   strada sola, quindi ogni canale ci stava dentro. Su una HII di catalogo con 15h
+   il motore spendeva 8h sul SII — il canale che la logica dello STESSO archetipo
+   definisce «quasi sempre sbagliato, restituisce rumore colorato» — lasciando
+   l'OIII critico al 32% fra soglia e utile. Le schede curate avevano gia' la cura
+   (le strade), gli archetipi no. */
+console.log('\n--- OpenNGC: lo strato catalografico ---');
+if(!ONGC){ console.log('      data/openngc.json assente: sezione saltata'); }
+else{
+const F=Object.fromEntries(ONGC.fields.map((f,i)=>[f,i]));
+const O=ONGC.objects;
+console.log(`      ${O.length} oggetti, ${(JSON.stringify(ONGC).length/1024/1024).toFixed(2)} MB`);
+const byConf={}; O.forEach(o=>byConf[o[F.archetype_confidence]]=(byConf[o[F.archetype_confidence]]||0)+1);
+console.log('      certezza: '+Object.entries(byConf).map(([k,v])=>k+' '+v).join(' · '));
+chk('copertura ampia',O.length>10000,true);
+chk('ogni archetipo citato esiste davvero',
+  O.every(o=>!o[F.archetype]||!!TG.archetypes[o[F.archetype]]),true);
+chk('coordinate tutte nel range',
+  O.every(o=>o[F.ra_deg]>=0&&o[F.ra_deg]<360&&Math.abs(o[F.dec_deg])<=90),true);
+chk('dimensioni positive e maggiore >= minore',
+  O.every(o=>o[F.maj_arcmin]>0&&o[F.maj_arcmin]>=o[F.min_arcmin]),true);
+chk('nomi unici',new Set(O.map(o=>o[F.name])).size,O.length);
+chk('livelli di certezza solo quelli previsti',
+  O.every(o=>['alta','media','da collaudare','stella'].includes(o[F.archetype_confidence])),true);
+/* La regola che rende onesto tutto lo strato: se non c'e' archetipo la certezza
+   deve dirlo, e se la certezza e' "stella" non ci deve essere archetipo. */
+chk('senza archetipo la certezza e sempre «stella»',
+  O.every(o=>!!o[F.archetype]||o[F.archetype_confidence]==='stella'),true);
+chk('«stella» non porta mai un archetipo',
+  O.every(o=>o[F.archetype_confidence]!=='stella'||!o[F.archetype]),true);
+chk('ogni classificazione ha un motivo leggibile',
+  O.every(o=>{const w=o[F.why]; return w&&ONGC.reasons[w[0]];}),true);
+/* La correzione trovata dai dati: «Neb» e' il secchio dei residui e li' resta
+   soprattutto emissione, perche' riflessione e oscure hanno un tipo proprio. */
+const nebs=O.filter(o=>o[F.ongc_type]==='Neb');
+chk('il tipo generico «Neb» va a emissione, non a riflessione',
+  nebs.length>0&&nebs.every(o=>o[F.archetype]==='hii_classic'),true);
+chk('e resta comunque marcato da collaudare',
+  nebs.every(o=>o[F.archetype_confidence]==='da collaudare'),true);
+chk('i nomi sono nella forma che la gente scrive',
+  O.filter(o=>/^(NGC|IC)/.test(o[F.name])).every(o=>/^(NGC|IC) \d/.test(o[F.name])),true);
+
+/* --- verifica incrociata: due classificazioni indipendenti sullo stesso oggetto ---
+   E' il miglior controllo di regressione che il progetto abbia: 153 oggetti sono
+   classificati sia a mano sia dedotti da OpenNGC. Ha gia' trovato due errori miei
+   (NGC 891 e NGC 4565 erano marcati come ellittiche: sono spirali di taglio) e un
+   errore di mappatura (il tipo «Neb» mandato a riflessione invece che a emissione).
+   Le discordanze rimaste sono volute: il curato e' piu' specifico. */
+const oidx=new Map();
+for(const o of O){ oidx.set(nrm(o[F.name]),o); (o[F.aliases]||[]).forEach(a=>{if(!oidx.has(nrm(a)))oidx.set(nrm(a),o)}); }
+let agree=0; const disagree=[];
+for(const c of CAT.objects){
+  let o=oidx.get(nrm(c.name));
+  if(!o) for(const a of (c.aliases||[])){ o=oidx.get(nrm(a)); if(o) break; }
+  if(!o||!o[F.archetype]) continue;
+  if(o[F.archetype]===c.archetype) agree++;
+  else disagree.push(`${c.name}: curato ${c.archetype} vs OpenNGC ${o[F.archetype]} (${o[F.ongc_type]})`);
+}
+const tot=agree+disagree.length;
+console.log(`      confronto su ${tot} oggetti presenti in entrambi: ${agree} concordi, ${disagree.length} discordi`);
+disagree.forEach(d=>console.log('        · '+d));
+chk('le due classificazioni concordano su almeno l 85%',agree/tot>=0.85,true);
+chk('nessuna discordanza su un tipo a corrispondenza diretta e non voluta',
+  disagree.length<=13,true);
+}
+
+console.log('\n--- archetipi: le strade proteggono il canale critico ---');
+const rosetta=M.synthTarget(CAT.objects.find(o=>o.name==='NGC 2237'));
+const eRos2=M.evaluate(rosetta,dvRef,bornoSite,npB,{});
+const prR15=M.prescribe(eRos2,15,dvRef), prR30=M.prescribe(eRos2,30,dvRef);
+const fmtA=p=>p.road.id+': '+p.alloc.filter(g=>!g.dropped).map(g=>g.id+' '+g.hours.toFixed(1)).join(' ');
+console.log('      HII di catalogo, 15h → '+fmtA(prR15));
+console.log('      HII di catalogo, 30h → '+fmtA(prR30));
+chk('con 15h su una HII sceglie HOO, non SHO',prR15.road.id,'hoo');
+chk('e il SII non compare',prR15.alloc.every(g=>g.id!=='SII'),true);
+chk('l OIII critico arriva almeno all utile',
+  prR15.alloc.find(g=>g.critical).hours>=prR15.alloc.find(g=>g.critical).useful-0.01,true);
+chk('con 30h il SII entra e prende le sue ore',
+  prR30.road.id==='sho'&&prR30.alloc.find(g=>g.id==='SII').hours>=8,true);
+chk('ogni archetipo con SII gli assegna una strada dedicata',
+  Object.values(TG.archetypes).every(a=>!(a.default_budget.SII&&a.default_budget.SII.useful>0)
+    ||!!a.default_budget.SII.road),true);
+chk('gli archetipi con piu strade ne hanno una default',
+  Object.values(TG.archetypes).every(a=>!a.roads||a.roads.some(r=>r.default)),true);
+
+console.log('\n--- piano per notte: distribuzione, non divisione ---');
+const monoCam=DB.cameras.find(c=>c.id==='asi2600mm');
+console.log('      tolleranza lunare (fondo +2 mag): '+
+  ['L','RGB','Ha','OIII','SII'].map(b=>b+' '+M.moonTolerance(b,monoCam,false).toFixed(2)).join('  '));
+chk('l Ha tollera la Luna molto piu della luminanza',
+  M.moonTolerance('Ha',monoCam,false)>M.moonTolerance('L',monoCam,false)+0.5,true);
+const eM31=M.evaluate(m31,dvM31mono,bornoSite,npB,{});
+const prM31=M.prescribe(eM31,14.5,dvM31mono);
+const PDATE=new Date(2026,8,1);
+const POPT={site:bornoSite,date:PDATE};
+
+/* Le finestre reali: la notte non e' un numero, e' una data. */
+const win=M.nightWindows(m31,bornoSite,PDATE,6,{});
+win.nights.slice(0,3).forEach(x=>console.log(
+  `      ${x.date.toLocaleDateString('it-IT')}  orologio ${x.clockH.toFixed(1)} h  `+
+  `disponibili ${x.availH.toFixed(1)} h  Luna ${(x.moonK*100).toFixed(0)}%  dMagV ${x.dMagV.toFixed(2)}`));
+chk('la finestra e piu corta della notte astronomica meno l overhead',
+  win.nights[0].availH<win.nights[0].clockH,true);
+chk('notti diverse danno ore diverse',
+  Math.abs(win.nights[0].availH-win.nights[5].availH)>0.01,true);
+chk('l overhead di sessione e tolto davvero',
+  Math.abs(win.nights[0].clockH-win.nights[0].availH-0.6)<1e-6,true);
+/* Il difetto che il pianificatore ha fatto emergere: sommando i flussi una mezza
+   Luna a Borno alza il fondo di mezza magnitudine, non di zero. */
+chk('una Luna sopra l orizzonte alza sempre il fondo di qualcosa',
+  win.nights.filter(x=>x.moonUpFrac>0.5).every(x=>x.dMagV>0.01),true);
+
+const pl3=M.planNights(prM31,eM31,dvM31mono,3,POPT);
+const pl5=M.planNights(prM31,eM31,dvM31mono,5,POPT);
+pl3.nights.forEach(n=>console.log(`      notte ${n.n} (${n.date.toLocaleDateString('it-IT')}): `+
+  `${n.blocks.map(s=>s.id+' '+s.h.toFixed(1)+'h').join(' + ').padEnd(30)} su ${n.availH.toFixed(1)} h → ${n.sky}`));
+chk('il piano non inventa ore: somma = prescrizione',
+  pl3.nights.reduce((a,n)=>a+n.usedH,0),prM31.spent,0.01);
+/* Il punto 11 della specifica: il numero di notti NON puo' toccare le ore. */
+chk('cambiare il numero di notti non cambia le ore totali',
+  pl5.nights.reduce((a,n)=>a+n.usedH,0),prM31.spent,0.01);
+const perCh=pl=>{const m={};pl.nights.forEach(n=>n.blocks.forEach(b=>m[b.id]=(m[b.id]||0)+b.h));return m;};
+const c3=perCh(pl3), c5=perCh(pl5);
+chk('e non cambia nemmeno le ore per canale',
+  Object.keys(c3).every(k=>Math.abs(c3[k]-c5[k])<0.01),true);
+chk('nessuna notte supera le ore realmente disponibili di quella data',
+  pl3.nights.every(n=>n.usedH<=n.availH+1e-6),true);
+chk('chiedere cinque notti ne usa cinque, non tre piene e due vuote',
+  pl5.nights.every(n=>n.blocks.length>0),true);
+chk('i blocchi per notte restano pochi',
+  pl3.nights.every(n=>n.blocks.length<=3),true);
+chk('il canale critico entra dalla prima notte',
+  pl3.nights[0].blocks.some(s=>s.critical)||pl3.nights[1].blocks.some(s=>s.critical),true);
+
+/* ─── le due modalita': sessione autonoma vs ottimizzazione sul progetto ─── */
+console.log('\n--- sessione completa: ogni notte deve stare in piedi da sola ---');
+const expoM31=M.exposurePlan(prM31,dvM31mono,bornoSite,{archetype:m31.archetype});
+const OPT2=Object.assign({},POPT,{expo:expoM31});
+const plSess=M.planNights(prM31,eM31,dvM31mono,4,Object.assign({},OPT2,{mode:'sessione'}));
+const plProg=M.planNights(prM31,eM31,dvM31mono,4,Object.assign({},OPT2,{mode:'progetto'}));
+plSess.nights.forEach(x=>{
+  const sp=M.subPlan(x.blocks,expoM31,{});
+  console.log(`      notte ${x.n}: ${sp.subs.map(u=>u.band+' '+u.sec+'s×'+u.n).join('  ')}`);
+});
+const canali=pr=>{const m={};pr.alloc.filter(g=>g.hours>0).forEach(g=>m[g.id]=g.hours);return m;};
+const target=canali(prM31);
+chk('in sessione ogni notte contiene tutti i canali della strategia',
+  plSess.nights.every(x=>x.blocks.length===Object.keys(target).length),true);
+chk('mentre ottimizzando sul progetto no',
+  plProg.nights.some(x=>x.blocks.length<Object.keys(target).length),true);
+/* L'invariante che non si negozia: qualunque modalita', le ore per canale sono
+   quelle della prescrizione. Il bilanciamento chiude sulle righe apposta. */
+const perCanale=pl=>{const m={};pl.nights.forEach(n2=>n2.blocks.forEach(b=>m[b.id]=(m[b.id]||0)+b.h));return m;};
+const cs=perCanale(plSess), cp=perCanale(plProg);
+chk('la modalita non tocca le ore per canale',
+  Object.keys(target).every(k=>Math.abs(cs[k]-target[k])<0.02&&Math.abs(cp[k]-target[k])<0.02),true);
+chk('ne il totale',plSess.nights.reduce((a,x)=>a+x.usedH,0),prM31.spent,0.02);
+chk('nessuna notte supera le ore disponibili',
+  plSess.nights.every(x=>x.usedH<=x.availH+1e-6),true);
+/* Il canale critico per primo: se le nuvole arrivano a meta' sessione, quello che
+   perdi deve essere il canale che conta meno. */
+chk('il canale critico apre ogni notte',plSess.nights.every(x=>x.blocks[0].critical),true);
+/* La Luna inclina le quantita' senza spostare i totali. */
+const rgbPerNotte=plSess.nights.map(x=>{const b=x.blocks.find(y=>y.id==='RGB');return b?b.h:0;});
+console.log(`      RGB per notte: ${rgbPerNotte.map(h=>h.toFixed(2)).join('  ')} h  (la Luna cresce)`);
+chk('le quantita non sono identiche notte per notte',
+  Math.max(...rgbPerNotte)-Math.min(...rgbPerNotte)>0.005,true);
+/* Il bilanciamento a trasporto: righe esatte, colonne vicine alle quote. */
+const itemsT=[{total:10,pen:[1,1,1],minCell:0},{total:6,pen:[.2,.5,1],minCell:0}];
+const nightsT=[{quota:6},{quota:5},{quota:5}];
+const X=M.balanceSessions(itemsT,nightsT,{});
+const rs=X.map(r=>r.reduce((a,b)=>a+b,0));
+const csum=nightsT.map((_,c)=>X.reduce((a,r)=>a+r[c],0));
+console.log(`      righe ${rs.map(v=>v.toFixed(2)).join(' ')} (attese 10 6) · colonne ${csum.map(v=>v.toFixed(2)).join(' ')} (attese 6 5 5)`);
+chk('le righe tornano esatte',rs[0],10,0.001);
+chk('anche la seconda',rs[1],6,0.001);
+chk('le colonne restano vicine alle quote',csum.every((v,i)=>Math.abs(v-nightsT[i].quota)<0.3),true);
+chk('il canale sensibile alla Luna finisce dove la Luna non c e',X[1][2]>X[1][0],true);
+/* E il canale indifferente NON resta piatto: deve compensare. Le colonne sono un
+   vincolo, quindi dove il canale fragile si ritira qualcuno deve prendere il suo
+   posto — ed e' giusto che sia quello a cui la Luna non importa. */
+chk('e quello indifferente compensa dove l altro si ritira',X[0][0]>X[0][2],true);
+
+/* La guardia sulle combinazioni impossibili — punto 3. */
+const b31=M.nightsBounds(prM31,m31,bornoSite,PDATE,{});
+console.log(`      notti ammesse per 14.5 h su M31 da Borno: da ${b31.min} a ${b31.max}`);
+const tooFew=M.planNights(prM31,eM31,dvM31mono,1,POPT);
+const tooMany=M.planNights(prM31,eM31,dvM31mono,40,POPT);
+chk('una notte sola per 14.5 h viene rifiutata',tooFew.ok,false);
+chk('e il rifiuto dice quante notti servono',tooFew.reason.want>=b31.min,true);
+chk('quaranta notti per 14.5 h vengono rifiutate',tooMany.ok,false);
+chk('e il rifiuto dice il massimo sensato',tooMany.reason.code,'troppe');
+chk('il piano non corregge in silenzio: niente notti se rifiutato',tooMany.nights.length,0);
+chk('dentro l intervallo il piano si costruisce',
+  M.planNights(prM31,eM31,dvM31mono,b31.min,POPT).ok&&
+  M.planNights(prM31,eM31,dvM31mono,b31.max,POPT).ok,true);
+
+console.log('\n--- posa e numero di sub ---');
+/* Il banco di prova non e' un valore di catalogo: e' la sequenza N.I.N.A. che
+   l'utente usa davvero sull'RC8 a f/8 da Borno — L 120-180 s a gain 0, banda
+   stretta 300 s a gain 100. Se il modello si allontana da li', e' il modello. */
+const dvRC=M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1});
+const siteRC={...bornoSite}; siteRC.rms=M.mountRms('cem70g',dvRC.scale);
+siteRC.fwhm=M.effFWHM(siteRC.seeing,siteRC.rms);
+for(const b of ['L','R','Ha','OIII']){
+  const e=M.subExposure(dvRC,siteRC,b,{});
+  console.log(`      ${b.padEnd(4)} ${String(e.sec).padStart(4)} s  gain ${String(e.gm.gain).padEnd(4)}`+
+    ` fondo ${e.sky.toExponential(2)} e/s/px  vincolo ${e.binding.padEnd(20)}`+
+    ` resa ${(e.eff*100).toFixed(0)}% del limite del cielo`);
+}
+const exL=M.subExposure(dvRC,siteRC,'L',{});
+const exHa=M.subExposure(dvRC,siteRC,'Ha',{});
+chk('la luminanza sull RC8 a f/8 esce sui 120 s come nella sequenza reale',exL.sec,120);
+chk('e la sceglie il pozzetto, non il rumore',exL.binding,'saturazione stellare');
+chk('la banda stretta finisce sul modo a rumore basso',exHa.gm.gain,100);
+chk('in banda stretta il cielo non raggiunge mai il rumore di lettura',
+  exHa.tSwamp>3600,true);
+chk('e quindi il vincolo non e il fondo cielo',exHa.binding!=='fondo cielo',true);
+chk('il fondo in banda stretta e due ordini sotto la banda larga',
+  exL.sky/exHa.sky>50,true);
+/* Il binning si semplifica: fondo ×bin², rumore ×bin, quindi il rapporto resta. */
+const dvB2=M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:2});
+chk('binnare non cambia la soglia di sommersione del rumore',
+  M.subExposure(dvB2,siteRC,'Ha',{}).tSwamp,exHa.tSwamp,0.01);
+
+const expo=M.exposurePlan(prM31,dvM31mono,bornoSite,{});
+const bands=Object.keys(expo).filter(k=>k!=='__modes');
+chk('RGB si apre nei tre filtri veri',bands.includes('R')&&bands.includes('G')&&bands.includes('B'),true);
+chk('un solo guadagno per classe di banda',
+  new Set(bands.filter(b=>['L','R','G','B'].includes(b)).map(b=>expo[b].ex.gm.name)).size,1);
+const sp=M.subPlan(pl3.nights[0].blocks,expo,{});
+chk('il numero di sub e intero',sp.subs.every(u=>Number.isInteger(u.n)),true);
+chk('il tempo di orologio supera quello di integrazione',sp.clockH>sp.integH,true);
+chk('lo scarto fra ore chieste e ore reali resta sotto i cinque minuti',
+  sp.subs.every(u=>Math.abs(u.deltaMin)<5),true);
+
+/* ─── due difetti trovati durante l'audit del modello lunare ─── */
+/* ─── i tetti che vengono dal soggetto, non dalla stella di campo ─── */
+console.log('\n--- la posa la decide il soggetto, non solo le stelle di campo ---');
+const dvRC2=M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1});
+const siteRC2={...bornoSite}; siteRC2.rms=M.mountRms('cem70g',dvRC2.scale);
+siteRC2.fwhm=M.effFWHM(siteRC2.seeing,siteRC2.rms);
+/* Il bacino della prova: schede curate, catalogo curato e — per gli oggetti che
+   stanno solo li', come NGC 7027 — lo strato OpenNGC, esattamente come in app. */
+const ONGC_T=(()=>{const f=ONGC.fields, ix=k=>f.indexOf(k);
+  return ONGC.objects.map(a=>({name:a[ix('name')],ra_deg:a[ix('ra_deg')],dec_deg:a[ix('dec_deg')],
+    size_arcmin:[a[ix('maj_arcmin')],a[ix('min_arcmin')]],constellation:a[ix('constellation')],
+    archetype:a[ix('archetype')],mag:a[ix('mag')],aliases:a[ix('aliases')]||[]}));})();
+const objOf=nm=>{
+  const sch=TG.targets.find(t=>t.names.some(x=>x===nm));
+  if(sch) return {t:sch,arch:TG.archetypes[sch.archetype],c:sch};
+  const c=CAT.objects.find(o=>o.name===nm||(o.aliases||[]).includes(nm))
+       || ONGC_T.find(o=>o.name===nm||(o.aliases||[]).includes(nm));
+  return c&&c.archetype?{t:M.synthTarget(c,c.archetype),arch:TG.archetypes[c.archetype],c}:null;};
+const posa=(nm,band)=>{const o=objOf(nm); if(!o) return null;
+  return M.subExposure(dvRC2,siteRC2,band,{tg:o.t,arch:o.arch,stellar:!!o.arch.stellar,hours:3});};
+for(const [nm,bd] of [['M13','R'],['M52','R'],['M27','OIII'],['NGC 7027','OIII'],['NGC 6888','OIII'],['M31','L']]){
+  const e=posa(nm,bd);
+  if(e) console.log(`      ${nm.padEnd(9)} ${bd.padEnd(4)} ${String(e.sec).padStart(3)} s  gain ${String(e.gm.gain).padEnd(4)} ${e.binding}`);
+}
+/* Il riscontro non e' un numero di catalogo: e' la pratica documentata.
+   Globulari 20-60 s (Cloudy Nights, Galactic Hunter: «30 s, forse 60, mai di piu'»),
+   ammassi aperti 30-120 s, planetarie brillanti pose brevi per salvare il colore,
+   600 s solo su soggetti deboli in banda stretta. */
+chk('un globulare non si riprende a pose lunghe',posa('M13','R').sec<=60,true);
+chk('e nemmeno la sua luminanza',posa('M13','L').sec<=60,true);
+chk('un ammasso aperto resta sotto i due minuti',posa('M52','R').sec<=120,true);
+chk('una planetaria brillante resta sotto i tre minuti',posa('M27','OIII').sec<=180,true);
+chk('600 s restano dove servono: nebulosa estesa in banda stretta',posa('NGC 6888','OIII').sec,600);
+chk('e una galassia in luminanza non ci arriva',posa('M31','L').sec<=180,true);
+/* NGC 7027 e' la controprova del termine fisico: minuscola e brillantissima, e' il
+   SOGGETTO a saturare, non una stella di campo. */
+const n7027=posa('NGC 7027','OIII');
+console.log(`      NGC 7027: il soggetto satura in ${Math.round(n7027.tObj)} s, le stelle in ${Math.round(n7027.tStar)} s`);
+chk('su una planetaria compatta e brillante lega il soggetto',n7027.binding,'il soggetto satura');
+chk('e il tetto del soggetto e piu stretto di quello stellare',n7027.tObj<n7027.tStar,true);
+chk('mentre su una nebulosa estesa il soggetto non lega mai',
+  posa('NGC 6888','OIII').tObj>3600,true);
+/* Il pavimento operativo vale contro le stelle di campo, non contro il soggetto:
+   un nucleo stellare bruciato si cura in elaborazione, un soggetto bruciato no. */
+chk('il pavimento non scavalca il tetto del soggetto',n7027.sec<60,true);
+chk('ma tiene contro quello stellare',posa('M13','L').sec>=45,true);
+/* I tetti di classe vengono dalla pratica, non dal modello, e sono dichiarati. */
+chk('gli archetipi dichiarano concentrazione e frazione di riga',
+  Object.values(TG.archetypes).every(a=>a.peak_over_mean>0&&a.line_fraction!=null),true);
+chk('i tetti di classe dichiarano da dove vengono',
+  Object.values(TG.archetypes).every(a=>!a.sub_max_s||!!a.sub_source),true);
+chk('nessun tetto di classe supera i 600 s',
+  Object.values(TG.archetypes).every(a=>!a.sub_max_s||a.sub_max_s<=600),true);
+/* Il curato vince sul dedotto anche qui: M42 non e' una HII qualunque. */
+const m42=objOf('M42');
+chk('un oggetto puo portarsi la propria concentrazione',m42&&m42.t.peak_over_mean>100,true);
+
+console.log('\n--- dual-band su OSC: la finestra e stretta, non larga ---');
+const dvOSC=M.derive({tel:'askar71f',red:0.75,cam:'asi2600mc',mnt:'am5',bin:1});
+const dvMON=M.derive({tel:'askar71f',red:0.75,cam:'asi2600mm',mnt:'am5',bin:1});
+const spDual=M.bandSpec('Ha+OIII',dvOSC.c), spL=M.bandSpec('L',dvOSC.c);
+console.log(`      Ha+OIII su OSC → finestra ${spDual.fwhm} nm, ${spDual.windows} passaggio, `+
+  `righe ${spDual.lines.map(x=>x.toFixed(1)).join(' e ')}`);
+const skyDual=M.skyRateFor(dvOSC,'Ha+OIII',20.8,{}), skyL=M.skyRateFor(dvOSC,'L',20.8,{});
+console.log(`      fondo: dual-band ${skyDual.toExponential(2)} vs luminanza ${skyL.toExponential(2)} e/s/px`);
+chk('il gruppo dual-band trova il filtro dual',spDual.dual,true);
+chk('e la sua finestra e stretta',spDual.narrow,true);
+/* Il difetto: `filterFor('Ha+OIII')` non trovava niente e si ripiegava sui 250 nm
+   della banda larga. Il fondo usciva ~100x troppo alto e la posa ~10x troppo corta,
+   proprio sulla configurazione OSC + dual-band, la piu' diffusa che esista. */
+chk('un dual-band da 3 nm non raccoglie il cielo come una luminanza',skyL/skyDual>20,true);
+chk('su OSC ogni fotosito vede una sola delle due righe',spDual.windows,1);
+chk('su mono le vede entrambe',M.bandSpec('Ha+OIII',dvMON.c).windows,2);
+const exDual=M.subExposure(dvOSC,{lat:45.95,lon:10.2,sqm:20.8,seeing:1.6,rms:0.9,fwhm:2.2},'Ha+OIII',{});
+console.log(`      posa consigliata sul dual-band: ${exDual.sec} s (vincolo: ${exDual.binding})`);
+chk('e la posa consigliata e da banda stretta, non da luminanza',exDual.sec>=300,true);
+chk('servirebbero pose oltre i venti minuti per sommergere il rumore',exDual.tSwamp>1200,true);
+
+console.log('\n--- geometria: una dimensione sola non deve produrre NaN ---');
+const oneDim={id:'x',names:['x'],size_arcmin:[20],ra_deg:0,dec_deg:0};
+const mOne=M.mosaicPanels(oneDim,dvMON), fOne=M.framing(oneDim,dvMON);
+console.log(`      oggetto 20' senza asse minore → ${mOne.cols}x${mOne.rows} pannelli, riempimento ${(fOne.r*100).toFixed(0)}%`);
+chk('i pannelli sono un numero',Number.isFinite(mOne.cols*mOne.rows),true);
+chk('e il riempimento anche',Number.isFinite(fOne.r),true);
+chk('l asse minore assente vale quanto il maggiore',fOne.r,M.framing({size_arcmin:[20,20]},dvMON).r,1e-9);
+
+console.log('\n--- export N.I.N.A. ---');
+const spN=M.subPlan(pl3.nights[0].blocks,expo,{});
+const root=M.ninaSequence({n:1,subs:spN.subs},pl3,m31,dvM31mono,bornoSite,{rot:245,hasRotator:true});
+const nchk=M.ninaCheck(root);
+console.log(`      ${nchk.ids} nodi, ${nchk.refs} riferimenti, ${spN.subs.length} blocchi Smart Exposure`);
+chk('nessun id duplicato',nchk.dup.length,0);
+chk('nessun riferimento pendente',nchk.dangling.length,0);
+chk('il file sopravvive a un giro di serializzazione',
+  JSON.parse(JSON.stringify(root)).$type.indexOf('SequenceRootContainer')>0,true);
+const kids=root.Items.$values.map(x=>x.$type.split(',')[0].split('.').pop());
+chk('la radice ha inizio, target e fine',kids.join(','),
+  'StartAreaContainer,TargetAreaContainer,EndAreaContainer');
+const dso=root.Items.$values[1].Items.$values[0];
+chk('l angolo di posizione arriva nel file',dso.Target.PositionAngle,245);
+chk('e a 245 gradi, che prima era inesprimibile',dso.Target.PositionAngle>180,true);
+const img=dso.Items.$values.find(x=>/SequentialContainer/.test(x.$type));
+chk('un blocco Smart Exposure per canale, non una istruzione per posa',
+  img.Items.$values.length,spN.subs.length);
+const se0=img.Items.$values[0];
+chk('il conteggio sta nella condizione di loop di N.I.N.A.',
+  se0.Conditions.$values[0].Iterations,spN.subs[0].n);
+chk('il binning arriva dalla configurazione, non da un secondo algoritmo',
+  se0.Items.$values[1].Binning.X,dvM31mono.bin);
+chk('il dithering usa il trigger nativo',
+  se0.Triggers.$values[0].$type.indexOf('DitherAfterExposures')>0,true);
+chk('nessun nodo di plugin di terze parti',
+  JSON.stringify(root).indexOf('AdaptiveAgentForPHD2'),-1);
+
+console.log('\n--- rotazione della camera ---');
+const needle={names:['ago'],size_arcmin:[16,2],pa_deg:0};
+const e0=M.objectExtent(needle,0), e90=M.objectExtent(needle,90), e45=M.objectExtent(needle,45);
+console.log(`      ago 16' x 2' con PA 0:  a 0° ${e0.x.toFixed(1)}x${e0.y.toFixed(1)}  `+
+            `a 45° ${e45.x.toFixed(1)}x${e45.y.toFixed(1)}  a 90° ${e90.x.toFixed(1)}x${e90.y.toFixed(1)}`);
+chk('asse maggiore lungo l altezza del sensore',e0.y,16,0.01);
+chk('e la larghezza e il minore',e0.x,2,0.01);
+chk('ruotando di 90 gradi si scambiano',e90.x,16,0.01);
+chk('a 45 gradi il rettangolo che lo contiene e quadrato',Math.abs(e45.x-e45.y)<0.01,true);
+chk('la rotazione e periodica di 180 gradi',
+  Math.abs(M.objectExtent(needle,200).x-M.objectExtent(needle,20).x)<1e-9,true);
+/* Senza angolo di posizione non si puo' fare meglio dell'ipotesi peggiore: asse
+   maggiore attraverso il lato corto. E' il comportamento che l'app aveva sempre. */
+const noPA={names:['x'],size_arcmin:[16,2]};
+chk('senza PA si assume l orientamento peggiore',M.objectExtent(noPA,0).x,16,0.01);
+chk('e la mancanza e dichiarata',M.objectExtent(noPA,0).known,false);
+
+const dvTec=M.derive({tel:'tecnosky115',red:0.80,cam:'asi2600mm',bin:1});
+/* Il caso che giustifica la funzione: M31 sul Tecnosky ridotto passa da sei
+   pannelli a due ruotando la camera. Tre volte le ore, sull'oggetto piu'
+   fotografato del cielo boreale. */
+const m31r={names:['M31'],size_arcmin:[190,60],pa_deg:35};
+const rot31=M.bestRotation(m31r,dvTec,5);
+console.log(`      M31 (190'x60', PA 35°) su Tecnosky 0.80x: `+
+  (rot31?`${rot31.from} → ${rot31.panels} pannelli ruotando a ${rot31.rot}°  (${rot31.ratio.toFixed(1)}x)`:'nessun guadagno'));
+chk('su M31 la rotazione riduce i pannelli',!!rot31&&rot31.panels<rot31.from,true);
+chk('e il guadagno e sostanziale',rot31.ratio>=2,true);
+/* Il consiglio si da' SOLO dove c'e' un costo. Su un oggetto che ci sta gia',
+   ruotare e' composizione: il primo tentativo massimizzava il riempimento e
+   peggiorava l'inquadratura (NGC 4565 da «ideale 36%» a «piccolo 29%»). */
+chk('nessun consiglio quando l oggetto ci sta gia',
+  M.bestRotation({names:['x'],size_arcmin:[16,2],pa_deg:135},dvTec,5),null);
+chk('nessun consiglio senza angolo di posizione',
+  M.bestRotation({names:['x'],size_arcmin:[190,60]},dvTec,5),null);
+// il rettangolo disegnato resta un rettangolo, e con le stesse misure
+const c0=M.fieldCorners(100,0,2,1,0), c30=M.fieldCorners(100,0,2,1,30);
+const side=(p,q)=>Math.hypot(p[0]-q[0],p[1]-q[1]);
+chk('il campo ruotato conserva il lato lungo',side(c30[0],c30[1]),side(c0[0],c0[1]),0.001);
+chk('e il lato corto',side(c30[1],c30[2]),side(c0[1],c0[2]),0.001);
+chk('e resta chiuso',c30.length,5);
+
+console.log('\n--- inquadratura spostabile: il centro non e sempre quello dell oggetto ---');
+const tgOff={id:'x',names:['x'],ra_deg:350.2,dec_deg:61.2,size_arcmin:[15,15]};
+const sepArc=(a,b)=>Math.acos(Math.sin(a.dec*Math.PI/180)*Math.sin(b.dec*Math.PI/180)+
+  Math.cos(a.dec*Math.PI/180)*Math.cos(b.dec*Math.PI/180)*Math.cos((a.ra-b.ra)*Math.PI/180))*180/Math.PI*60;
+const base={ra:tgOff.ra_deg,dec:tgOff.dec_deg};
+for(const [rot,du,dv] of [[0,10,0],[0,0,10],[90,10,0],[66,-8,12]]){
+  const fc=M.framingCenter(tgOff,rot,{du,dv});
+  console.log(`      rot ${String(rot).padStart(3)}° scostamento (${du},${dv})′ → separazione reale ${sepArc(fc,base).toFixed(2)}′`);
+}
+chk('senza scostamento il centro e l oggetto',
+  M.framingCenter(tgOff,0,{du:0,dv:0}).ra,tgOff.ra_deg,1e-9);
+chk('e lo dichiara',M.framingCenter(tgOff,0,{}).off,false);
+/* Dieci primi devono essere dieci primi SUL CIELO, in ogni direzione e a ogni
+   rotazione: il coseno della declinazione non e' un dettaglio a dec 61. */
+chk('dieci primi a destra sono dieci primi sul cielo',
+  sepArc(M.framingCenter(tgOff,0,{du:10,dv:0}),base),10,0.01);
+chk('e anche dieci primi in alto',
+  sepArc(M.framingCenter(tgOff,0,{du:0,dv:10}),base),10,0.01);
+chk('la rotazione non cambia la distanza, solo la direzione',
+  sepArc(M.framingCenter(tgOff,90,{du:10,dv:0}),base),10,0.01);
+chk('e le due componenti si compongono in quadratura',
+  sepArc(M.framingCenter(tgOff,66,{du:-8,dv:12}),base),Math.hypot(8,12),0.02);
+/* A rotazione zero «destra» e' Est e «su» e' Nord. */
+chk('a rotazione zero destra e Est',M.framingCenter(tgOff,0,{du:10,dv:0}).ra>tgOff.ra_deg,true);
+chk('e su e Nord',M.framingCenter(tgOff,0,{du:0,dv:10}).dec>tgOff.dec_deg,true);
+chk('a 90 gradi destra diventa Sud',M.framingCenter(tgOff,90,{du:10,dv:0}).dec<tgOff.dec_deg,true);
+/* E il centro scelto deve arrivare nel file di N.I.N.A.: e' il punto di tutto. */
+const spOff=M.subPlan(pl3.nights[0].blocks,expoM31,{});
+const rootC=M.ninaSequence({n:1,subs:spOff.subs},pl3,m31,dvM31mono,bornoSite,{rot:0,off:{du:0,dv:0}});
+const rootO=M.ninaSequence({n:1,subs:spOff.subs},pl3,m31,dvM31mono,bornoSite,{rot:0,off:{du:30,dv:0}});
+const ic=r=>r.Items.$values[1].Items.$values[0].Target.InputCoordinates;
+console.log(`      M31 centrato: ${ic(rootC).RAHours}h ${ic(rootC).RAMinutes}m  ·  spostato di 30′: ${ic(rootO).RAHours}h ${ic(rootO).RAMinutes}m`);
+chk('le coordinate esportate seguono il centro scelto, non il catalogo',
+  ic(rootC).RAMinutes!==ic(rootO).RAMinutes||ic(rootC).RASeconds!==ic(rootO).RASeconds,true);
+chk('ma il nome del target resta quello dell oggetto',
+  rootO.Items.$values[1].Items.$values[0].Target.TargetName,m31.names[0]);
+
+console.log('\n--- inquadratura: pannelli di mosaico e geometria del campo ---');
+const dvWide=M.derive({tel:'askar71f',red:0.75,cam:'asi2600mc',mnt:'am5',bin:1});
+const dvLong=M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1});
+const velo=TG.targets.find(t=>t.id==='velo'||/velo/i.test(t.names[0]));
+const m1=M.mosaicPanels(velo,dvWide), m2=M.mosaicPanels(velo,dvLong);
+console.log(`      ${velo.names[0]} (${velo.size_arcmin[0]}' x ${velo.size_arcmin[1]}')`);
+console.log(`      Askar 0.75x (${(dvWide.fovX).toFixed(0)}' di campo): ${m1.cols}x${m1.rows} pannelli`);
+console.log(`      RC8 nativo  (${(dvLong.fovX).toFixed(0)}' di campo): ${m2.cols}x${m2.rows} pannelli`);
+chk('a campo largo servono meno pannelli',m1.cols*m1.rows<m2.cols*m2.rows,true);
+chk('un oggetto che ci sta in un campo non e mosaico',
+  M.mosaicPanels({size_arcmin:[20,15]},dvWide).cols,1);
+// il coseno della declinazione: senza, il campo sarebbe disegnato largo il doppio a dec alta
+const cLow=M.fieldCorners(100,0,1,1), cHigh=M.fieldCorners(100,60,1,1);
+const wLow=cLow[1][0]-cLow[0][0], wHigh=cHigh[1][0]-cHigh[0][0];
+console.log(`      larghezza in AR di un campo da 1 grado: a dec 0 -> ${wLow.toFixed(2)}, a dec 60 -> ${wHigh.toFixed(2)}`);
+chk('il campo si allarga in AR alle alte declinazioni',wHigh/wLow,2,0.02);
+chk('il rettangolo e chiuso',cLow.length,5);
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   IL MODELLO FOTOMETRICO — gate di validazione fisica (docs/gate-fisico.md)
+   Forma di riferimento: ESO (Hainaut), STScI WFC3 IHB 9.6, Rubin SMTN-002.
+   ═══════════════════════════════════════════════════════════════════════════ */
+console.log('\n--- modello fotometrico: equivalenza con la forma a N pose ---');
+{
+const dvA=M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1});
+const SQMR=DB.reference_config.sqm_zenith;
+const r=M.rates(dvA,'OIII',SQMR);
+const s_arc=2.36e-5*r.collect, R_s=s_arc*r.om, tsub=600;
+/* SNR_px = R_s*T / sqrt( (R_s+R_b+R_d)*T + N*RN^2 )   con N = T/t_posa
+          = R_s*T / sqrt( T*[R_s+R_b+R_d+RN^2/t_posa] )
+   N sparisce: entra solo via T/t_posa. Il rumore di lettura si paga per LETTURA,
+   non si integra nel tempo — per questo diventa il tasso RN^2/t_posa. */
+let same=true;
+for(const N of [1,10,30,50,180]){
+  const T=N*tsub;
+  const aN=R_s*T/Math.sqrt((R_s+r.R_b+r.R_d)*T+N*r.RN*r.RN);
+  const aR=R_s*T/Math.sqrt(T*(R_s+r.R_b+r.R_d+r.RN*r.RN/tsub));
+  if(Math.abs(aN-aR)>1e-12*Math.max(1,aN)) same=false;
+}
+chk('forma a N pose e forma a tassi coincidono per ogni N',same,true);
+// SNR su 1 arcsec2: dai pixel oppure dai tassi angolari, stesso numero
+const viaPix=Math.sqrt(1/r.om)*R_s*(30*tsub)/Math.sqrt((R_s+r.R_b+r.R_d)*(30*tsub)+30*r.RN*r.RN);
+const viaArc=s_arc*Math.sqrt(1*(30*tsub)/M.varRate(r,tsub,s_arc));
+console.log(`      SNR(1 arcsec2) in 30x600s: dai pixel ${viaPix.toFixed(6)}  dai tassi ${viaArc.toFixed(6)}`);
+chk('SNR per arcsec2: dai pixel == dai tassi angolari',viaPix,viaArc,1e-9);
+chk('la varianza e la somma esatta dei quattro termini (nessun doppio conteggio)',
+  M.varRate(r,tsub,s_arc),s_arc+r.R_b/r.om+r.R_d/r.om+r.RN*r.RN/(r.om*tsub),1e-15);
+// a T costante il numero di pose conta, ed e' l'unico modo in cui conta
+const snrT=ts=>R_s*18000/Math.sqrt((R_s+r.R_b+r.R_d)*18000+(18000/ts)*r.RN*r.RN);
+console.log(`      a 18000 s totali:  300 s ${snrT(300).toFixed(4)}  600 s ${snrT(600).toFixed(4)}  1800 s ${snrT(1800).toFixed(4)}`);
+chk('a T costante pose piu lunghe danno piu SNR',snrT(1800)>snrT(300),true);
+/* La metrica non ha un parametro libero: nella forma t = SNR^2*Vdot/(s_arc^2*Om0)
+   la scala Om0 si semplifica nel rapporto fra due configurazioni. E' la differenza
+   fra questa e un fattore tipo C(w)=w^2/(w^2+FWHM^2), dove w NON si semplifica. */
+const q=(dv,O)=>M.varRate(M.rates(dv,'OIII',SQMR),600,0)/Math.pow(M.rates(dv,'OIII',SQMR).collect,2)/O;
+const dvRef=M.derive({tel:DB.reference_config.telescope,red:DB.reference_config.reducer,
+                      cam:DB.reference_config.camera,mnt:'am5',bin:1});
+chk('la scala angolare di riferimento si semplifica (1 / 100 / 3600 arcsec2)',
+  [1,100,3600].every(O=>Math.abs(q(dvA,O)/q(dvRef,O)-M.timeFactor(dvA,'OIII',600))<1e-12),true);
+}
+
+console.log('\n--- modello fotometrico: regime sky-limited ---');
+{
+const SQMR=DB.reference_config.sqm_zenith;
+const tf=(dv,sqm)=>{
+  const a=M.rates(dv,'OIII',sqm), b=M.rates(M.derive({tel:DB.reference_config.telescope,
+    red:DB.reference_config.reducer,cam:DB.reference_config.camera,mnt:'am5',bin:1}),'OIII',sqm);
+  return (M.varRate(a,600,0)/Math.pow(a.collect,2))/(M.varRate(b,600,0)/Math.pow(b.collect,2));
+};
+const a=M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1});
+const b=M.derive({tel:'rc8',red:0.8,cam:'asi2600mm',mnt:'cem70g',bin:1});
+const g=[];
+for(const sqm of [21.3,20.0,18.0,15.0,12.0]){ const x=tf(a,sqm), y=tf(b,sqm); g.push(1-y/x);
+  console.log(`      SQM ${sqm.toFixed(1)}:  f/8 x${x.toFixed(3)}  f/6.4 x${y.toFixed(3)}  vantaggio ${(100*(1-y/x)).toFixed(2)}%`); }
+/* Il vantaggio del rapporto focale vive SOLO nei termini strumentali. Quando il
+   cielo domina devono diventare trascurabili, e il vantaggio con loro. Serve a
+   impedire che f/8 -> f/6.4 diventi un guadagno fotometrico automatico. */
+chk('il vantaggio del f/ tende a zero in regime sky-limited',g[g.length-1]<0.01,true);
+chk('ed e monotono col cielo',g.every((x,i)=>i===0||x<=g[i-1]+1e-9),true);
+const rr=M.rates(M.derive({tel:DB.reference_config.telescope,red:DB.reference_config.reducer,
+  cam:DB.reference_config.camera,mnt:'am5',bin:1}),'OIII',12.0);
+chk('a cielo dominante il fattore = solo rapporto di raccolta',
+  tf(a,12.0),rr.collect/M.rates(a,'OIII',12.0).collect,0.005);
+}
+
+console.log('\n--- modello fotometrico: aperture diverse a pari f/ratio ---');
+{
+/* Il test che impedisce di passare dall'errore «scala del pixel» all'errore opposto
+   «apertura = velocita». A pari f/ e stessa camera:
+     - per PIXEL i due sistemi sono identici (E ∝ 1/f²) — l'invariante fotografico;
+     - per ARCSEC² il maggiore raccoglie D² volte di piu (Sheffield PHY217: «the
+       amount of light collected is proportional to D²»; Rubin SMTN-002: C ∝ effArea).
+   Quindi NON devono risultare equivalenti per arcsec²: devono differire di
+   ESATTAMENTE A·k, e di niente altro. Se comparisse un termine in piu, il modello
+   avrebbe iniziato a gonfiare l'apertura. */
+const tel=DB.telescopes, made=[];
+for(const D_mm of [100,200,400]){ const id='__f5_'+D_mm; made.push(id);
+  tel.push({id,name:id,aperture_mm:D_mm,focal_mm:D_mm*5,obstruction_linear:0,throughput:0.95,
+    reducers:[{factor:1,focal_mm:D_mm*5,label:'nativo'}]}); }
+const SQMR=DB.reference_config.sqm_zenith;
+const o=made.map(id=>{const dv=M.derive({tel:id,red:1,cam:'asi2600mm',mnt:'cem70g',bin:1});
+  const r=M.rates(dv,'OIII',SQMR); return {dv,r,sArc:2.36e-5*r.collect,sPx:2.36e-5*r.collect*r.om};});
+o.forEach(x=>console.log(`      D ${String(x.dv.t.aperture_mm).padStart(3)} mm  f/${x.dv.fRatio.toFixed(2)}  ${x.dv.scale.toFixed(3)}"/px  e-/px/s ${x.sPx.toExponential(3)}  e-/arcsec2/s ${x.sArc.toExponential(3)}  fattore x${M.timeFactor(x.dv,'OIII',600).toFixed(3)}`));
+chk('a pari f/ l illuminamento per PIXEL e identico',o[0].sPx,o[2].sPx,1e-12);
+chk('a pari f/ anche il cielo per pixel e identico',o[0].r.R_b,o[2].r.R_b,1e-12);
+chk('per ARCSEC2 il flusso scala come D2 (100->200)',o[1].sArc/o[0].sArc,4,0.02);
+chk('per ARCSEC2 il flusso scala come D2 (100->400)',o[2].sArc/o[0].sArc,16,0.05);
+const t1=M.timeFactor(o[0].dv,'OIII',600), t2=M.timeFactor(o[1].dv,'OIII',600), t4=M.timeFactor(o[2].dv,'OIII',600);
+chk('il vantaggio in tempo e ESATTAMENTE il rapporto di raccolta, non di piu',
+  (t1/t2)/(o[1].r.collect/o[0].r.collect),1,0.02);
+chk('e resta esatto anche a 4x di diametro',
+  (t1/t4)/(o[2].r.collect/o[0].r.collect),1,0.05);
+console.log(`      e la risoluzione, che sta su un asse separato: `+
+  o.map(x=>x.dv.t.aperture_mm+'mm '+M.samplingVerdict(x.dv.scale,2.2).k).join(' · '));
+made.forEach(id=>tel.splice(tel.findIndex(t=>t.id===id),1));
+}
+
+console.log('\n--- modello fotometrico: il riduttore e un risultato, non una regola ---');
+{
+const gain=(band,tsub,sqm,mut)=>{
+  const und=mut?mut():null;
+  const x=M.timeFactor(M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1}),band,tsub);
+  const y=M.timeFactor(M.derive({tel:'rc8',red:0.8,cam:'asi2600mm',mnt:'cem70g',bin:1}),band,tsub);
+  if(und) und();
+  return 1-y/x;
+};
+const cam=DB.cameras.find(c=>c.id==='asi2600mm');
+const base=gain('OIII',600), g120=gain('OIII',120), g1800=gain('OIII',1800);
+const gLCG=gain('OIII',600,null,()=>{const o=cam.read_noise_e;cam.read_noise_e=3.3;return()=>cam.read_noise_e=o;});
+const gDark=gain('OIII',600,null,()=>{const o=cam.dark_e_s;cam.dark_e_s=0.0005;return()=>cam.dark_e_s=o;});
+const gBB=gain('L',180);
+console.log(`      OIII 600s ${(100*base).toFixed(1)}%  ·  120s ${(100*g120).toFixed(1)}%  ·  1800s ${(100*g1800).toFixed(1)}%  ·  LCG ${(100*gLCG).toFixed(1)}%  ·  buio basso ${(100*gDark).toFixed(1)}%  ·  banda larga ${(100*gBB).toFixed(1)}%`);
+chk('il vantaggio del riduttore cambia con la posa',Math.abs(g120-g1800)>0.05,true);
+chk('cambia col rumore di lettura',Math.abs(base-gLCG)>0.03,true);
+chk('cambia con la corrente di buio',Math.abs(base-gDark)>0.02,true);
+chk('ed e trascurabile in banda larga',gBB<0.03,true);
+chk('nessuna costante «0.8x = 23%» e cablata nel motore',
+  !/0\.8.{0,20}23|23.{0,20}0\.8x/.test(SRC),true);
+}
+
+console.log('\n--- modello fotometrico: Abell 61, regression test indipendente ---');
+{
+/* Alessandro ha ripreso Abell 61 in 8 h con RC8 a focale piena, HOO, filtri da 3 nm,
+   pose da 600 s, e l'immagine e riuscita. Le 8 h NON entrano in nessuna formula:
+   sono una verifica empirica indipendente. Il vecchio modello dava un pavimento OIII
+   di 22.5 h e dichiarava insufficienti anche 15 h — incompatibile con il risultato. */
+const dv=M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1});
+const bud=TG.archetypes.pn_faint.default_budget.OIII;
+const fac=M.timeFactor(dv,'OIII',600);
+const floor=bud.floor*fac, useful=bud.useful*fac;
+console.log(`      pn_faint OIII: pavimento ${bud.floor}h utile ${bud.useful}h al riferimento`);
+console.log(`      su RC8 nativo (fattore x${fac.toFixed(2)}): pavimento ${floor.toFixed(1)}h  utile ${useful.toFixed(1)}h   ·   risultato reale 8 h`);
+chk('il vecchio comportamento e rimosso: 15 h non sono piu insufficienti',15>floor,true);
+chk('le 8 h reali superano il pavimento del modello',8>floor,true);
+chk('e restano sotto l utile: livello «ridotto», non «pieno»',8<useful,true);
+chk('il pavimento non e sceso sotto meta del risultato reale',floor>4,true);
+}
+
+console.log(`\n${pass} verifiche superate, ${fail} fallite\n`);
+process.exit(fail?1:0);

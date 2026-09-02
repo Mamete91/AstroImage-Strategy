@@ -1,0 +1,1497 @@
+{
+  "schema_version": "1.0",
+  "note": "Layer strumentale. Non contiene dati astrofisici: quelli stanno in targets.json. Tutti i valori derivati (scala, f/ efficace, tasso di segnale) sono calcolati a runtime dall'app.",
+  "cameras": [
+    {
+      "id": "asi2600mm",
+      "name": "ZWO ASI 2600MM Pro",
+      "sensor": "IMX571 mono",
+      "pixel_um": 3.76,
+      "width_px": 6248,
+      "height_px": 4176,
+      "read_noise_e": 1.5,
+      "gain_note": "gain 100 (HCG)",
+      "dark_e_s": 0.003,
+      "full_well_e": 4600,
+      "qe": {
+        "400": 0.72,
+        "450": 0.88,
+        "500": 0.9,
+        "550": 0.87,
+        "600": 0.78,
+        "650": 0.63,
+        "656": 0.62,
+        "672": 0.58,
+        "700": 0.5
+      },
+      "gain_modes": [
+        {
+          "name": "LCG",
+          "gain": 0,
+          "offset": 50,
+          "read_noise_e": 3.3,
+          "full_well_e": 50000,
+          "use": "banda larga",
+          "confidence": "media-alta",
+          "source": "specifica ZWO ASI2600: pozzetto 50 ke, rumore di lettura 1.0-3.3 e-"
+        },
+        {
+          "name": "HCG",
+          "gain": 100,
+          "offset": 50,
+          "read_noise_e": 1.5,
+          "full_well_e": 16000,
+          "use": "banda stretta",
+          "confidence": "media",
+          "source": "soglia HCG a gain 100; pozzetto derivato da 65535 ADU x ~0.25 e-/ADU, da confermare sui propri dark"
+        }
+      ],
+      "full_well_note": "il campo full_well_e qui sopra e' un valore ereditato e non usato dal motore: per la posa fa fede gain_modes, dove il pozzetto e' dichiarato per modo di guadagno"
+    },
+    {
+      "id": "asi2600mc",
+      "name": "ZWO ASI 2600MC Pro",
+      "sensor": "IMX571 colore (CFA Bayer)",
+      "pixel_um": 3.76,
+      "width_px": 6248,
+      "height_px": 4176,
+      "read_noise_e": 1.5,
+      "gain_note": "gain 100 (HCG)",
+      "dark_e_s": 0.003,
+      "full_well_e": 4600,
+      "cfa_penalty": 0.25,
+      "cfa_note": "In banda stretta su OSC solo ~1/4 (OIII: pixel B) o ~1/2 (Ha: pixel R) dei fotositi raccoglie la riga. Penalità applicata come frazione di fotositi utili per banda.",
+      "qe": {
+        "400": 0.55,
+        "450": 0.8,
+        "500": 0.82,
+        "550": 0.8,
+        "600": 0.7,
+        "650": 0.55,
+        "656": 0.54,
+        "672": 0.5,
+        "700": 0.42
+      },
+      "gain_modes": [
+        {
+          "name": "LCG",
+          "gain": 0,
+          "offset": 50,
+          "read_noise_e": 3.3,
+          "full_well_e": 50000,
+          "use": "banda larga",
+          "confidence": "media-alta",
+          "source": "specifica ZWO ASI2600: pozzetto 50 ke, rumore di lettura 1.0-3.3 e-"
+        },
+        {
+          "name": "HCG",
+          "gain": 100,
+          "offset": 50,
+          "read_noise_e": 1.5,
+          "full_well_e": 16000,
+          "use": "banda stretta",
+          "confidence": "media",
+          "source": "soglia HCG a gain 100; pozzetto derivato da 65535 ADU x ~0.25 e-/ADU, da confermare sui propri dark"
+        }
+      ],
+      "full_well_note": "il campo full_well_e qui sopra e' un valore ereditato e non usato dal motore: per la posa fa fede gain_modes, dove il pozzetto e' dichiarato per modo di guadagno",
+      "cfa_fraction": {
+        "Ha": 0.29,
+        "SII": 0.28,
+        "OIII": 0.71,
+        "HaOIII": 0.5,
+        "R": 0.29,
+        "G": 0.62,
+        "B": 0.3,
+        "L": 1.0,
+        "RGB": 0.62
+      },
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+    },
+    {
+      "id": "asi294mm",
+      "name": "ZWO ASI 294MM Pro (bin 2)",
+      "sensor": "IMX492 mono",
+      "pixel_um": 4.63,
+      "width_px": 4144,
+      "height_px": 2822,
+      "read_noise_e": 1.5,
+      "dark_e_s": 0.003,
+      "qe_peak": 0.9,
+      "gain_note": "modo bin 2, il piu' usato"
+    },
+    {
+      "id": "asi294mc",
+      "name": "ZWO ASI 294MC Pro",
+      "sensor": "IMX294 colore",
+      "pixel_um": 4.63,
+      "width_px": 4144,
+      "height_px": 2822,
+      "read_noise_e": 1.6,
+      "dark_e_s": 0.003,
+      "qe_peak": 0.75,
+      "cfa_penalty": 0.25,
+      "cfa_fraction": {
+        "Ha": 0.29,
+        "SII": 0.28,
+        "OIII": 0.71,
+        "HaOIII": 0.5,
+        "R": 0.29,
+        "G": 0.62,
+        "B": 0.3,
+        "L": 1.0,
+        "RGB": 0.62
+      },
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+    },
+    {
+      "id": "asi533mm",
+      "name": "ZWO ASI 533MM Pro",
+      "sensor": "IMX533 mono",
+      "pixel_um": 3.76,
+      "width_px": 3008,
+      "height_px": 3008,
+      "read_noise_e": 1.5,
+      "dark_e_s": 0.002,
+      "qe_peak": 0.91
+    },
+    {
+      "id": "asi533mc",
+      "name": "ZWO ASI 533MC Pro",
+      "sensor": "IMX533 colore",
+      "pixel_um": 3.76,
+      "width_px": 3008,
+      "height_px": 3008,
+      "read_noise_e": 1.5,
+      "dark_e_s": 0.002,
+      "qe_peak": 0.8,
+      "cfa_penalty": 0.25,
+      "cfa_fraction": {
+        "Ha": 0.29,
+        "SII": 0.28,
+        "OIII": 0.71,
+        "HaOIII": 0.5,
+        "R": 0.29,
+        "G": 0.62,
+        "B": 0.3,
+        "L": 1.0,
+        "RGB": 0.62
+      },
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+    },
+    {
+      "id": "asi6200mm",
+      "name": "ZWO ASI 6200MM Pro",
+      "sensor": "IMX455 mono full frame",
+      "pixel_um": 3.76,
+      "width_px": 9576,
+      "height_px": 6388,
+      "read_noise_e": 1.5,
+      "dark_e_s": 0.003,
+      "qe_peak": 0.91
+    },
+    {
+      "id": "asi6200mc",
+      "name": "ZWO ASI 6200MC Pro",
+      "sensor": "IMX455 colore full frame",
+      "pixel_um": 3.76,
+      "width_px": 9576,
+      "height_px": 6388,
+      "read_noise_e": 1.5,
+      "dark_e_s": 0.003,
+      "qe_peak": 0.8,
+      "cfa_penalty": 0.25,
+      "cfa_fraction": {
+        "Ha": 0.29,
+        "SII": 0.28,
+        "OIII": 0.71,
+        "HaOIII": 0.5,
+        "R": 0.29,
+        "G": 0.62,
+        "B": 0.3,
+        "L": 1.0,
+        "RGB": 0.62
+      },
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+    },
+    {
+      "id": "asi1600mm",
+      "name": "ZWO ASI 1600MM Pro",
+      "sensor": "MN34230 mono",
+      "pixel_um": 3.8,
+      "width_px": 4656,
+      "height_px": 3520,
+      "read_noise_e": 1.7,
+      "dark_e_s": 0.01,
+      "qe_peak": 0.6
+    },
+    {
+      "id": "asi183mm",
+      "name": "ZWO ASI 183MM Pro",
+      "sensor": "IMX183 mono",
+      "pixel_um": 2.4,
+      "width_px": 5496,
+      "height_px": 3672,
+      "read_noise_e": 1.6,
+      "dark_e_s": 0.008,
+      "qe_peak": 0.84
+    },
+    {
+      "id": "asi183mc",
+      "name": "ZWO ASI 183MC Pro",
+      "sensor": "IMX183 colore",
+      "pixel_um": 2.4,
+      "width_px": 5496,
+      "height_px": 3672,
+      "read_noise_e": 1.6,
+      "dark_e_s": 0.008,
+      "qe_peak": 0.78,
+      "cfa_penalty": 0.25,
+      "cfa_fraction": {
+        "Ha": 0.29,
+        "SII": 0.28,
+        "OIII": 0.71,
+        "HaOIII": 0.5,
+        "R": 0.29,
+        "G": 0.62,
+        "B": 0.3,
+        "L": 1.0,
+        "RGB": 0.62
+      },
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+    },
+    {
+      "id": "asi071mc",
+      "name": "ZWO ASI 071MC Pro",
+      "sensor": "IMX071 colore APS-C",
+      "pixel_um": 4.78,
+      "width_px": 4944,
+      "height_px": 3284,
+      "read_noise_e": 2.3,
+      "dark_e_s": 0.005,
+      "qe_peak": 0.5,
+      "cfa_penalty": 0.25,
+      "cfa_fraction": {
+        "Ha": 0.29,
+        "SII": 0.28,
+        "OIII": 0.71,
+        "HaOIII": 0.5,
+        "R": 0.29,
+        "G": 0.62,
+        "B": 0.3,
+        "L": 1.0,
+        "RGB": 0.62
+      },
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+    },
+    {
+      "id": "asi2400mc",
+      "name": "ZWO ASI 2400MC Pro",
+      "sensor": "IMX410 colore full frame",
+      "pixel_um": 5.94,
+      "width_px": 6072,
+      "height_px": 4042,
+      "read_noise_e": 1.5,
+      "dark_e_s": 0.003,
+      "qe_peak": 0.8,
+      "cfa_penalty": 0.25,
+      "cfa_fraction": {
+        "Ha": 0.29,
+        "SII": 0.28,
+        "OIII": 0.71,
+        "HaOIII": 0.5,
+        "R": 0.29,
+        "G": 0.62,
+        "B": 0.3,
+        "L": 1.0,
+        "RGB": 0.62
+      },
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+    },
+    {
+      "id": "qhy268m",
+      "name": "QHY 268M",
+      "sensor": "IMX571 mono",
+      "pixel_um": 3.76,
+      "width_px": 6280,
+      "height_px": 4210,
+      "read_noise_e": 1.4,
+      "dark_e_s": 0.003,
+      "qe_peak": 0.9
+    },
+    {
+      "id": "qhy600m",
+      "name": "QHY 600M",
+      "sensor": "IMX455 mono full frame",
+      "pixel_um": 3.76,
+      "width_px": 9600,
+      "height_px": 6422,
+      "read_noise_e": 1.4,
+      "dark_e_s": 0.003,
+      "qe_peak": 0.9
+    },
+    {
+      "id": "dslr_apsc",
+      "name": "Reflex/mirrorless APS-C (generica)",
+      "sensor": "CMOS colore APS-C",
+      "pixel_um": 4.3,
+      "width_px": 6000,
+      "height_px": 4000,
+      "read_noise_e": 3.0,
+      "dark_e_s": 0.02,
+      "qe_peak": 0.45,
+      "cfa_penalty": 0.25,
+      "cfa_fraction": {
+        "Ha": 0.29,
+        "SII": 0.28,
+        "OIII": 0.71,
+        "HaOIII": 0.5,
+        "R": 0.29,
+        "G": 0.62,
+        "B": 0.3,
+        "L": 1.0,
+        "RGB": 0.62
+      },
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+    },
+    {
+      "id": "dslr_ff",
+      "name": "Reflex/mirrorless full frame (generica)",
+      "sensor": "CMOS colore full frame",
+      "pixel_um": 5.9,
+      "width_px": 6240,
+      "height_px": 4160,
+      "read_noise_e": 3.0,
+      "dark_e_s": 0.02,
+      "qe_peak": 0.45,
+      "cfa_penalty": 0.25,
+      "cfa_fraction": {
+        "Ha": 0.29,
+        "SII": 0.28,
+        "OIII": 0.71,
+        "HaOIII": 0.5,
+        "R": 0.29,
+        "G": 0.62,
+        "B": 0.3,
+        "L": 1.0,
+        "RGB": 0.62
+      },
+      "cfa_fraction_note": "Frazione di fotositi che raccoglie DAVVERO quella riga su una matrice di Bayer RGGB, pesata per la QE di ciascun canale a quella lunghezza d'onda e riferita alla curva QE pubblicata (che e' quella del canale migliore). Ricavata cosi': a 500.7 nm le curve del IMX571 a colori danno circa B 60%, G 78%, R 5%, quindi (1x60 + 2x78 + 1x5)/4 = 55 contro i 78 della curva pubblicata -> 0.71. A 656.3 nm: R 45%, G 3%, B 2% -> (45+6+2)/4 = 13 contro 45 -> 0.29. E' il motivo fisico per cui un dual-band su OSC funziona: l'Ha finisce solo sui pixel rossi, ma l'OIII cade su verdi E blu, cioe' su tre quarti della matrice. Confidenza media: le curve per canale non sono pubblicate da ZWO, sono quelle tipiche del sensore. Senza questo campo si torna alla vecchia regola (0.25 in banda stretta, 0.5 altrove)."
+    }
+  ],
+  "cameras_note": "Le camere con 'qe_peak' invece della curva completa usano una forma CMOS retroilluminata tipica normalizzata su quel picco: errore di qualche punto percentuale, ben sotto l'incertezza sul dato dell'oggetto. Read noise ai gain di uso comune. Tutti i valori sono modificabili dall'interfaccia. | gain_modes: modi di guadagno usati SOLO dal calcolo della posa (sommersione del rumore di lettura e saturazione stellare). Non entrano nei fattori di tempo ne' in nessun'altra parte del motore.",
+  "telescopes": [
+    {
+      "id": "askar71f",
+      "name": "Askar 71F",
+      "type": "rifrattore apocromatico 4 elementi",
+      "aperture_mm": 71,
+      "focal_mm": 490,
+      "obstruction_linear": 0.0,
+      "throughput": 0.95,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 490
+        },
+        {
+          "factor": 0.75,
+          "label": "riduttore 0.75x",
+          "focal_mm": 367
+        }
+      ]
+    },
+    {
+      "id": "tecnosky115",
+      "name": "Tecnosky 115/800 tripletto",
+      "type": "rifrattore apocromatico tripletto",
+      "aperture_mm": 115,
+      "focal_mm": 800,
+      "obstruction_linear": 0.0,
+      "throughput": 0.96,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 800
+        },
+        {
+          "factor": 0.8,
+          "label": "riduttore 0.80x",
+          "focal_mm": 640
+        }
+      ]
+    },
+    {
+      "id": "rc8",
+      "name": "Ritchey-Chretien 8\"",
+      "type": "riflettore RC",
+      "aperture_mm": 203.2,
+      "focal_mm": 1624,
+      "obstruction_linear": 0.45,
+      "throughput": 0.884,
+      "throughput_note": "due specchi, riflettività ~94% ciascuno",
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 1624
+        },
+        {
+          "factor": 0.8,
+          "label": "riduttore 0.80x",
+          "focal_mm": 1300
+        }
+      ]
+    },
+    {
+      "id": "redcat51",
+      "name": "William Optics RedCat 51",
+      "optic_type": "rifrattore",
+      "aperture_mm": 51,
+      "focal_mm": 250,
+      "obstruction_linear": 0.0,
+      "throughput": 0.96,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 250
+        }
+      ]
+    },
+    {
+      "id": "sw72ed",
+      "name": "Sky-Watcher Evostar 72ED",
+      "optic_type": "rifrattore",
+      "aperture_mm": 72,
+      "focal_mm": 420,
+      "obstruction_linear": 0.0,
+      "throughput": 0.95,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 420
+        },
+        {
+          "factor": 0.85,
+          "label": "riduttore 0.85x",
+          "focal_mm": 357
+        }
+      ]
+    },
+    {
+      "id": "askar_fra400",
+      "name": "Askar FRA400",
+      "optic_type": "rifrattore",
+      "aperture_mm": 72,
+      "focal_mm": 400,
+      "obstruction_linear": 0.0,
+      "throughput": 0.95,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 400
+        },
+        {
+          "factor": 0.7,
+          "label": "riduttore 0.70x",
+          "focal_mm": 280
+        }
+      ]
+    },
+    {
+      "id": "wo_gt81",
+      "name": "William Optics GT81",
+      "optic_type": "rifrattore",
+      "aperture_mm": 81,
+      "focal_mm": 478,
+      "obstruction_linear": 0.0,
+      "throughput": 0.95,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 478
+        },
+        {
+          "factor": 0.8,
+          "label": "riduttore 0.80x",
+          "focal_mm": 382
+        }
+      ]
+    },
+    {
+      "id": "sw80ed",
+      "name": "Sky-Watcher Evostar 80ED",
+      "optic_type": "rifrattore",
+      "aperture_mm": 80,
+      "focal_mm": 600,
+      "obstruction_linear": 0.0,
+      "throughput": 0.95,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 600
+        },
+        {
+          "factor": 0.85,
+          "label": "riduttore 0.85x",
+          "focal_mm": 510
+        }
+      ]
+    },
+    {
+      "id": "sw_esprit80",
+      "name": "Sky-Watcher Esprit 80ED",
+      "optic_type": "rifrattore",
+      "aperture_mm": 80,
+      "focal_mm": 400,
+      "obstruction_linear": 0.0,
+      "throughput": 0.96,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 400
+        }
+      ]
+    },
+    {
+      "id": "tak_fsq85",
+      "name": "Takahashi FSQ-85EDX",
+      "optic_type": "rifrattore",
+      "aperture_mm": 85,
+      "focal_mm": 450,
+      "obstruction_linear": 0.0,
+      "throughput": 0.97,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 450
+        },
+        {
+          "factor": 0.73,
+          "label": "riduttore 0.73x",
+          "focal_mm": 328
+        }
+      ]
+    },
+    {
+      "id": "askar_fra500",
+      "name": "Askar FRA500",
+      "optic_type": "rifrattore",
+      "aperture_mm": 90,
+      "focal_mm": 500,
+      "obstruction_linear": 0.0,
+      "throughput": 0.95,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 500
+        },
+        {
+          "factor": 0.7,
+          "label": "riduttore 0.70x",
+          "focal_mm": 350
+        }
+      ]
+    },
+    {
+      "id": "sw_esprit100",
+      "name": "Sky-Watcher Esprit 100ED",
+      "optic_type": "rifrattore",
+      "aperture_mm": 100,
+      "focal_mm": 550,
+      "obstruction_linear": 0.0,
+      "throughput": 0.96,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 550
+        }
+      ]
+    },
+    {
+      "id": "tak_fsq106",
+      "name": "Takahashi FSQ-106EDX4",
+      "optic_type": "rifrattore",
+      "aperture_mm": 106,
+      "focal_mm": 530,
+      "obstruction_linear": 0.0,
+      "throughput": 0.97,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 530
+        },
+        {
+          "factor": 0.73,
+          "label": "riduttore 0.73x",
+          "focal_mm": 387
+        }
+      ]
+    },
+    {
+      "id": "sw_esprit120",
+      "name": "Sky-Watcher Esprit 120ED",
+      "optic_type": "rifrattore",
+      "aperture_mm": 120,
+      "focal_mm": 840,
+      "obstruction_linear": 0.0,
+      "throughput": 0.96,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 840
+        }
+      ]
+    },
+    {
+      "id": "sw150n",
+      "name": "Sky-Watcher Newton 150/750",
+      "optic_type": "newton",
+      "aperture_mm": 150,
+      "focal_mm": 750,
+      "obstruction_linear": 0.25,
+      "throughput": 0.85,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 750
+        }
+      ]
+    },
+    {
+      "id": "sw_quattro8",
+      "name": "Sky-Watcher Quattro 8\" f/4",
+      "optic_type": "newton",
+      "aperture_mm": 200,
+      "focal_mm": 800,
+      "obstruction_linear": 0.28,
+      "throughput": 0.85,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 800
+        }
+      ]
+    },
+    {
+      "id": "sw200n",
+      "name": "Sky-Watcher Newton 200/1000",
+      "optic_type": "newton",
+      "aperture_mm": 200,
+      "focal_mm": 1000,
+      "obstruction_linear": 0.25,
+      "throughput": 0.85,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 1000
+        }
+      ]
+    },
+    {
+      "id": "sw_quattro10",
+      "name": "Sky-Watcher Quattro 10\" f/4",
+      "optic_type": "newton",
+      "aperture_mm": 250,
+      "focal_mm": 1000,
+      "obstruction_linear": 0.28,
+      "throughput": 0.85,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 1000
+        }
+      ]
+    },
+    {
+      "id": "rc6",
+      "name": "Ritchey-Chretien 6\"",
+      "optic_type": "rc",
+      "aperture_mm": 152,
+      "focal_mm": 1370,
+      "obstruction_linear": 0.45,
+      "throughput": 0.884,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 1370
+        },
+        {
+          "factor": 0.8,
+          "label": "riduttore 0.80x",
+          "focal_mm": 1096
+        }
+      ]
+    },
+    {
+      "id": "rc10",
+      "name": "Ritchey-Chretien 10\"",
+      "optic_type": "rc",
+      "aperture_mm": 254,
+      "focal_mm": 2000,
+      "obstruction_linear": 0.45,
+      "throughput": 0.884,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 2000
+        },
+        {
+          "factor": 0.8,
+          "label": "riduttore 0.80x",
+          "focal_mm": 1600
+        }
+      ]
+    },
+    {
+      "id": "c6",
+      "name": "Celestron C6 (SC 150)",
+      "optic_type": "sct",
+      "aperture_mm": 150,
+      "focal_mm": 1500,
+      "obstruction_linear": 0.34,
+      "throughput": 0.82,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 1500
+        },
+        {
+          "factor": 0.63,
+          "label": "riduttore 0.63x",
+          "focal_mm": 945
+        }
+      ]
+    },
+    {
+      "id": "c8",
+      "name": "Celestron C8 (SC 203)",
+      "optic_type": "sct",
+      "aperture_mm": 203.2,
+      "focal_mm": 2032,
+      "obstruction_linear": 0.34,
+      "throughput": 0.82,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 2032
+        },
+        {
+          "factor": 0.63,
+          "label": "riduttore 0.63x",
+          "focal_mm": 1280
+        }
+      ]
+    },
+    {
+      "id": "edgehd8",
+      "name": "Celestron EdgeHD 8\"",
+      "optic_type": "sct",
+      "aperture_mm": 203.2,
+      "focal_mm": 2032,
+      "obstruction_linear": 0.34,
+      "throughput": 0.83,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 2032
+        },
+        {
+          "factor": 0.7,
+          "label": "riduttore 0.70x",
+          "focal_mm": 1422
+        }
+      ]
+    },
+    {
+      "id": "c925",
+      "name": "Celestron C9.25",
+      "optic_type": "sct",
+      "aperture_mm": 235,
+      "focal_mm": 2350,
+      "obstruction_linear": 0.34,
+      "throughput": 0.82,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 2350
+        },
+        {
+          "factor": 0.63,
+          "label": "riduttore 0.63x",
+          "focal_mm": 1481
+        }
+      ]
+    },
+    {
+      "id": "meade_sc10",
+      "name": "Meade Schmidt-Cassegrain 10\"",
+      "optic_type": "sct",
+      "aperture_mm": 254,
+      "focal_mm": 2500,
+      "obstruction_linear": 0.34,
+      "throughput": 0.82,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 2500
+        },
+        {
+          "factor": 0.63,
+          "label": "riduttore 0.63x",
+          "focal_mm": 1575
+        }
+      ]
+    },
+    {
+      "id": "c11",
+      "name": "Celestron C11",
+      "optic_type": "sct",
+      "aperture_mm": 280,
+      "focal_mm": 2800,
+      "obstruction_linear": 0.34,
+      "throughput": 0.82,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 2800
+        },
+        {
+          "factor": 0.63,
+          "label": "riduttore 0.63x",
+          "focal_mm": 1764
+        }
+      ]
+    },
+    {
+      "id": "skymax127",
+      "name": "Sky-Watcher Skymax 127 (Mak)",
+      "optic_type": "mak",
+      "aperture_mm": 127,
+      "focal_mm": 1500,
+      "obstruction_linear": 0.32,
+      "throughput": 0.88,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 1500
+        }
+      ]
+    },
+    {
+      "id": "samyang135",
+      "name": "Samyang 135 mm f/2",
+      "optic_type": "obiettivo",
+      "aperture_mm": 67.5,
+      "focal_mm": 135,
+      "obstruction_linear": 0.0,
+      "throughput": 0.92,
+      "reducers": [
+        {
+          "factor": 1.0,
+          "label": "nativo",
+          "focal_mm": 135
+        }
+      ]
+    }
+  ],
+  "telescopes_note": "Ostruzione e trasmissione sono valori tipici per tipo di ottica, non misure del singolo esemplare: sono l'ingrediente piu' incerto del calcolo del tempo e si possono correggere dall'interfaccia.",
+  "mounts": [
+    {
+      "id": "am5",
+      "name": "ZWO AM5",
+      "type": "strain wave",
+      "rms_typ_arcsec": 0.9,
+      "rms_long_fl_arcsec": 1.3,
+      "max_sub_s": 600,
+      "note": "Con RC8 a carico pieno l'RMS scende difficilmente sotto 1\". Adatta a focali medio-corte."
+    },
+    {
+      "id": "cem70g",
+      "name": "iOptron CEM70G",
+      "type": "equatoriale worm",
+      "rms_typ_arcsec": 0.6,
+      "rms_long_fl_arcsec": 0.7,
+      "max_sub_s": 1800,
+      "note": "Montatura principale per lunghe focali e carichi elevati."
+    },
+    {
+      "id": "heq5",
+      "name": "Sky-Watcher HEQ5 Pro",
+      "type": "equatoriale worm",
+      "rms_typ_arcsec": 1.1,
+      "rms_long_fl_arcsec": 1.5,
+      "max_sub_s": 300
+    },
+    {
+      "id": "eq6r",
+      "name": "Sky-Watcher EQ6-R Pro",
+      "type": "equatoriale worm",
+      "rms_typ_arcsec": 0.8,
+      "rms_long_fl_arcsec": 1.0,
+      "max_sub_s": 900
+    },
+    {
+      "id": "azeq6",
+      "name": "Sky-Watcher AZ-EQ6",
+      "type": "equatoriale worm",
+      "rms_typ_arcsec": 0.7,
+      "rms_long_fl_arcsec": 0.9,
+      "max_sub_s": 1200
+    },
+    {
+      "id": "eq8r",
+      "name": "Sky-Watcher EQ8-R Pro",
+      "type": "equatoriale worm",
+      "rms_typ_arcsec": 0.5,
+      "rms_long_fl_arcsec": 0.6,
+      "max_sub_s": 1800
+    },
+    {
+      "id": "cem26",
+      "name": "iOptron CEM26",
+      "type": "equatoriale worm",
+      "rms_typ_arcsec": 1.0,
+      "rms_long_fl_arcsec": 1.4,
+      "max_sub_s": 300
+    },
+    {
+      "id": "cem40",
+      "name": "iOptron CEM40",
+      "type": "equatoriale worm",
+      "rms_typ_arcsec": 0.8,
+      "rms_long_fl_arcsec": 1.0,
+      "max_sub_s": 900
+    },
+    {
+      "id": "gem45",
+      "name": "iOptron GEM45",
+      "type": "equatoriale worm",
+      "rms_typ_arcsec": 0.7,
+      "rms_long_fl_arcsec": 0.9,
+      "max_sub_s": 1200
+    },
+    {
+      "id": "hem27",
+      "name": "iOptron HEM27",
+      "type": "strain wave",
+      "rms_typ_arcsec": 0.7,
+      "rms_long_fl_arcsec": 1.0,
+      "max_sub_s": 600
+    },
+    {
+      "id": "am3",
+      "name": "ZWO AM3",
+      "type": "strain wave",
+      "rms_typ_arcsec": 0.8,
+      "rms_long_fl_arcsec": 1.2,
+      "max_sub_s": 600
+    },
+    {
+      "id": "cgx",
+      "name": "Celestron CGX",
+      "type": "equatoriale worm",
+      "rms_typ_arcsec": 0.7,
+      "rms_long_fl_arcsec": 0.9,
+      "max_sub_s": 1200
+    },
+    {
+      "id": "avx",
+      "name": "Celestron AVX",
+      "type": "equatoriale worm",
+      "rms_typ_arcsec": 1.3,
+      "rms_long_fl_arcsec": 1.8,
+      "max_sub_s": 300
+    },
+    {
+      "id": "rst135",
+      "name": "Rainbow Astro RST-135",
+      "type": "strain wave",
+      "rms_typ_arcsec": 0.6,
+      "rms_long_fl_arcsec": 0.8,
+      "max_sub_s": 900
+    }
+  ],
+  "mounts_note": "L'RMS e' quello tipicamente ottenuto in campo con guida decente, non il PE dichiarato dal costruttore. Dipende molto da sito, seeing, bilanciamento e taratura: e' modificabile dall'interfaccia, e vale la pena metterci il proprio.",
+  "filters": [
+    {
+      "id": "ha3",
+      "name": "Ha 3 nm",
+      "band": "Ha",
+      "lambda_nm": 656.3,
+      "fwhm_nm": 3.0,
+      "peak_t": 0.9
+    },
+    {
+      "id": "ha35",
+      "name": "Ha 3.5 nm (Baader)",
+      "band": "Ha",
+      "lambda_nm": 656.3,
+      "fwhm_nm": 3.5,
+      "peak_t": 0.9
+    },
+    {
+      "id": "ha5",
+      "name": "Ha 5 nm",
+      "band": "Ha",
+      "lambda_nm": 656.3,
+      "fwhm_nm": 5.0,
+      "peak_t": 0.92
+    },
+    {
+      "id": "ha65",
+      "name": "Ha 6.5 nm (Astronomik)",
+      "band": "Ha",
+      "lambda_nm": 656.3,
+      "fwhm_nm": 6.5,
+      "peak_t": 0.94
+    },
+    {
+      "id": "ha7",
+      "name": "Ha 7 nm (Lumicon / ZWO)",
+      "band": "Ha",
+      "lambda_nm": 656.3,
+      "fwhm_nm": 7.0,
+      "peak_t": 0.9
+    },
+    {
+      "id": "ha12",
+      "name": "Ha 12 nm",
+      "band": "Ha",
+      "lambda_nm": 656.3,
+      "fwhm_nm": 12.0,
+      "peak_t": 0.95
+    },
+    {
+      "id": "o3_3",
+      "name": "OIII 3 nm",
+      "band": "OIII",
+      "lambda_nm": 500.7,
+      "fwhm_nm": 3.0,
+      "peak_t": 0.9
+    },
+    {
+      "id": "o3_35",
+      "name": "OIII 3.5 nm (Baader)",
+      "band": "OIII",
+      "lambda_nm": 500.7,
+      "fwhm_nm": 3.5,
+      "peak_t": 0.9
+    },
+    {
+      "id": "o3_65",
+      "name": "OIII 6.5 nm",
+      "band": "OIII",
+      "lambda_nm": 500.7,
+      "fwhm_nm": 6.5,
+      "peak_t": 0.94
+    },
+    {
+      "id": "o3_12",
+      "name": "OIII 12 nm",
+      "band": "OIII",
+      "lambda_nm": 500.7,
+      "fwhm_nm": 12.0,
+      "peak_t": 0.95
+    },
+    {
+      "id": "s2_3",
+      "name": "SII 3 nm",
+      "band": "SII",
+      "lambda_nm": 672.4,
+      "fwhm_nm": 3.0,
+      "peak_t": 0.9
+    },
+    {
+      "id": "s2_65",
+      "name": "SII 6.5 nm",
+      "band": "SII",
+      "lambda_nm": 672.4,
+      "fwhm_nm": 6.5,
+      "peak_t": 0.94
+    },
+    {
+      "id": "s2_12",
+      "name": "SII 12 nm",
+      "band": "SII",
+      "lambda_nm": 672.4,
+      "fwhm_nm": 12.0,
+      "peak_t": 0.95
+    },
+    {
+      "id": "lult",
+      "name": "Optolong L-Ultimate 3 nm",
+      "band": "dual",
+      "lambda_nm": 578.0,
+      "fwhm_nm": 3.0,
+      "peak_t": 0.9,
+      "bands": [
+        "Ha",
+        "OIII"
+      ],
+      "dual": true
+    },
+    {
+      "id": "lext",
+      "name": "Optolong L-eXtreme 7 nm",
+      "band": "dual",
+      "lambda_nm": 578.0,
+      "fwhm_nm": 7.0,
+      "peak_t": 0.9,
+      "bands": [
+        "Ha",
+        "OIII"
+      ],
+      "dual": true
+    },
+    {
+      "id": "lenh",
+      "name": "Optolong L-eNhance",
+      "band": "dual",
+      "lambda_nm": 578.0,
+      "fwhm_nm": 10.0,
+      "peak_t": 0.88,
+      "bands": [
+        "Ha",
+        "OIII"
+      ],
+      "dual": true
+    },
+    {
+      "id": "alpt",
+      "name": "Antlia ALP-T 5 nm",
+      "band": "dual",
+      "lambda_nm": 578.0,
+      "fwhm_nm": 5.0,
+      "peak_t": 0.9,
+      "bands": [
+        "Ha",
+        "OIII"
+      ],
+      "dual": true
+    },
+    {
+      "id": "nbz",
+      "name": "IDAS NBZ",
+      "band": "dual",
+      "lambda_nm": 578.0,
+      "fwhm_nm": 12.0,
+      "peak_t": 0.9,
+      "bands": [
+        "Ha",
+        "OIII"
+      ],
+      "dual": true
+    },
+    {
+      "id": "nbz2",
+      "name": "IDAS NBZ-II Ultra 4 nm",
+      "band": "dual",
+      "lambda_nm": 578.0,
+      "fwhm_nm": 4.0,
+      "peak_t": 0.9,
+      "bands": [
+        "Ha",
+        "OIII"
+      ],
+      "dual": true
+    },
+    {
+      "id": "svd",
+      "name": "SVBony SV220 7 nm",
+      "band": "dual",
+      "lambda_nm": 578.0,
+      "fwhm_nm": 7.0,
+      "peak_t": 0.88,
+      "bands": [
+        "Ha",
+        "OIII"
+      ],
+      "dual": true
+    },
+    {
+      "id": "zwoduo",
+      "name": "ZWO Duo-Band 7 nm",
+      "band": "dual",
+      "lambda_nm": 578.0,
+      "fwhm_nm": 7.0,
+      "peak_t": 0.9,
+      "bands": [
+        "Ha",
+        "OIII"
+      ],
+      "dual": true
+    },
+    {
+      "id": "askard1",
+      "name": "Askar Colour Magic D1 (Ha+OIII)",
+      "band": "dual",
+      "lambda_nm": 578.0,
+      "fwhm_nm": 6.0,
+      "peak_t": 0.9,
+      "bands": [
+        "Ha",
+        "OIII"
+      ],
+      "dual": true
+    },
+    {
+      "id": "askard2",
+      "name": "Askar Colour Magic D2 (SII+OIII)",
+      "band": "dual",
+      "lambda_nm": 586.0,
+      "fwhm_nm": 6.0,
+      "peak_t": 0.9,
+      "bands": [
+        "SII",
+        "OIII"
+      ],
+      "dual": true
+    },
+    {
+      "id": "altri",
+      "name": "Antlia Triband RGB Ultra",
+      "band": "dual",
+      "lambda_nm": 578.0,
+      "fwhm_nm": 25.0,
+      "peak_t": 0.92,
+      "bands": [
+        "Ha",
+        "OIII"
+      ],
+      "dual": true
+    },
+    {
+      "id": "lum",
+      "name": "Luminanza L",
+      "band": "L",
+      "lambda_nm": 550.0,
+      "fwhm_nm": 300.0,
+      "peak_t": 0.95
+    },
+    {
+      "id": "red",
+      "name": "Rosso R",
+      "band": "R",
+      "lambda_nm": 630.0,
+      "fwhm_nm": 90.0,
+      "peak_t": 0.95
+    },
+    {
+      "id": "grn",
+      "name": "Verde G",
+      "band": "G",
+      "lambda_nm": 535.0,
+      "fwhm_nm": 90.0,
+      "peak_t": 0.95
+    },
+    {
+      "id": "blu",
+      "name": "Blu B",
+      "band": "B",
+      "lambda_nm": 465.0,
+      "fwhm_nm": 90.0,
+      "peak_t": 0.95
+    },
+    {
+      "id": "uvir",
+      "name": "UV/IR cut",
+      "band": "L",
+      "lambda_nm": 550.0,
+      "fwhm_nm": 300.0,
+      "peak_t": 0.97
+    },
+    {
+      "id": "idas",
+      "name": "IDAS LPS P2",
+      "band": "L",
+      "lambda_nm": 550.0,
+      "fwhm_nm": 250.0,
+      "peak_t": 0.92
+    },
+    {
+      "id": "idasd1",
+      "name": "IDAS LPS D1",
+      "band": "L",
+      "lambda_nm": 550.0,
+      "fwhm_nm": 200.0,
+      "peak_t": 0.92
+    },
+    {
+      "id": "idasd3",
+      "name": "IDAS LPS D3",
+      "band": "L",
+      "lambda_nm": 550.0,
+      "fwhm_nm": 180.0,
+      "peak_t": 0.92
+    },
+    {
+      "id": "lpro",
+      "name": "Optolong L-Pro",
+      "band": "L",
+      "lambda_nm": 550.0,
+      "fwhm_nm": 220.0,
+      "peak_t": 0.93
+    },
+    {
+      "id": "cls",
+      "name": "Astronomik CLS",
+      "band": "L",
+      "lambda_nm": 550.0,
+      "fwhm_nm": 200.0,
+      "peak_t": 0.92
+    }
+  ],
+  "extinction": {
+    "note": "Coefficienti mag/airmass per sito di montagna ~900-1000 m. Interpolati linearmente in lunghezza d'onda dall'app.",
+    "440": 0.25,
+    "500": 0.2,
+    "550": 0.15,
+    "630": 0.1,
+    "656": 0.09,
+    "672": 0.085
+  },
+  "sites": [
+    {
+      "id": "borno",
+      "name": "Borno (BS) - Altopiano del Sole",
+      "lat_deg": 45.95,
+      "lon_deg": 10.2,
+      "elevation_m": 950,
+      "sqm_zenith": 20.8,
+      "sqm_confidence": "misura di campo dichiarata dall utente; il modello dalle coordinate da 20.8",
+      "seeing_best_arcsec": 1.0,
+      "seeing_worst_arcsec": 2.4,
+      "seeing_typ_arcsec": 1.6,
+      "seeing_confidence": "misurato",
+      "clear_night_fraction": 0.33,
+      "clear_night_confidence": "stimato - da correggere sull'esperienza",
+      "horizon": {
+        "note": "Altezza minima utilizzabile per settore di azimut, in gradi. Default uniforme; da personalizzare sul balcone reale.",
+        "N": 20,
+        "NE": 20,
+        "E": 20,
+        "SE": 20,
+        "S": 20,
+        "SW": 20,
+        "W": 20,
+        "NW": 20
+      }
+    }
+  ],
+  "altitude_floors": {
+    "note": "Altezza minima alla quale il canale vale ancora la pena. NON è un filtro: un target sotto soglia viene comunque mostrato, con la ragione. Deriva dall'estinzione differenziale per banda.",
+    "OIII": 35,
+    "L": 35,
+    "B": 35,
+    "G": 32,
+    "R": 28,
+    "Ha": 25,
+    "SII": 25,
+    "HaOIII": 32
+  },
+  "reference_config": {
+    "note": "Configurazione di riferimento per i budget orari scritti in targets.json. L'app calcola il suo tasso di segnale per pixel (A_eff x Omega_px) e riscala ogni budget sul rapporto. Nessun 'f/ efficace': il rapporto focale resta quello geometrico, la trasmissione e' un fattore a parte.",
+    "telescope": "tecnosky115",
+    "reducer": 0.8,
+    "camera": "asi2600mm",
+    "description": "Tecnosky 115/800 con riduttore 0.80x (640 mm, f/5.6) + ASI2600MM",
+    "sqm_zenith": 21.3,
+    "sqm_note": "Il cielo sotto cui valgono le ore scritte nelle schede. Prima non era dichiarato e il fattore di inquinamento luminoso non aveva uno zero. 21.3 = Bortle 3, montagna in una notte pulita: e' il cielo della pratica da cui vengono le soglie (AstroBin, forum). Cambiarlo sposta il calendario di TUTTI gli oggetti, non le ore per canale."
+  },
+  "presets": [
+    {
+      "id": "rc8_full_cem70",
+      "label": "RC8 nativo + 2600MM + CEM70G",
+      "telescope": "rc8",
+      "reducer": 1.0,
+      "camera": "asi2600mm",
+      "mount": "cem70g",
+      "site": "borno"
+    },
+    {
+      "id": "rc8_red_cem70",
+      "label": "RC8 0.80x + 2600MM + CEM70G",
+      "telescope": "rc8",
+      "reducer": 0.8,
+      "camera": "asi2600mm",
+      "mount": "cem70g",
+      "site": "borno"
+    },
+    {
+      "id": "tec_full_cem70",
+      "label": "Tecnosky 115 nativo + 2600MM + CEM70G",
+      "telescope": "tecnosky115",
+      "reducer": 1.0,
+      "camera": "asi2600mm",
+      "mount": "cem70g",
+      "site": "borno"
+    },
+    {
+      "id": "tec_red_am5",
+      "label": "Tecnosky 115 0.80x + 2600MM + AM5",
+      "telescope": "tecnosky115",
+      "reducer": 0.8,
+      "camera": "asi2600mm",
+      "mount": "am5",
+      "site": "borno"
+    },
+    {
+      "id": "askar_full_am5",
+      "label": "Askar 71F nativo + 2600MM + AM5",
+      "telescope": "askar71f",
+      "reducer": 1.0,
+      "camera": "asi2600mm",
+      "mount": "am5",
+      "site": "borno"
+    },
+    {
+      "id": "askar_red_am5",
+      "label": "Askar 71F 0.75x + 2600MC + AM5",
+      "telescope": "askar71f",
+      "reducer": 0.75,
+      "camera": "asi2600mc",
+      "mount": "am5",
+      "site": "borno"
+    }
+  ],
+  "filters_note": "La larghezza a meta' altezza non e' un dettaglio: determina quanto inquinamento luminoso e quanta Luna passano. Fra un 3 nm e un 7 nm c'e' piu' del doppio. I filtri dual-band su sensore a colori raccolgono Ha e OIII nella stessa posa, quindi il tempo e' quello del canale piu' difficile, non la somma dei due.",
+  "default_filters": [
+    "ha3",
+    "o3_3",
+    "s2_3",
+    "lum",
+    "red",
+    "grn",
+    "blu",
+    "ha7",
+    "lult",
+    "idas"
+  ]
+}

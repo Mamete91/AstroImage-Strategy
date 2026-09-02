@@ -1,0 +1,2635 @@
+{
+  "schema_version": "1.0",
+  "note": "Catalogo di ricerca: serve all'autocompletamento e al precaricamento di coordinate e dimensioni quando l'utente aggiunge un target. NON contiene dati di emissione: quelli stanno in targets.json e richiedono confidenza dichiarata. Coordinate J2000 arrotondate al decimo di primo, precisione abbondante per visibilita' e inquadratura.",
+  "objects": [
+    {
+      "name": "M1",
+      "aliases": [
+        "Nebulosa Granchio",
+        "NGC 1952",
+        "Crab Nebula"
+      ],
+      "ra_deg": 83.625,
+      "dec_deg": 22.0167,
+      "size_arcmin": [
+        6,
+        4
+      ],
+      "type": "snr",
+      "constellation": "Taurus",
+      "archetype": "snr",
+      "physics": "Resto della supernova del 1054, alimentato dalla pulsar centrale. Due emissioni sovrapposte: il continuo di sincrotrone diffuso, che si prende in banda larga, e i filamenti a righe in Ha e SII. Il SII qui e' insolitamente forte, il che rende l'SHO sensato su un oggetto piccolo.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M2",
+      "aliases": [],
+      "ra_deg": 323.375,
+      "dec_deg": -0.8167,
+      "size_arcmin": [
+        16,
+        16
+      ],
+      "type": "globular",
+      "constellation": "Aquarius",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M3",
+      "aliases": [],
+      "ra_deg": 205.55,
+      "dec_deg": 28.3833,
+      "size_arcmin": [
+        18,
+        18
+      ],
+      "type": "globular",
+      "constellation": "Canes Venatici",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M4",
+      "aliases": [],
+      "ra_deg": 245.9,
+      "dec_deg": -26.5333,
+      "size_arcmin": [
+        26,
+        26
+      ],
+      "type": "globular",
+      "constellation": "Scorpius",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M5",
+      "aliases": [],
+      "ra_deg": 229.65,
+      "dec_deg": 2.0833,
+      "size_arcmin": [
+        23,
+        23
+      ],
+      "type": "globular",
+      "constellation": "Serpens",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M6",
+      "aliases": [
+        "Ammasso Farfalla",
+        "Butterfly Cluster"
+      ],
+      "ra_deg": 265.025,
+      "dec_deg": -32.2167,
+      "size_arcmin": [
+        25,
+        25
+      ],
+      "type": "open",
+      "constellation": "Scorpius",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M7",
+      "aliases": [
+        "Ammasso di Tolomeo",
+        "Ptolemy Cluster"
+      ],
+      "ra_deg": 268.475,
+      "dec_deg": -34.8167,
+      "size_arcmin": [
+        80,
+        80
+      ],
+      "type": "open",
+      "constellation": "Scorpius",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M8",
+      "aliases": [
+        "Nebulosa Laguna",
+        "NGC 6523",
+        "Lagoon Nebula"
+      ],
+      "ra_deg": 270.95,
+      "dec_deg": -24.3833,
+      "size_arcmin": [
+        90,
+        40
+      ],
+      "type": "hii",
+      "constellation": "Sagittarius",
+      "archetype": "hii_classic",
+      "physics": "Regione HII fotoionizzata dalle stelle O dell'ammasso NGC 6530. Ha molto forte, OIII confinato alla zona piu' eccitata attorno a Herschel 36, SII debole. Da 46 gradi culmina a soli 20 gradi: praticamente irraggiungibile dall'Italia settentrionale.",
+      "physics_confidence": "media",
+      "peak_over_mean": 60,
+      "peak_note": "la Clessidra e' molto piu' brillante del resto della Laguna"
+    },
+    {
+      "name": "M9",
+      "aliases": [],
+      "ra_deg": 259.8,
+      "dec_deg": -18.5167,
+      "size_arcmin": [
+        12,
+        12
+      ],
+      "type": "globular",
+      "constellation": "Ophiuchus",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M10",
+      "aliases": [],
+      "ra_deg": 254.275,
+      "dec_deg": -4.1,
+      "size_arcmin": [
+        20,
+        20
+      ],
+      "type": "globular",
+      "constellation": "Ophiuchus",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M11",
+      "aliases": [
+        "Ammasso Anatra Selvatica",
+        "Wild Duck Cluster"
+      ],
+      "ra_deg": 282.775,
+      "dec_deg": -6.2667,
+      "size_arcmin": [
+        14,
+        14
+      ],
+      "type": "open",
+      "constellation": "Scutum",
+      "archetype": "cluster_open",
+      "physics": "Ammasso aperto densissimo, quasi un globulare. Solo RGB, e il pregio sta nel contrasto contro il campo stellare dello Scudo.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M12",
+      "aliases": [],
+      "ra_deg": 251.8,
+      "dec_deg": -1.95,
+      "size_arcmin": [
+        16,
+        16
+      ],
+      "type": "globular",
+      "constellation": "Ophiuchus",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M13",
+      "aliases": [
+        "Grande Ammasso di Ercole",
+        "NGC 6205",
+        "Hercules Cluster"
+      ],
+      "ra_deg": 250.425,
+      "dec_deg": 36.4667,
+      "size_arcmin": [
+        20,
+        20
+      ],
+      "type": "globular",
+      "constellation": "Hercules",
+      "archetype": "cluster_globular",
+      "physics": "Ammasso globulare, centomila stelle. Nessuna emissione. Il problema e' opposto al solito: risolvere il nucleo senza bruciarlo, quindi pose corte e ottima messa a fuoco. La banda stretta e' inutile.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M14",
+      "aliases": [],
+      "ra_deg": 264.4,
+      "dec_deg": -3.25,
+      "size_arcmin": [
+        11,
+        11
+      ],
+      "type": "globular",
+      "constellation": "Ophiuchus",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M15",
+      "aliases": [],
+      "ra_deg": 322.5,
+      "dec_deg": 12.1667,
+      "size_arcmin": [
+        18,
+        18
+      ],
+      "type": "globular",
+      "constellation": "Pegasus",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M16",
+      "aliases": [
+        "Nebulosa Aquila",
+        "NGC 6611",
+        "Eagle Nebula"
+      ],
+      "ra_deg": 274.7,
+      "dec_deg": -13.7833,
+      "size_arcmin": [
+        35,
+        28
+      ],
+      "type": "hii",
+      "constellation": "Serpens",
+      "archetype": "hii_classic",
+      "physics": "Regione HII con le celebri colonne di polvere in evaporazione. Il bordo delle colonne e' compresso dal fronte di ionizzazione, quindi il SII sale proprio li'. Ha forte, OIII moderato vicino alle O.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M17",
+      "aliases": [
+        "Nebulosa Omega",
+        "NGC 6618",
+        "Omega Nebula",
+        "Swan Nebula"
+      ],
+      "ra_deg": 275.2,
+      "dec_deg": -16.1833,
+      "size_arcmin": [
+        46,
+        37
+      ],
+      "type": "hii",
+      "constellation": "Sagittarius",
+      "archetype": "hii_classic",
+      "physics": "Una delle regioni HII piu' brillanti del cielo, molto eccitata. A differenza della maggior parte delle HII qui l'OIII e' realmente presente, non solo un accenno: l'HOO rende bene. Culmina a 28 gradi da 46 nord.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M18",
+      "aliases": [],
+      "ra_deg": 274.975,
+      "dec_deg": -17.1333,
+      "size_arcmin": [
+        9,
+        9
+      ],
+      "type": "open",
+      "constellation": "Sagittarius",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M19",
+      "aliases": [],
+      "ra_deg": 255.65,
+      "dec_deg": -26.2667,
+      "size_arcmin": [
+        17,
+        17
+      ],
+      "type": "globular",
+      "constellation": "Ophiuchus",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M20",
+      "aliases": [
+        "Nebulosa Trifida",
+        "NGC 6514",
+        "Trifid Nebula"
+      ],
+      "ra_deg": 270.65,
+      "dec_deg": -23.0333,
+      "size_arcmin": [
+        28,
+        28
+      ],
+      "type": "hii",
+      "constellation": "Sagittarius",
+      "archetype": "hii_classic",
+      "physics": "Doppia natura in un solo campo: la parte rossa e' emissione fotoionizzata, la parte blu e' polvere che riflette. La banda stretta cancella meta' del soggetto, quindi HaRGB batte HOO se l'obiettivo e' l'oggetto vero.",
+      "physics_confidence": "media",
+      "peak_over_mean": 40,
+      "peak_note": "nucleo compatto della Trifida"
+    },
+    {
+      "name": "M21",
+      "aliases": [],
+      "ra_deg": 271.15,
+      "dec_deg": -22.5,
+      "size_arcmin": [
+        13,
+        13
+      ],
+      "type": "open",
+      "constellation": "Sagittarius",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M22",
+      "aliases": [],
+      "ra_deg": 279.1,
+      "dec_deg": -23.9,
+      "size_arcmin": [
+        32,
+        32
+      ],
+      "type": "globular",
+      "constellation": "Sagittarius",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M23",
+      "aliases": [],
+      "ra_deg": 269.2,
+      "dec_deg": -19.0167,
+      "size_arcmin": [
+        27,
+        27
+      ],
+      "type": "open",
+      "constellation": "Sagittarius",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M24",
+      "aliases": [
+        "Nube Stellare del Sagittario"
+      ],
+      "ra_deg": 274.225,
+      "dec_deg": -18.4833,
+      "size_arcmin": [
+        90,
+        60
+      ],
+      "type": "starcloud",
+      "constellation": "Sagittarius",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M25",
+      "aliases": [],
+      "ra_deg": 277.9,
+      "dec_deg": -19.25,
+      "size_arcmin": [
+        32,
+        32
+      ],
+      "type": "open",
+      "constellation": "Sagittarius",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M26",
+      "aliases": [],
+      "ra_deg": 281.3,
+      "dec_deg": -9.4,
+      "size_arcmin": [
+        15,
+        15
+      ],
+      "type": "open",
+      "constellation": "Scutum",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M27",
+      "aliases": [
+        "Nebulosa Manubrio",
+        "NGC 6853",
+        "Dumbbell Nebula"
+      ],
+      "ra_deg": 299.9,
+      "dec_deg": 22.7167,
+      "size_arcmin": [
+        8,
+        5.6
+      ],
+      "type": "pn",
+      "constellation": "Vulpecula",
+      "archetype": "pn_bright",
+      "physics": "Planetaria vicina ed evolutissima, con nana bianca a circa 85.000 K. Problema di dinamica, non di segnale: il nucleo satura in minuti mentre l'alone esterno e' cento volte piu' debole. Servono due set di pose, non piu' ore.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M28",
+      "aliases": [],
+      "ra_deg": 276.125,
+      "dec_deg": -24.8667,
+      "size_arcmin": [
+        11,
+        11
+      ],
+      "type": "globular",
+      "constellation": "Sagittarius",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M29",
+      "aliases": [],
+      "ra_deg": 305.975,
+      "dec_deg": 38.5333,
+      "size_arcmin": [
+        7,
+        7
+      ],
+      "type": "open",
+      "constellation": "Cygnus",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M30",
+      "aliases": [],
+      "ra_deg": 325.1,
+      "dec_deg": -23.1833,
+      "size_arcmin": [
+        12,
+        12
+      ],
+      "type": "globular",
+      "constellation": "Capricornus",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M31",
+      "aliases": [
+        "Galassia di Andromeda",
+        "NGC 224",
+        "Andromeda Galaxy"
+      ],
+      "ra_deg": 10.675,
+      "dec_deg": 41.2667,
+      "size_arcmin": [
+        190,
+        60
+      ],
+      "type": "galaxy",
+      "constellation": "Andromeda",
+      "archetype": "spiral_hii",
+      "physics": "Spirale del Gruppo Locale dominata dal continuo stellare, ma i bracci contengono centinaia di regioni HII risolvibili. LRGB come base e Ha additivo sul rosso: e' il singolo intervento che separa una M31 qualunque da una memorabile. Il bulge brucia facilmente.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M32",
+      "aliases": [],
+      "ra_deg": 10.675,
+      "dec_deg": 40.8667,
+      "size_arcmin": [
+        8,
+        6
+      ],
+      "type": "galaxy",
+      "constellation": "Andromeda",
+      "archetype": "elliptical_group"
+    },
+    {
+      "name": "M33",
+      "aliases": [
+        "Galassia del Triangolo",
+        "NGC 598",
+        "Triangulum Galaxy",
+        "Pinwheel"
+      ],
+      "ra_deg": 23.475,
+      "dec_deg": 30.65,
+      "size_arcmin": [
+        71,
+        42
+      ],
+      "type": "galaxy",
+      "constellation": "Triangulum",
+      "archetype": "spiral_hii",
+      "physics": "Spirale vista di faccia, ricchissima di regioni HII giganti come NGC 604. Come M31 vuole LRGB piu' Ha additivo, ma qui le HII sono piu' grandi e ripagano di piu'.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M34",
+      "aliases": [],
+      "ra_deg": 40.5,
+      "dec_deg": 42.7833,
+      "size_arcmin": [
+        35,
+        35
+      ],
+      "type": "open",
+      "constellation": "Perseus",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M35",
+      "aliases": [],
+      "ra_deg": 92.225,
+      "dec_deg": 24.3333,
+      "size_arcmin": [
+        28,
+        28
+      ],
+      "type": "open",
+      "constellation": "Gemini",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M36",
+      "aliases": [],
+      "ra_deg": 84.025,
+      "dec_deg": 34.1333,
+      "size_arcmin": [
+        12,
+        12
+      ],
+      "type": "open",
+      "constellation": "Auriga",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M37",
+      "aliases": [],
+      "ra_deg": 88.1,
+      "dec_deg": 32.55,
+      "size_arcmin": [
+        24,
+        24
+      ],
+      "type": "open",
+      "constellation": "Auriga",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M38",
+      "aliases": [],
+      "ra_deg": 82.175,
+      "dec_deg": 35.8333,
+      "size_arcmin": [
+        21,
+        21
+      ],
+      "type": "open",
+      "constellation": "Auriga",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M39",
+      "aliases": [],
+      "ra_deg": 323.05,
+      "dec_deg": 48.4333,
+      "size_arcmin": [
+        32,
+        32
+      ],
+      "type": "open",
+      "constellation": "Cygnus",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M40",
+      "aliases": [
+        "Winnecke 4"
+      ],
+      "ra_deg": 185.6,
+      "dec_deg": 58.0833,
+      "size_arcmin": [
+        0.8,
+        0.8
+      ],
+      "type": "double",
+      "constellation": "Ursa Major",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M41",
+      "aliases": [],
+      "ra_deg": 101.5,
+      "dec_deg": -20.7333,
+      "size_arcmin": [
+        38,
+        38
+      ],
+      "type": "open",
+      "constellation": "Canis Major",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M42",
+      "aliases": [
+        "Nebulosa di Orione",
+        "NGC 1976",
+        "Orion Nebula"
+      ],
+      "ra_deg": 83.825,
+      "dec_deg": -5.3833,
+      "size_arcmin": [
+        85,
+        60
+      ],
+      "type": "hii",
+      "constellation": "Orion",
+      "archetype": "hii_classic",
+      "physics": "La regione HII piu' brillante del cielo, ionizzata dal Trapezio. Il problema non e' mai il segnale ma la dinamica: il Trapezio brucia in pochi secondi mentre le ali esterne vogliono minuti. HDR obbligatorio. OIII forte, caso raro fra le HII.",
+      "physics_confidence": "media",
+      "peak_over_mean": 250,
+      "peak_note": "nucleo del Trapezio a mu_V~14.5 contro una media dell'ordine di 21: e' l'oggetto HDR per definizione"
+    },
+    {
+      "name": "M43",
+      "aliases": [
+        "Nebulosa de Mairan"
+      ],
+      "ra_deg": 83.875,
+      "dec_deg": -5.2667,
+      "size_arcmin": [
+        20,
+        15
+      ],
+      "type": "hii",
+      "constellation": "Orion",
+      "archetype": "hii_classic",
+      "peak_over_mean": 120,
+      "peak_note": "stesso complesso di M42, meno estremo"
+    },
+    {
+      "name": "M44",
+      "aliases": [
+        "Presepe",
+        "Beehive Cluster",
+        "Praesepe"
+      ],
+      "ra_deg": 130.025,
+      "dec_deg": 19.9833,
+      "size_arcmin": [
+        95,
+        95
+      ],
+      "type": "open",
+      "constellation": "Cancer",
+      "archetype": "cluster_open",
+      "physics": "Ammasso aperto vicino e molto esteso, quasi un grado e mezzo. Nessuna emissione: solo continuo stellare, quindi RGB e nient'altro. Il problema e' opposto a quello delle nebulose: le stelle sono cosi' brillanti da saturare in pochi secondi, quindi servono pose corte per il colore e un campo molto largo per contenerlo.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M45",
+      "aliases": [
+        "Pleiadi",
+        "Pleiades",
+        "Seven Sisters"
+      ],
+      "ra_deg": 56.75,
+      "dec_deg": 24.1167,
+      "size_arcmin": [
+        110,
+        110
+      ],
+      "type": "reflection",
+      "constellation": "Taurus",
+      "archetype": "reflection",
+      "physics": "Ammasso giovane immerso per caso in una nube di polvere che ne diffonde la luce blu. Riflessione pura: nessuna riga, nessun filtro a banda stretta puo' registrare nulla. Il limite sono gli aloni delle stelle di magnitudine 3, che dipendono dall'ottica e non dalle ore.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M46",
+      "aliases": [],
+      "ra_deg": 115.45,
+      "dec_deg": -14.8167,
+      "size_arcmin": [
+        27,
+        27
+      ],
+      "type": "open",
+      "constellation": "Puppis",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M47",
+      "aliases": [],
+      "ra_deg": 114.15,
+      "dec_deg": -14.5,
+      "size_arcmin": [
+        30,
+        30
+      ],
+      "type": "open",
+      "constellation": "Puppis",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M48",
+      "aliases": [],
+      "ra_deg": 123.45,
+      "dec_deg": -5.8,
+      "size_arcmin": [
+        54,
+        54
+      ],
+      "type": "open",
+      "constellation": "Hydra",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M49",
+      "aliases": [],
+      "ra_deg": 187.45,
+      "dec_deg": 8,
+      "size_arcmin": [
+        9,
+        7
+      ],
+      "type": "galaxy",
+      "constellation": "Virgo",
+      "archetype": "elliptical_group"
+    },
+    {
+      "name": "M50",
+      "aliases": [],
+      "ra_deg": 105.8,
+      "dec_deg": -8.3333,
+      "size_arcmin": [
+        16,
+        16
+      ],
+      "type": "open",
+      "constellation": "Monoceros",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M51",
+      "aliases": [
+        "Galassia Vortice",
+        "NGC 5194",
+        "Whirlpool Galaxy"
+      ],
+      "ra_deg": 202.475,
+      "dec_deg": 47.2,
+      "size_arcmin": [
+        11,
+        7
+      ],
+      "type": "galaxy",
+      "constellation": "Canes Venatici",
+      "archetype": "spiral_hii",
+      "physics": "Coppia in interazione con code mareali deboli. Continuo stellare piu' regioni HII nei bracci. La difficolta' vera e' la profondita' sulla marea esterna, che richiede cielo scuro e nessuna Luna.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M52",
+      "aliases": [],
+      "ra_deg": 351.05,
+      "dec_deg": 61.5833,
+      "size_arcmin": [
+        13,
+        13
+      ],
+      "type": "open",
+      "constellation": "Cassiopeia",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M53",
+      "aliases": [],
+      "ra_deg": 198.225,
+      "dec_deg": 18.1667,
+      "size_arcmin": [
+        13,
+        13
+      ],
+      "type": "globular",
+      "constellation": "Coma Berenices",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M54",
+      "aliases": [],
+      "ra_deg": 283.775,
+      "dec_deg": -30.4833,
+      "size_arcmin": [
+        12,
+        12
+      ],
+      "type": "globular",
+      "constellation": "Sagittarius",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M55",
+      "aliases": [],
+      "ra_deg": 295,
+      "dec_deg": -30.9667,
+      "size_arcmin": [
+        19,
+        19
+      ],
+      "type": "globular",
+      "constellation": "Sagittarius",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M56",
+      "aliases": [],
+      "ra_deg": 289.15,
+      "dec_deg": 30.1833,
+      "size_arcmin": [
+        7,
+        7
+      ],
+      "type": "globular",
+      "constellation": "Lyra",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M57",
+      "aliases": [
+        "Nebulosa Anello",
+        "NGC 6720",
+        "Ring Nebula"
+      ],
+      "ra_deg": 283.4,
+      "dec_deg": 33.0333,
+      "size_arcmin": [
+        1.4,
+        1
+      ],
+      "type": "pn",
+      "constellation": "Lyra",
+      "archetype": "pn_bright",
+      "physics": "Planetaria compatta e brillante con OIII fortissimo. Si ottiene in poche ore, ma l'alone esterno debolissimo e' un progetto a se' che richiede pose lunghe separate.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M58",
+      "aliases": [],
+      "ra_deg": 189.425,
+      "dec_deg": 11.8167,
+      "size_arcmin": [
+        6,
+        5
+      ],
+      "type": "galaxy",
+      "constellation": "Virgo",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M59",
+      "aliases": [],
+      "ra_deg": 190.5,
+      "dec_deg": 11.65,
+      "size_arcmin": [
+        5,
+        3.5
+      ],
+      "type": "galaxy",
+      "constellation": "Virgo",
+      "archetype": "elliptical_group"
+    },
+    {
+      "name": "M60",
+      "aliases": [],
+      "ra_deg": 190.925,
+      "dec_deg": 11.55,
+      "size_arcmin": [
+        7,
+        6
+      ],
+      "type": "galaxy",
+      "constellation": "Virgo",
+      "archetype": "elliptical_group"
+    },
+    {
+      "name": "M61",
+      "aliases": [],
+      "ra_deg": 185.475,
+      "dec_deg": 4.4667,
+      "size_arcmin": [
+        6,
+        5.5
+      ],
+      "type": "galaxy",
+      "constellation": "Virgo",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M62",
+      "aliases": [],
+      "ra_deg": 255.3,
+      "dec_deg": -30.1167,
+      "size_arcmin": [
+        14,
+        14
+      ],
+      "type": "globular",
+      "constellation": "Ophiuchus",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M63",
+      "aliases": [
+        "Galassia Girasole",
+        "Sunflower Galaxy"
+      ],
+      "ra_deg": 198.95,
+      "dec_deg": 42.0333,
+      "size_arcmin": [
+        12,
+        8
+      ],
+      "type": "galaxy",
+      "constellation": "Canes Venatici",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M64",
+      "aliases": [
+        "Galassia Occhio Nero",
+        "Black Eye Galaxy"
+      ],
+      "ra_deg": 194.175,
+      "dec_deg": 21.6833,
+      "size_arcmin": [
+        9,
+        5
+      ],
+      "type": "galaxy",
+      "constellation": "Coma Berenices",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M65",
+      "aliases": [],
+      "ra_deg": 169.725,
+      "dec_deg": 13.0833,
+      "size_arcmin": [
+        8,
+        2
+      ],
+      "type": "galaxy",
+      "constellation": "Leo",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M66",
+      "aliases": [],
+      "ra_deg": 170.075,
+      "dec_deg": 12.9833,
+      "size_arcmin": [
+        9,
+        4
+      ],
+      "type": "galaxy",
+      "constellation": "Leo",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M67",
+      "aliases": [],
+      "ra_deg": 132.825,
+      "dec_deg": 11.8167,
+      "size_arcmin": [
+        30,
+        30
+      ],
+      "type": "open",
+      "constellation": "Cancer",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M68",
+      "aliases": [],
+      "ra_deg": 189.875,
+      "dec_deg": -26.75,
+      "size_arcmin": [
+        11,
+        11
+      ],
+      "type": "globular",
+      "constellation": "Hydra",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M69",
+      "aliases": [],
+      "ra_deg": 277.85,
+      "dec_deg": -32.35,
+      "size_arcmin": [
+        7,
+        7
+      ],
+      "type": "globular",
+      "constellation": "Sagittarius",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M70",
+      "aliases": [],
+      "ra_deg": 280.8,
+      "dec_deg": -32.3,
+      "size_arcmin": [
+        8,
+        8
+      ],
+      "type": "globular",
+      "constellation": "Sagittarius",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M71",
+      "aliases": [],
+      "ra_deg": 298.45,
+      "dec_deg": 18.7833,
+      "size_arcmin": [
+        7,
+        7
+      ],
+      "type": "globular",
+      "constellation": "Sagitta",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M72",
+      "aliases": [],
+      "ra_deg": 313.375,
+      "dec_deg": -12.5333,
+      "size_arcmin": [
+        6,
+        6
+      ],
+      "type": "globular",
+      "constellation": "Aquarius",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M73",
+      "aliases": [],
+      "ra_deg": 314.725,
+      "dec_deg": -12.6333,
+      "size_arcmin": [
+        3,
+        3
+      ],
+      "type": "asterism",
+      "constellation": "Aquarius",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M74",
+      "aliases": [],
+      "ra_deg": 24.175,
+      "dec_deg": 15.7833,
+      "size_arcmin": [
+        10,
+        9
+      ],
+      "type": "galaxy",
+      "constellation": "Pisces",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M75",
+      "aliases": [],
+      "ra_deg": 301.525,
+      "dec_deg": -21.9167,
+      "size_arcmin": [
+        6,
+        6
+      ],
+      "type": "globular",
+      "constellation": "Sagittarius",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M76",
+      "aliases": [
+        "Piccolo Manubrio",
+        "NGC 650",
+        "Little Dumbbell"
+      ],
+      "ra_deg": 25.6,
+      "dec_deg": 51.5667,
+      "size_arcmin": [
+        2.7,
+        1.8
+      ],
+      "type": "pn",
+      "constellation": "Perseus",
+      "archetype": "pn_faint",
+      "physics": "Planetaria bipolare evoluta. OIII dominante sui lobi, Ha piu' compatto. Piccola: premia le lunghe focali.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M77",
+      "aliases": [],
+      "ra_deg": 40.675,
+      "dec_deg": -0.0167,
+      "size_arcmin": [
+        7,
+        6
+      ],
+      "type": "galaxy",
+      "constellation": "Cetus",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M78",
+      "aliases": [],
+      "ra_deg": 86.675,
+      "dec_deg": 0.05,
+      "size_arcmin": [
+        8,
+        6
+      ],
+      "type": "reflection",
+      "constellation": "Orion",
+      "archetype": "reflection",
+      "physics": "Nebulosa a riflessione in Orione, polvere illuminata da due stelle giovani. Nessuna riga. Nel campo ci sono anche archi di emissione deboli, ma il soggetto e' la riflessione.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M79",
+      "aliases": [],
+      "ra_deg": 81.125,
+      "dec_deg": -24.55,
+      "size_arcmin": [
+        9,
+        9
+      ],
+      "type": "globular",
+      "constellation": "Lepus",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M80",
+      "aliases": [],
+      "ra_deg": 244.25,
+      "dec_deg": -22.9833,
+      "size_arcmin": [
+        10,
+        10
+      ],
+      "type": "globular",
+      "constellation": "Scorpius",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M81",
+      "aliases": [
+        "Galassia di Bode",
+        "NGC 3031",
+        "Bode's Galaxy"
+      ],
+      "ra_deg": 148.9,
+      "dec_deg": 69.0667,
+      "size_arcmin": [
+        27,
+        14
+      ],
+      "type": "galaxy",
+      "constellation": "Ursa Major",
+      "archetype": "spiral_hii",
+      "physics": "Spirale luminosa con bracci ben definiti e regioni HII moderate. Nello stesso campo di M82 e immersa nei cirri galattici, che sono il vero progetto avanzato e richiedono banda larga profondissima.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M82",
+      "aliases": [
+        "Galassia Sigaro",
+        "NGC 3034",
+        "Cigar Galaxy"
+      ],
+      "ra_deg": 148.975,
+      "dec_deg": 69.6833,
+      "size_arcmin": [
+        11,
+        4
+      ],
+      "type": "galaxy",
+      "constellation": "Ursa Major",
+      "archetype": "spiral_hii",
+      "physics": "Starburst vista di taglio, con un getto di gas ionizzato espulso dal disco. Quel getto e' Ha puro e forte: e' l'unico caso fra le galassie in cui l'Ha non e' additivo ma protagonista.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M83",
+      "aliases": [
+        "Girandola Australe",
+        "Southern Pinwheel"
+      ],
+      "ra_deg": 204.25,
+      "dec_deg": -29.8667,
+      "size_arcmin": [
+        13,
+        11
+      ],
+      "type": "galaxy",
+      "constellation": "Hydra",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M84",
+      "aliases": [],
+      "ra_deg": 186.275,
+      "dec_deg": 12.8833,
+      "size_arcmin": [
+        6,
+        5
+      ],
+      "type": "galaxy",
+      "constellation": "Virgo",
+      "archetype": "elliptical_group"
+    },
+    {
+      "name": "M85",
+      "aliases": [],
+      "ra_deg": 186.35,
+      "dec_deg": 18.1833,
+      "size_arcmin": [
+        7,
+        5
+      ],
+      "type": "galaxy",
+      "constellation": "Coma Berenices",
+      "archetype": "elliptical_group"
+    },
+    {
+      "name": "M86",
+      "aliases": [],
+      "ra_deg": 186.55,
+      "dec_deg": 12.95,
+      "size_arcmin": [
+        9,
+        6
+      ],
+      "type": "galaxy",
+      "constellation": "Virgo",
+      "archetype": "elliptical_group"
+    },
+    {
+      "name": "M87",
+      "aliases": [],
+      "ra_deg": 187.7,
+      "dec_deg": 12.4,
+      "size_arcmin": [
+        8,
+        7
+      ],
+      "type": "galaxy",
+      "constellation": "Virgo",
+      "archetype": "elliptical_group"
+    },
+    {
+      "name": "M88",
+      "aliases": [],
+      "ra_deg": 188,
+      "dec_deg": 14.4167,
+      "size_arcmin": [
+        7,
+        4
+      ],
+      "type": "galaxy",
+      "constellation": "Coma Berenices",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M89",
+      "aliases": [],
+      "ra_deg": 188.925,
+      "dec_deg": 12.55,
+      "size_arcmin": [
+        5,
+        5
+      ],
+      "type": "galaxy",
+      "constellation": "Virgo",
+      "archetype": "elliptical_group"
+    },
+    {
+      "name": "M90",
+      "aliases": [],
+      "ra_deg": 189.2,
+      "dec_deg": 13.1667,
+      "size_arcmin": [
+        9,
+        4
+      ],
+      "type": "galaxy",
+      "constellation": "Virgo",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M91",
+      "aliases": [],
+      "ra_deg": 188.85,
+      "dec_deg": 14.5,
+      "size_arcmin": [
+        5,
+        4
+      ],
+      "type": "galaxy",
+      "constellation": "Coma Berenices",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M92",
+      "aliases": [],
+      "ra_deg": 259.275,
+      "dec_deg": 43.1333,
+      "size_arcmin": [
+        14,
+        14
+      ],
+      "type": "globular",
+      "constellation": "Hercules",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M93",
+      "aliases": [],
+      "ra_deg": 116.15,
+      "dec_deg": -23.8667,
+      "size_arcmin": [
+        22,
+        22
+      ],
+      "type": "open",
+      "constellation": "Puppis",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M94",
+      "aliases": [],
+      "ra_deg": 192.725,
+      "dec_deg": 41.1167,
+      "size_arcmin": [
+        11,
+        9
+      ],
+      "type": "galaxy",
+      "constellation": "Canes Venatici",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M95",
+      "aliases": [],
+      "ra_deg": 161,
+      "dec_deg": 11.7,
+      "size_arcmin": [
+        7,
+        5
+      ],
+      "type": "galaxy",
+      "constellation": "Leo",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M96",
+      "aliases": [],
+      "ra_deg": 161.7,
+      "dec_deg": 11.8167,
+      "size_arcmin": [
+        7,
+        5
+      ],
+      "type": "galaxy",
+      "constellation": "Leo",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M97",
+      "aliases": [
+        "Nebulosa Gufo",
+        "NGC 3587",
+        "Owl Nebula"
+      ],
+      "ra_deg": 168.7,
+      "dec_deg": 55.0167,
+      "size_arcmin": [
+        3.4,
+        3.4
+      ],
+      "type": "pn",
+      "constellation": "Ursa Major",
+      "archetype": "pn_faint",
+      "physics": "Planetaria evoluta e a bassa brillanza superficiale, OIII dominante con Ha piu' debole. Nel campo di M108, componibili insieme a focale media.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M98",
+      "aliases": [],
+      "ra_deg": 183.45,
+      "dec_deg": 14.9,
+      "size_arcmin": [
+        10,
+        3
+      ],
+      "type": "galaxy",
+      "constellation": "Coma Berenices",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M99",
+      "aliases": [],
+      "ra_deg": 184.7,
+      "dec_deg": 14.4167,
+      "size_arcmin": [
+        5,
+        5
+      ],
+      "type": "galaxy",
+      "constellation": "Coma Berenices",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M100",
+      "aliases": [],
+      "ra_deg": 185.725,
+      "dec_deg": 15.8167,
+      "size_arcmin": [
+        7,
+        6
+      ],
+      "type": "galaxy",
+      "constellation": "Coma Berenices",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M101",
+      "aliases": [
+        "Galassia Girandola",
+        "NGC 5457",
+        "Pinwheel Galaxy"
+      ],
+      "ra_deg": 210.8,
+      "dec_deg": 54.35,
+      "size_arcmin": [
+        29,
+        27
+      ],
+      "type": "galaxy",
+      "constellation": "Ursa Major",
+      "archetype": "spiral_hii",
+      "physics": "Spirale di faccia molto estesa e a bassa brillanza superficiale. Regioni HII numerose e grandi nei bracci. Vuole cielo scuro: e' proprio il tipo di oggetto che l'inquinamento luminoso uccide.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M102",
+      "aliases": [],
+      "ra_deg": 226.625,
+      "dec_deg": 55.7667,
+      "size_arcmin": [
+        5,
+        2
+      ],
+      "type": "galaxy",
+      "constellation": "Draco",
+      "archetype": "elliptical_group"
+    },
+    {
+      "name": "M103",
+      "aliases": [],
+      "ra_deg": 23.3,
+      "dec_deg": 60.7,
+      "size_arcmin": [
+        6,
+        6
+      ],
+      "type": "open",
+      "constellation": "Cassiopeia",
+      "archetype": "cluster_open"
+    },
+    {
+      "name": "M104",
+      "aliases": [
+        "Galassia Sombrero",
+        "NGC 4594",
+        "Sombrero Galaxy"
+      ],
+      "ra_deg": 190,
+      "dec_deg": -11.6167,
+      "size_arcmin": [
+        9,
+        4
+      ],
+      "type": "galaxy",
+      "constellation": "Virgo",
+      "archetype": "elliptical_group",
+      "physics": "Lenticolare con la corsia di polvere che la attraversa. Continuo puro, nessuna riga sfruttabile. E' un oggetto di risoluzione: conta il seeing molto piu' delle ore.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "M105",
+      "aliases": [],
+      "ra_deg": 161.95,
+      "dec_deg": 12.5833,
+      "size_arcmin": [
+        5,
+        4
+      ],
+      "type": "galaxy",
+      "constellation": "Leo",
+      "archetype": "elliptical_group"
+    },
+    {
+      "name": "M106",
+      "aliases": [
+        "NGC 4258"
+      ],
+      "ra_deg": 184.75,
+      "dec_deg": 47.3,
+      "size_arcmin": [
+        19,
+        7
+      ],
+      "type": "galaxy",
+      "constellation": "Canes Venatici",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M107",
+      "aliases": [],
+      "ra_deg": 248.125,
+      "dec_deg": -13.05,
+      "size_arcmin": [
+        13,
+        13
+      ],
+      "type": "globular",
+      "constellation": "Ophiuchus",
+      "archetype": "cluster_globular"
+    },
+    {
+      "name": "M108",
+      "aliases": [],
+      "ra_deg": 167.875,
+      "dec_deg": 55.6667,
+      "size_arcmin": [
+        8,
+        2
+      ],
+      "type": "galaxy",
+      "constellation": "Ursa Major",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M109",
+      "aliases": [],
+      "ra_deg": 179.4,
+      "dec_deg": 53.3833,
+      "size_arcmin": [
+        8,
+        5
+      ],
+      "type": "galaxy",
+      "constellation": "Ursa Major",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "M110",
+      "aliases": [],
+      "ra_deg": 10.1,
+      "dec_deg": 41.6833,
+      "size_arcmin": [
+        22,
+        11
+      ],
+      "type": "galaxy",
+      "constellation": "Andromeda",
+      "archetype": "elliptical_group"
+    },
+    {
+      "name": "NGC 253",
+      "aliases": [
+        "Galassia Scultore",
+        "Caldwell 65",
+        "Sculptor Galaxy"
+      ],
+      "ra_deg": 11.9,
+      "dec_deg": -25.2833,
+      "size_arcmin": [
+        27,
+        7
+      ],
+      "type": "galaxy",
+      "constellation": "Sculptor",
+      "archetype": "spiral_hii",
+      "physics": "Starburst vista quasi di taglio, molto luminosa ma bassa dall'Italia. Continuo dominante con regioni HII nel disco. Culmina a circa 19 gradi da 46 nord.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 281",
+      "aliases": [
+        "Nebulosa Pacman",
+        "Pacman Nebula"
+      ],
+      "ra_deg": 13.2,
+      "dec_deg": 56.6167,
+      "size_arcmin": [
+        35,
+        30
+      ],
+      "type": "hii",
+      "constellation": "Cassiopeia",
+      "archetype": "hii_classic",
+      "physics": "Regione HII compatta con globuli di Bok in silhouette. Fotoionizzazione da un ammasso centrale. Ha forte, OIII moderato, SII presente ai bordi compressi: e' uno dei casi in cui l'SHO ha davvero tre canali distinti.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 869",
+      "aliases": [
+        "Doppio Ammasso",
+        "h Persei",
+        "NGC 884",
+        "Double Cluster"
+      ],
+      "ra_deg": 34.75,
+      "dec_deg": 57.1333,
+      "size_arcmin": [
+        60,
+        30
+      ],
+      "type": "open",
+      "constellation": "Perseus",
+      "archetype": "cluster_open",
+      "physics": "Coppia di ammassi aperti giovani. Nessuna emissione: RGB corto e attenzione a non saturare le stelle, che sono il soggetto. La banda stretta qui non ha alcun senso.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 891",
+      "aliases": [
+        "Caldwell 23",
+        "Silver Sliver"
+      ],
+      "ra_deg": 35.65,
+      "dec_deg": 42.35,
+      "size_arcmin": [
+        14,
+        2.5
+      ],
+      "type": "galaxy",
+      "constellation": "Andromeda",
+      "archetype": "spiral_hii",
+      "physics": "Spirale vista esattamente di taglio, con la corsia di polvere che la divide. Continuo puro. Come per le altre edge-on conta la risoluzione e la profondita' sull'alone, non la banda.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 1333",
+      "aliases": [],
+      "ra_deg": 52.325,
+      "dec_deg": 31.4167,
+      "size_arcmin": [
+        9,
+        7
+      ],
+      "type": "reflection",
+      "constellation": "Perseus",
+      "archetype": "reflection",
+      "physics": "Nebulosa a riflessione dentro una nube molecolare attiva, con getti Herbig-Haro che emettono in Ha. Il soggetto e' la polvere azzurra: banda larga profonda, e l'Ha solo se vuoi i getti.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 1499",
+      "aliases": [
+        "Nebulosa California",
+        "California Nebula"
+      ],
+      "ra_deg": 60.825,
+      "dec_deg": 36.3667,
+      "size_arcmin": [
+        145,
+        40
+      ],
+      "type": "hii",
+      "constellation": "Perseus",
+      "archetype": "hii_classic",
+      "physics": "Regione HII estesissima e a bassa brillanza superficiale, ionizzata da xi Persei che sta fuori dalla nebulosa. Ha dominante, OIII molto debole: l'HOO qui delude quasi sempre, mentre l'Ha da solo o l'HaRGB rendono bene.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 1514",
+      "aliases": [
+        "Nebulosa Palla di Cristallo",
+        "Crystal Ball Nebula"
+      ],
+      "ra_deg": 62.325,
+      "dec_deg": 30.7833,
+      "size_arcmin": [
+        3.4,
+        3.4
+      ],
+      "type": "pn",
+      "constellation": "Taurus",
+      "archetype": "pn_bright"
+    },
+    {
+      "name": "IC 405",
+      "aliases": [
+        "Nebulosa Stella Fiammeggiante",
+        "Flaming Star Nebula"
+      ],
+      "ra_deg": 79.05,
+      "dec_deg": 34.2667,
+      "size_arcmin": [
+        30,
+        19
+      ],
+      "type": "hii",
+      "constellation": "Auriga",
+      "archetype": "hii_classic",
+      "physics": "Oggetto misto: la stella fuggitiva AE Aurigae attraversa una nube e la illumina sia per ionizzazione sia per riflessione. Ha e polvere azzurra convivono, quindi la banda stretta cancella meta' del soggetto.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "IC 410",
+      "aliases": [
+        "Nebulosa dei Girini",
+        "Tadpoles Nebula"
+      ],
+      "ra_deg": 80.65,
+      "dec_deg": 33.5167,
+      "size_arcmin": [
+        40,
+        30
+      ],
+      "type": "hii",
+      "constellation": "Auriga",
+      "archetype": "hii_classic",
+      "physics": "Regione HII con i due globuli in evaporazione detti girini, allungati dal vento stellare. Fotoionizzazione, con SII che sale sui bordi compressi dei globuli.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "IC 434",
+      "aliases": [
+        "Testa di Cavallo",
+        "B33",
+        "Barnard 33",
+        "Horsehead Nebula"
+      ],
+      "ra_deg": 85.25,
+      "dec_deg": -2.45,
+      "size_arcmin": [
+        60,
+        10
+      ],
+      "type": "hii",
+      "constellation": "Orion",
+      "archetype": "hii_classic",
+      "physics": "Fondo di emissione Ha davanti al quale la nube oscura B33 si staglia in silhouette. Il soggetto e' l'assorbimento, non l'emissione: serve un Ha profondo che renda il fondo abbastanza brillante da far risaltare la sagoma.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 2024",
+      "aliases": [
+        "Nebulosa Fiamma",
+        "Flame Nebula"
+      ],
+      "ra_deg": 85.425,
+      "dec_deg": -1.85,
+      "size_arcmin": [
+        30,
+        30
+      ],
+      "type": "hii",
+      "constellation": "Orion",
+      "archetype": "hii_classic",
+      "physics": "Regione HII attraversata da una spessa corsia di polvere, ionizzata da una stella nascosta nell'infrarosso. Ha forte. Alnitak, a due passi, e' cosi' brillante da rovinare i flat: va tenuta fuori campo o gestita.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 1977",
+      "aliases": [
+        "Running Man",
+        "Running Man Nebula"
+      ],
+      "ra_deg": 83.825,
+      "dec_deg": -4.8167,
+      "size_arcmin": [
+        20,
+        20
+      ],
+      "type": "reflection",
+      "constellation": "Orion",
+      "archetype": "reflection"
+    },
+    {
+      "name": "Simeis 147",
+      "aliases": [
+        "Sh2-240",
+        "Nebulosa Spaghetti",
+        "Spaghetti Nebula"
+      ],
+      "ra_deg": 84.75,
+      "dec_deg": 28,
+      "size_arcmin": [
+        180,
+        180
+      ],
+      "type": "snr",
+      "constellation": "Taurus",
+      "archetype": "snr",
+      "physics": "Resto di supernova antichissimo e enorme, quasi tre gradi. Brillanza superficiale bassissima: e' un progetto da decine di ore in Ha. OIII presente ma molto debole. Serve campo largo e cielo scuro.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 2174",
+      "aliases": [
+        "Nebulosa Testa di Scimmia",
+        "Monkey Head Nebula"
+      ],
+      "ra_deg": 92.425,
+      "dec_deg": 20.5,
+      "size_arcmin": [
+        40,
+        30
+      ],
+      "type": "hii",
+      "constellation": "Orion",
+      "archetype": "hii_classic",
+      "physics": "Regione HII fotoionizzata con un fronte a forma di profilo. Ha forte, OIII confinato, SII moderato ai bordi.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "IC 443",
+      "aliases": [
+        "Nebulosa Medusa",
+        "Sh2-248",
+        "Jellyfish Nebula"
+      ],
+      "ra_deg": 94.25,
+      "dec_deg": 22.5667,
+      "size_arcmin": [
+        50,
+        50
+      ],
+      "type": "snr",
+      "constellation": "Gemini",
+      "archetype": "snr",
+      "physics": "Resto di supernova in interazione con una nube molecolare. Gas shockato, quindi rapporto SII su Ha alto: e' la firma diagnostica degli SNR e rende l'SHO fisicamente giustificato.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 2237",
+      "aliases": [
+        "Nebulosa Rosetta",
+        "Caldwell 49",
+        "Rosette Nebula"
+      ],
+      "ra_deg": 97.925,
+      "dec_deg": 5.05,
+      "size_arcmin": [
+        80,
+        80
+      ],
+      "type": "hii",
+      "constellation": "Monoceros",
+      "archetype": "hii_classic",
+      "physics": "Regione HII circolare ionizzata dall'ammasso centrale NGC 2244, che ha soffiato via la cavita' interna. Ha forte, OIII presente vicino alle O centrali, SII moderato nei globuli. Uno dei rari SHO che funziona a budget contenuto.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 2264",
+      "aliases": [
+        "Nebulosa Cono",
+        "Albero di Natale",
+        "Cone Nebula",
+        "Christmas Tree Cluster"
+      ],
+      "ra_deg": 100.275,
+      "dec_deg": 9.8833,
+      "size_arcmin": [
+        60,
+        30
+      ],
+      "type": "hii",
+      "constellation": "Monoceros",
+      "archetype": "hii_classic",
+      "physics": "Ammasso giovane piu' regione HII piu' la nube oscura conica. Tre cose diverse nello stesso campo, con esigenze opposte: le stelle vogliono pose corte, il cono ne vuole tante.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "IC 2177",
+      "aliases": [
+        "Nebulosa Gabbiano",
+        "Seagull Nebula"
+      ],
+      "ra_deg": 106.125,
+      "dec_deg": -10.45,
+      "size_arcmin": [
+        120,
+        40
+      ],
+      "type": "hii",
+      "constellation": "Monoceros",
+      "archetype": "hii_classic",
+      "physics": "Complesso HII molto esteso a forma di gabbiano. Ha dominante su tutto, OIII limitato alla testa. Campo largo obbligatorio.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 2359",
+      "aliases": [
+        "Elmo di Thor",
+        "Thor's Helmet"
+      ],
+      "ra_deg": 109.65,
+      "dec_deg": -13.2,
+      "size_arcmin": [
+        10,
+        5
+      ],
+      "type": "wr_bubble",
+      "constellation": "Canis Major",
+      "archetype": "wr_bubble",
+      "physics": "Bolla di vento soffiata da una Wolf-Rayet, come NGC 6888 ma piu' compatta e con l'OIII ancora piu' marcato. Shock e fotoionizzazione compresenti: le righe tracciano strutture diverse, e il SII sui filamenti ripaga.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 2392",
+      "aliases": [
+        "Nebulosa Eschimese",
+        "Eskimo Nebula"
+      ],
+      "ra_deg": 112.3,
+      "dec_deg": 20.9167,
+      "size_arcmin": [
+        0.8,
+        0.8
+      ],
+      "type": "pn",
+      "constellation": "Gemini",
+      "archetype": "pn_bright",
+      "physics": "Planetaria piccolissima e brillante, con doppio guscio. E' un oggetto di risoluzione pura: conta il seeing e la focale, non le ore. In banda stretta satura subito.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "Abell 21",
+      "aliases": [
+        "Nebulosa Medusa PN",
+        "PK 205+14.1",
+        "Medusa Nebula"
+      ],
+      "ra_deg": 112.25,
+      "dec_deg": 13.25,
+      "size_arcmin": [
+        10,
+        10
+      ],
+      "type": "pn",
+      "constellation": "Gemini",
+      "archetype": "pn_faint",
+      "physics": "Planetaria evoluta e molto estesa, OIII dominante con Ha a fare da struttura secondaria. Bassa brillanza superficiale: e' un progetto da molte ore sull'OIII.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "Jones-Emberson 1",
+      "aliases": [
+        "JnEr 1",
+        "PK 164+31.1",
+        "Headphone Nebula"
+      ],
+      "ra_deg": 119.475,
+      "dec_deg": 53.4167,
+      "size_arcmin": [
+        6,
+        6
+      ],
+      "type": "pn",
+      "constellation": "Lynx",
+      "archetype": "pn_faint",
+      "physics": "Planetaria bipolare debolissima, tutta OIII. Nome popolare Headphone Nebula. Sotto le dieci ore di OIII non emerge in modo convincente.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "Abell 31",
+      "aliases": [
+        "PK 219+31.1"
+      ],
+      "ra_deg": 133.55,
+      "dec_deg": 8.9,
+      "size_arcmin": [
+        16,
+        16
+      ],
+      "type": "pn",
+      "constellation": "Cancer",
+      "archetype": "pn_faint",
+      "physics": "Fra le planetarie piu' grandi del cielo e fra le piu' deboli. OIII dominante, Ha marginale, SII assente. Un HOO sbilanciato pesantemente sull'OIII e' l'unica strada.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 2903",
+      "aliases": [],
+      "ra_deg": 143.05,
+      "dec_deg": 21.5,
+      "size_arcmin": [
+        12,
+        6
+      ],
+      "type": "galaxy",
+      "constellation": "Leo",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "Abell 33",
+      "aliases": [
+        "PK 238+34.1"
+      ],
+      "ra_deg": 144.775,
+      "dec_deg": -2.8,
+      "size_arcmin": [
+        4.5,
+        4.5
+      ],
+      "type": "pn",
+      "constellation": "Hydra",
+      "archetype": "pn_faint"
+    },
+    {
+      "name": "NGC 3628",
+      "aliases": [
+        "Galassia Hamburger",
+        "Hamburger Galaxy"
+      ],
+      "ra_deg": 170.075,
+      "dec_deg": 13.5833,
+      "size_arcmin": [
+        15,
+        3.6
+      ],
+      "type": "galaxy",
+      "constellation": "Leo",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "NGC 4565",
+      "aliases": [
+        "Galassia Ago",
+        "Caldwell 38",
+        "Needle Galaxy"
+      ],
+      "ra_deg": 189.075,
+      "dec_deg": 25.9833,
+      "size_arcmin": [
+        16,
+        2
+      ],
+      "type": "galaxy",
+      "constellation": "Coma Berenices",
+      "archetype": "spiral_hii",
+      "physics": "Spirale di taglio quasi perfetta, con bulge prominente e corsia di polvere. Continuo puro. Il pregio dell'immagine sta nelle galassie di fondo, quindi conta la profondita' e non bisogna esagerare col denoise.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 4631",
+      "aliases": [
+        "Galassia Balena",
+        "Caldwell 32",
+        "Whale Galaxy"
+      ],
+      "ra_deg": 190.525,
+      "dec_deg": 32.5333,
+      "size_arcmin": [
+        15,
+        3
+      ],
+      "type": "galaxy",
+      "constellation": "Canes Venatici",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "NGC 5907",
+      "aliases": [
+        "Galassia Scheggia",
+        "Splinter Galaxy"
+      ],
+      "ra_deg": 228.975,
+      "dec_deg": 56.3167,
+      "size_arcmin": [
+        13,
+        1.4
+      ],
+      "type": "galaxy",
+      "constellation": "Draco",
+      "archetype": "tidal_ifn",
+      "physics": "Edge-on sottilissima, celebre per i flussi mareali che la circondano a brillanza superficiale estrema. Quelli sono il vero soggetto e richiedono decine di ore di luminanza da cielo molto scuro.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "IC 4592",
+      "aliases": [
+        "Testa di Cavallo Blu",
+        "Blue Horsehead"
+      ],
+      "ra_deg": 243,
+      "dec_deg": -19.4667,
+      "size_arcmin": [
+        150,
+        60
+      ],
+      "type": "reflection",
+      "constellation": "Scorpius",
+      "archetype": "reflection"
+    },
+    {
+      "name": "IC 4603",
+      "aliases": [
+        "Complesso di Rho Ophiuchi",
+        "IC 4604",
+        "Rho Ophiuchi Complex"
+      ],
+      "ra_deg": 246.4,
+      "dec_deg": -23.45,
+      "size_arcmin": [
+        180,
+        180
+      ],
+      "type": "reflection",
+      "constellation": "Ophiuchus",
+      "archetype": "reflection",
+      "physics": "Complesso di riflessione fra i piu' colorati del cielo, con polvere gialla, azzurra e nebulosita' a emissione. Solo banda larga. Molto basso dall'Italia settentrionale.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 6543",
+      "aliases": [
+        "Occhio di Gatto",
+        "Caldwell 6",
+        "Cat's Eye Nebula"
+      ],
+      "ra_deg": 269.65,
+      "dec_deg": 66.6333,
+      "size_arcmin": [
+        5.8,
+        5.8
+      ],
+      "type": "pn",
+      "constellation": "Draco",
+      "archetype": "pn_bright",
+      "physics": "Planetaria brillante con struttura interna complessa e un alone esterno molto piu' esteso e debole. Come M27, e' un problema di dinamica: nucleo e alone vogliono pose diverse.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 6820",
+      "aliases": [
+        "Sh2-86"
+      ],
+      "ra_deg": 295.775,
+      "dec_deg": 23.2833,
+      "size_arcmin": [
+        40,
+        30
+      ],
+      "type": "hii",
+      "constellation": "Vulpecula",
+      "archetype": "hii_classic"
+    },
+    {
+      "name": "Sh2-101",
+      "aliases": [
+        "Nebulosa Tulipano",
+        "Tulip Nebula"
+      ],
+      "ra_deg": 299.975,
+      "dec_deg": 35.2667,
+      "size_arcmin": [
+        16,
+        9
+      ],
+      "type": "hii",
+      "constellation": "Cygnus",
+      "archetype": "hii_classic",
+      "physics": "Regione HII attorno a una stella massiccia, nel campo del buco nero Cygnus X-1. Ha forte, OIII moderato. Compatta abbastanza da premiare le focali medio-lunghe.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "IC 1318",
+      "aliases": [
+        "Nebulosa Farfalla",
+        "Gamma Cygni",
+        "Sadr",
+        "Butterfly Nebula",
+        "Sadr Region"
+      ],
+      "ra_deg": 305.55,
+      "dec_deg": 40.25,
+      "size_arcmin": [
+        200,
+        200
+      ],
+      "type": "hii",
+      "constellation": "Cygnus",
+      "archetype": "hii_classic",
+      "physics": "Vastissimo complesso di emissione attorno a Sadr, tagliato da corsie di polvere. Ha dominante ovunque, OIII limitato. Il soggetto e' l'intreccio fra gas e polvere: campo largo e Ha profondo.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 6946",
+      "aliases": [
+        "Galassia Fuochi d'Artificio",
+        "Caldwell 12",
+        "Fireworks Galaxy"
+      ],
+      "ra_deg": 308.725,
+      "dec_deg": 60.15,
+      "size_arcmin": [
+        11,
+        10
+      ],
+      "type": "galaxy",
+      "constellation": "Cepheus",
+      "archetype": "spiral_hii",
+      "physics": "Spirale di faccia dietro il piano galattico, quindi arrossata dalla polvere della Via Lattea. Regioni HII numerose. Nello stesso campo dell'ammasso NGC 6939.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "Barnard 150",
+      "aliases": [
+        "Cavalluccio Marino",
+        "LDN 1082",
+        "Seahorse Nebula"
+      ],
+      "ra_deg": 312.5,
+      "dec_deg": 60.3,
+      "size_arcmin": [
+        60,
+        15
+      ],
+      "type": "dark",
+      "constellation": "Cepheus",
+      "archetype": "dark_molecular",
+      "physics": "Nube oscura in Cefeo, pura estinzione: non emette nulla. Il soggetto e' l'assorbimento contro il fondo stellare, quindi serve banda larga profondissima e gestione maniacale dei gradienti.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "IC 5070",
+      "aliases": [
+        "Nebulosa Pellicano",
+        "Pelican Nebula"
+      ],
+      "ra_deg": 312.7,
+      "dec_deg": 44.35,
+      "size_arcmin": [
+        60,
+        50
+      ],
+      "type": "hii",
+      "constellation": "Cygnus",
+      "archetype": "hii_classic",
+      "physics": "Metà del complesso di NGC 7000, con un fronte di ionizzazione molto marcato che forma il profilo del pellicano. Ha forte, OIII sul fronte, SII presente dove il gas e' compresso.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 7023",
+      "aliases": [
+        "Nebulosa Iris",
+        "Caldwell 4",
+        "Iris Nebula"
+      ],
+      "ra_deg": 315.45,
+      "dec_deg": 68.2,
+      "size_arcmin": [
+        18,
+        18
+      ],
+      "type": "reflection",
+      "constellation": "Cepheus",
+      "archetype": "reflection",
+      "physics": "Nebulosa a riflessione di riferimento, illuminata da SAO 19158 dentro una nube molecolare. Riflessione pura, nessuna riga. Il valore sta nel contrasto fra il blu centrale e la polvere marrone attorno, che vuole molta luminanza.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 6960",
+      "aliases": [
+        "Velo Ovest",
+        "Scopa della Strega",
+        "Caldwell 34",
+        "Western Veil",
+        "Witch's Broom"
+      ],
+      "ra_deg": 311.425,
+      "dec_deg": 30.7167,
+      "size_arcmin": [
+        70,
+        6
+      ],
+      "type": "snr",
+      "constellation": "Cygnus",
+      "archetype": "snr",
+      "physics": "Porzione occidentale del Velo, attraversata da 52 Cygni. Gas shockato: Ha e OIII tracciano filamenti distinti separati da pochi arcsec, e a campionamento fine quella separazione e' lo spettacolo dell'oggetto.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 6992",
+      "aliases": [
+        "Velo Est",
+        "Caldwell 33",
+        "Eastern Veil"
+      ],
+      "ra_deg": 314.1,
+      "dec_deg": 31.7167,
+      "size_arcmin": [
+        60,
+        8
+      ],
+      "type": "snr",
+      "constellation": "Cygnus",
+      "archetype": "snr",
+      "physics": "Porzione orientale del Velo, la piu' brillante del complesso. Come per tutto il Cygnus Loop l'OIII e' forte quanto l'Ha, caso raro che rende l'HOO davvero bicolore.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "IC 5146",
+      "aliases": [
+        "Nebulosa Bozzolo",
+        "Caldwell 19",
+        "Cocoon Nebula"
+      ],
+      "ra_deg": 328.375,
+      "dec_deg": 47.2667,
+      "size_arcmin": [
+        12,
+        12
+      ],
+      "type": "hii",
+      "constellation": "Cygnus",
+      "archetype": "hii_classic",
+      "physics": "Regione HII compatta all'estremita' di una lunga nube oscura. Il gas emette in Ha, ma il contesto oscuro e' meta' dell'immagine: conviene non stretchare fino ad appiattirlo.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 7129",
+      "aliases": [],
+      "ra_deg": 325.725,
+      "dec_deg": 66.1,
+      "size_arcmin": [
+        8,
+        7
+      ],
+      "type": "reflection",
+      "constellation": "Cepheus",
+      "archetype": "reflection"
+    },
+    {
+      "name": "Sh2-132",
+      "aliases": [
+        "Nebulosa Leone",
+        "Lion Nebula"
+      ],
+      "ra_deg": 334.75,
+      "dec_deg": 56.0833,
+      "size_arcmin": [
+        90,
+        60
+      ],
+      "type": "hii",
+      "constellation": "Cepheus",
+      "archetype": "hii_classic",
+      "physics": "Regione HII estesa e debole in Cefeo, con due stelle Wolf-Rayet al suo interno. Ha dominante, OIII localizzato attorno alle WR: e' li' che l'HOO produce separazione.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "vdB 152",
+      "aliases": [
+        "LBN 552",
+        "Caldwell 4 vicina"
+      ],
+      "ra_deg": 333.5,
+      "dec_deg": 69.9333,
+      "size_arcmin": [
+        30,
+        10
+      ],
+      "type": "reflection",
+      "constellation": "Cepheus",
+      "archetype": "reflection"
+    },
+    {
+      "name": "NGC 7293",
+      "aliases": [
+        "Nebulosa Elica",
+        "Caldwell 63",
+        "Helix Nebula"
+      ],
+      "ra_deg": 337.4,
+      "dec_deg": -20.8,
+      "size_arcmin": [
+        25,
+        25
+      ],
+      "type": "pn",
+      "constellation": "Aquarius",
+      "archetype": "pn_faint",
+      "physics": "La planetaria piu' vicina e apparentemente piu' grande. OIII e Ha entrambi forti, con i celebri nodi cometari radiali. Da 46 gradi nord culmina a 23 gradi: bassa, ma non impossibile.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "LDN 1251",
+      "aliases": [
+        "Nebulosa Squalo vicina"
+      ],
+      "ra_deg": 339.25,
+      "dec_deg": 75.1667,
+      "size_arcmin": [
+        60,
+        20
+      ],
+      "type": "dark",
+      "constellation": "Cepheus",
+      "archetype": "dark_molecular"
+    },
+    {
+      "name": "NGC 7380",
+      "aliases": [
+        "Nebulosa Mago",
+        "Sh2-142",
+        "Wizard Nebula"
+      ],
+      "ra_deg": 341.75,
+      "dec_deg": 58.1,
+      "size_arcmin": [
+        25,
+        25
+      ],
+      "type": "hii",
+      "constellation": "Cepheus",
+      "archetype": "hii_classic",
+      "physics": "Regione HII giovane con ammasso centrale. Ha forte, OIII moderato, SII sui bordi compressi. Circumpolare dall'Italia settentrionale, quindi nessuna urgenza stagionale.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 7479",
+      "aliases": [],
+      "ra_deg": 346.225,
+      "dec_deg": 12.3167,
+      "size_arcmin": [
+        4,
+        3
+      ],
+      "type": "galaxy",
+      "constellation": "Pegasus",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "Sh2-157",
+      "aliases": [
+        "Chela di Aragosta",
+        "Lobster Claw Nebula"
+      ],
+      "ra_deg": 349,
+      "dec_deg": 60.4667,
+      "size_arcmin": [
+        60,
+        40
+      ],
+      "type": "hii",
+      "constellation": "Cassiopeia",
+      "archetype": "hii_classic"
+    },
+    {
+      "name": "Cassiopeia A",
+      "aliases": [
+        "Cas A",
+        "3C 461"
+      ],
+      "ra_deg": 350.85,
+      "dec_deg": 58.8167,
+      "size_arcmin": [
+        5,
+        5
+      ],
+      "type": "snr",
+      "constellation": "Cassiopeia",
+      "archetype": "snr",
+      "physics": "Il resto di supernova piu' giovane della Galassia, appena trecento anni. Piccolissimo e debolissimo in ottico: e' soprattutto un oggetto radio e X. In Ha e SII serve una focale lunga e molte ore.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 7789",
+      "aliases": [
+        "Rosa di Carolina",
+        "Caldwell 43",
+        "Caroline's Rose"
+      ],
+      "ra_deg": 359.25,
+      "dec_deg": 56.7333,
+      "size_arcmin": [
+        16,
+        16
+      ],
+      "type": "open",
+      "constellation": "Cassiopeia",
+      "archetype": "cluster_open",
+      "physics": "Ammasso aperto ricchissimo e antico. Nessuna emissione: RGB breve, il problema e' rendere il colore delle stelle senza saturarle.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 7822",
+      "aliases": [
+        "Sh2-171",
+        "Cederblad 214"
+      ],
+      "ra_deg": 0.9,
+      "dec_deg": 67.1667,
+      "size_arcmin": [
+        60,
+        60
+      ],
+      "type": "hii",
+      "constellation": "Cepheus",
+      "archetype": "hii_classic",
+      "physics": "Complesso HII con globuli in evaporazione e un fronte di ionizzazione marcato. Ha forte, SII sui bordi compressi. Circumpolare.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "NGC 6334",
+      "aliases": [
+        "Zampa di Gatto",
+        "Cat's Paw Nebula"
+      ],
+      "ra_deg": 260.2,
+      "dec_deg": -36.1,
+      "size_arcmin": [
+        40,
+        30
+      ],
+      "type": "hii",
+      "constellation": "Scorpius",
+      "archetype": "hii_classic"
+    },
+    {
+      "name": "NGC 6357",
+      "aliases": [
+        "Nebulosa Aragosta",
+        "Lobster Nebula"
+      ],
+      "ra_deg": 261.175,
+      "dec_deg": -34.2,
+      "size_arcmin": [
+        50,
+        50
+      ],
+      "type": "hii",
+      "constellation": "Scorpius",
+      "archetype": "hii_classic"
+    },
+    {
+      "name": "NGC 6822",
+      "aliases": [
+        "Galassia di Barnard",
+        "Caldwell 57",
+        "Barnard's Galaxy"
+      ],
+      "ra_deg": 296.225,
+      "dec_deg": -14.8,
+      "size_arcmin": [
+        15,
+        14
+      ],
+      "type": "galaxy",
+      "constellation": "Sagittarius",
+      "archetype": "spiral_hii"
+    },
+    {
+      "name": "NGC 40",
+      "aliases": [
+        "Nebulosa Papillon",
+        "Caldwell 2",
+        "Bow-Tie Nebula"
+      ],
+      "ra_deg": 3.25,
+      "dec_deg": 72.5167,
+      "size_arcmin": [
+        1,
+        1
+      ],
+      "type": "pn",
+      "constellation": "Cepheus",
+      "archetype": "pn_bright",
+      "physics": "Planetaria compatta con una stella centrale di tipo Wolf-Rayet. Ha relativamente forte rispetto all'OIII, il che la rende inusuale fra le planetarie.",
+      "physics_confidence": "media"
+    },
+    {
+      "name": "Sh2-224",
+      "aliases": [],
+      "ra_deg": 76,
+      "dec_deg": 42.7,
+      "size_arcmin": [
+        45,
+        45
+      ],
+      "type": "snr",
+      "constellation": "Auriga",
+      "archetype": "snr"
+    },
+    {
+      "name": "NGC 5128",
+      "aliases": [
+        "Centaurus A",
+        "Caldwell 77"
+      ],
+      "ra_deg": 201.375,
+      "dec_deg": -43.0167,
+      "size_arcmin": [
+        26,
+        20
+      ],
+      "type": "galaxy",
+      "constellation": "Centaurus",
+      "archetype": "elliptical_group"
+    }
+  ]
+}
