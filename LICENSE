@@ -2,7 +2,7 @@ ASTROIMAGE-STRATEGY — PROPRIETARY SOFTWARE LICENSE
 
 Copyright © 2026 Alessandro Curci. All rights reserved. / Tutti i diritti riservati.
 
-Versione 1.0 — 3 settembre 2026
+Versione 1.1 — 3 settembre 2026
 Repository ufficiale: https://github.com/Mamete91/AstroImage-Strategy
 
 
@@ -70,9 +70,11 @@ to its own original license.
 3. AMBITO DELLA LICENZA CONCESSA
 
 3.1 L'Autore concede all'Utente una licenza personale, non esclusiva, non
-    trasferibile, non sublicenziabile, revocabile e limitata a: utilizzare
-    l'applicazione attraverso il Servizio, esclusivamente per uso personale e
-    non commerciale.
+    trasferibile, non sublicenziabile e limitata a: utilizzare l'applicazione
+    attraverso il Servizio, esclusivamente per uso personale e non commerciale.
+    La licenza resta valida finché l'Utente rispetta le condizioni della
+    presente licenza; la cessazione in caso di violazione è disciplinata dalla
+    Sezione 11.
 
 3.2 La licenza di cui al punto 3.1 è l'unica concessa. Non si estende al codice
     sorgente, che è regolato dalla Sezione 4.
@@ -189,10 +191,13 @@ massima consentita dalla legge applicabile. Sono in particolare escluse le
 garanzie di commerciabilità, idoneità a uno scopo particolare, assenza di
 violazione di diritti altrui, accuratezza, continuità e assenza di errori.
 
-Il Software fornisce stime e prescrizioni derivate da un modello fisico
-dichiarato e non validato su dati osservativi (si vedano i limiti dichiarati
-nella documentazione). L'Utente resta l'unico responsabile delle proprie
-decisioni operative e del proprio uso dei risultati.
+Il Software produce stime, valutazioni e prescrizioni sulla base del modello
+fisico implementato. Tali risultati costituiscono un supporto alla
+pianificazione: non è garantito che una determinata prescrizione produca uno
+specifico risultato osservativo, il quale dipende anche da condizioni,
+strumentazione e scelte operative che esulano dal controllo dell'Autore.
+L'Utente resta l'unico responsabile delle proprie decisioni operative e del
+proprio uso dei risultati.
 
 
 10. LIMITAZIONE DI RESPONSABILITÀ
@@ -252,9 +257,8 @@ consumatore.
      della pubblicazione della nuova versione.
 
 14.4 La presente licenza costituisce l'intero accordo fra l'Autore e l'Utente
-     riguardo al Software e sostituisce ogni precedente dichiarazione di licenza
-     relativa al medesimo, ivi compresa ogni indicazione di licenza MIT
-     eventualmente contenuta in versioni anteriori del Repository.
+     riguardo al Software e disciplina l'utilizzo delle versioni del Software
+     distribuite a partire dalla sua pubblicazione.
 
 14.5 Il testo italiano che precede è la versione facente fede. La traduzione
      inglese che segue è fornita per comodità; in caso di divergenza prevale il
@@ -307,8 +311,10 @@ consumatore.
 3. SCOPE OF THE LICENSE GRANTED
 
 3.1 The Author grants the User a personal, non-exclusive, non-transferable,
-    non-sublicensable, revocable and limited license to use the application
-    through the Service, solely for personal and non-commercial purposes.
+    non-sublicensable and limited license to use the application through the
+    Service, solely for personal and non-commercial purposes. The license
+    remains valid for as long as the User complies with the conditions of this
+    license; termination in the event of breach is governed by Section 11.
 
 3.2 The license under 3.1 is the only one granted. It does not extend to the
     source code, which is governed by Section 4.
@@ -419,10 +425,13 @@ applicable law. In particular, the warranties of merchantability, fitness for a
 particular purpose, non-infringement, accuracy, continuity and freedom from
 error are excluded.
 
-The Software provides estimates and prescriptions derived from a declared
-physical model that has not been validated against observational data (see the
-declared limits in the documentation). The User remains solely responsible for
-their own operational decisions and for their use of the results.
+The Software produces estimates, assessments and prescriptions on the basis of
+the physical model it implements. Such results constitute planning support: it
+is not guaranteed that a given prescription will produce a specific
+observational result, which also depends on conditions, equipment and
+operational choices outside the Author's control. The User remains solely
+responsible for their own operational decisions and for their use of the
+results.
 
 
 10. LIMITATION OF LIABILITY
@@ -480,9 +489,8 @@ forum.
      published.
 
 14.4 This license constitutes the entire agreement between the Author and the
-     User regarding the Software and supersedes any prior license statement
-     relating to it, including any MIT license indication contained in earlier
-     versions of the Repository.
+     User regarding the Software and governs the use of the versions of the
+     Software distributed from its publication onwards.
 
 14.5 The Italian text above is the prevailing version. This English translation
      is provided for convenience; in case of divergence the Italian text
