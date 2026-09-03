@@ -45,7 +45,7 @@
   --radius:8px; --radius-lg:14px; --radius-sm:5px;
 
   /* --- layout --- */
-  --nav-w:236px; --aside-w:320px; --head-h:78px;
+  --nav-w:206px; --aside-w:318px; --head-h:78px;
 }
 html[data-night="1"]{
   --bg:#0a0000; --bg2:#140000; --bg3:#1c0000; --line:#3a0f0f; --line2:#280a0a;
@@ -74,7 +74,7 @@ html[data-night="1"] #aladin{filter:saturate(.3)}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--fg);
-  font:14px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font:15px/1.58 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   -webkit-text-size-adjust:100%}
 h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.01em}
 a{color:var(--acc)}
@@ -138,7 +138,7 @@ html[data-night="1"] .topbar{background:var(--bg)}
 .navitem{
   display:flex;align-items:center;gap:var(--s3);width:100%;
   background:transparent;border:1px solid transparent;color:var(--dim);
-  border-radius:var(--radius);padding:10px var(--s3);font:inherit;font-size:14px;
+  border-radius:var(--radius);padding:10px 11px;font:inherit;font-size:14.5px;
   cursor:pointer;text-align:left;position:relative;
 }
 .navitem svg{width:19px;height:19px;flex:none;opacity:.85}
@@ -172,7 +172,7 @@ html[data-night="1"] .topbar{background:var(--bg)}
 }
 .step{
   display:inline-flex;align-items:center;gap:var(--s2);
-  background:transparent;border:0;color:var(--dim);font:inherit;font-size:13px;
+  background:transparent;border:0;color:var(--dim);font:inherit;font-size:13.5px;
   cursor:pointer;padding:3px 2px;border-radius:var(--radius-sm);
 }
 .step .sn{
@@ -218,15 +218,15 @@ html[data-night="1"] .step.on .sn{color:#1a0000}
 .card-head.exp .ch-ico{background:rgba(var(--fn-exp-rgb),.13);color:var(--fn-exp)}
 .ch-txt{min-width:0;flex:1 1 240px}
 .card-head h2{
-  font-size:19px;font-weight:600;letter-spacing:.01em;text-transform:uppercase;
+  font-size:21px;font-weight:600;letter-spacing:.01em;text-transform:uppercase;
   color:var(--fg);line-height:1.2;
 }
-.card-head .ch-sub{font-size:12.5px;color:var(--dim);margin-top:3px}
+.card-head .ch-sub{font-size:13.5px;color:var(--dim);margin-top:3px}
 .card-head .ch-act{display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center}
 .card-body{padding:var(--s5) var(--s6) var(--s6)}
 .card-body > :first-child{margin-top:0}
 .subhead{
-  font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);
+  font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);
   margin:var(--s6) 0 var(--s3);padding-bottom:var(--s2);border-bottom:1px solid var(--line2);
 }
 .card-body > .subhead:first-child{margin-top:0}
@@ -247,12 +247,12 @@ html[data-night="1"] .step.on .sn{color:#1a0000}
   overflow-y:auto}
 .sumb{padding:var(--s4) 0;border-bottom:1px solid var(--line2)}
 .sumb:last-child{border-bottom:none;padding-bottom:0}
-.sumk{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim2);
+.sumk{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim2);
   margin-bottom:5px}
-.sumv{font-size:14.5px;color:var(--fg);line-height:1.45}
-.sumv.big{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.sumv{font-size:15.5px;color:var(--fg);line-height:1.45}
+.sumv.big{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
 .sumv .u{font-size:12px;color:var(--dim);font-weight:400}
-.sumn{font-size:11.5px;color:var(--dim);margin-top:3px;line-height:1.5}
+.sumn{font-size:12.5px;color:var(--dim);margin-top:3px;line-height:1.5}
 .sumempty{color:var(--dim2)}
 .sumchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
 .sumrow{display:flex;justify-content:space-between;gap:var(--s3);align-items:baseline;
@@ -262,7 +262,7 @@ html[data-night="1"] .step.on .sn{color:#1a0000}
 .hintbox{
   display:flex;gap:var(--s3);align-items:flex-start;margin-top:var(--s5);
   background:var(--bg3);border:1px solid var(--line2);border-radius:var(--radius);
-  padding:var(--s3) var(--s4);font-size:12px;color:var(--dim);line-height:1.55;
+  padding:var(--s3) var(--s4);font-size:12.5px;color:var(--dim);line-height:1.55;
 }
 .hintbox svg{width:15px;height:15px;flex:none;color:var(--acc);margin-top:1px}
 
@@ -295,9 +295,9 @@ button[disabled],button.off{opacity:.45;cursor:not-allowed}
 input[type=number]{width:84px}
 input[type=range]{padding:0;background:none;border:none;width:100%}
 input[type=checkbox]{accent-color:var(--acc)}
-label.f{display:flex;flex-direction:column;gap:4px;font-size:10.5px;color:var(--dim);
+label.f{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--dim);
   text-transform:uppercase;letter-spacing:.06em}
-label.f > input, label.f > select{text-transform:none;font-size:13px;letter-spacing:0;color:var(--fg)}
+label.f > input, label.f > select{text-transform:none;font-size:14px;letter-spacing:0;color:var(--fg)}
 
 /* Il pannello resta: il JS lo genera ancora dentro le schede e i moduli. */
 .panel{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius);
@@ -319,9 +319,9 @@ label.f > input, label.f > select{text-transform:none;font-size:13px;letter-spac
   background:var(--line2);border:1px solid var(--line2);border-radius:var(--radius);
   overflow:hidden;margin-top:var(--s4)}
 .dcell{background:var(--bg3);padding:12px 14px}
-.dcell .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim2)}
-.dcell .v{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:3px}
-.dcell .n{font-size:11px;color:var(--dim);margin-top:2px}
+.dcell .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim2)}
+.dcell .v{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:3px}
+.dcell .n{font-size:12px;color:var(--dim);margin-top:2px}
 .dcell input{width:80px;font:inherit;font-size:17px;font-weight:600;color:var(--fg);
   background:transparent;border:none;border-bottom:1px dotted var(--dim2);border-radius:0;
   padding:0 0 1px;font-variant-numeric:tabular-nums}
@@ -336,13 +336,13 @@ label.f > input, label.f > select{text-transform:none;font-size:13px;letter-spac
 .p-ok{color:var(--ok)} .p-warn{color:var(--warn)} .p-bad{color:var(--bad)} .p-dim{color:var(--dim)}
 
 table{width:100%;border-collapse:collapse}
-th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.09em;
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;
   color:var(--dim2);font-weight:600;padding:0 10px 9px;border-bottom:1px solid var(--line)}
 td{padding:11px 10px;border-bottom:1px solid var(--line2);vertical-align:middle}
 tr.tgt{cursor:pointer}
 tr.tgt:hover td{background:var(--bg3)}
 .tname{font-weight:600}
-.tsub{font-size:11px;color:var(--dim)}
+.tsub{font-size:12px;color:var(--dim)}
 .num{font-variant-numeric:tabular-nums;text-align:right}
 
 .score{display:flex;align-items:center;gap:7px}
@@ -393,7 +393,7 @@ tr.tgt:hover td{background:var(--bg3)}
 .conf.media{color:var(--warn);border-color:var(--warn)}
 .conf.bassa{color:var(--bad);border-color:var(--bad)}
 .muted{color:var(--dim)}
-.small{font-size:12px}
+.small{font-size:12.5px}
 .err{background:rgba(248,81,73,.1);border:1px solid var(--bad);color:var(--fg);
   padding:var(--s4) var(--s5);border-radius:var(--radius);margin-bottom:var(--s4)}
 .drop{border:1.5px dashed var(--line);border-radius:var(--radius);padding:var(--s6);text-align:center;
@@ -416,9 +416,9 @@ tr.tgt:hover td{background:var(--bg3)}
 .rx .why{font-size:12.5px;color:var(--dim);margin-bottom:var(--s3)}
 .rxrow{display:flex;align-items:center;gap:var(--s3);padding:7px 0;border-bottom:1px solid var(--line)}
 .rxrow:last-of-type{border-bottom:none}
-.rxrow .b{width:68px;font-weight:700;font-size:13.5px}
-.rxrow .h{width:78px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;font-size:16px}
-.rxrow .m{flex:1;font-size:12px;color:var(--dim)}
+.rxrow .b{width:70px;font-weight:700;font-size:14.5px}
+.rxrow .h{width:78px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;font-size:17px}
+.rxrow .m{flex:1;font-size:12.5px;color:var(--dim)}
 .rxrow.out{opacity:.5}
 .rxrow.out .h{font-weight:400;color:var(--bad)}
 .rxtot{display:flex;gap:var(--s3);align-items:baseline;margin-top:var(--s3);padding-top:10px;
@@ -454,10 +454,10 @@ tr.tgt:hover td{background:var(--bg3)}
   border-radius:var(--radius);
   background:linear-gradient(90deg,rgba(var(--acc-rgb),.13),rgba(var(--acc-rgb),.03));
   padding:12px 15px;margin-top:var(--s3);display:flex;flex-wrap:wrap;gap:var(--s5);align-items:center}
-.cfgcard .ck{font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim2);
+.cfgcard .ck{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim2);
   white-space:nowrap}
-.cfgcard .cv{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.25}
-.cfgcard .cn{font-size:10.5px;color:var(--dim);white-space:nowrap}
+.cfgcard .cv{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.25}
+.cfgcard .cn{font-size:11.5px;color:var(--dim);white-space:nowrap}
 .cfgcard .grow{flex:1 1 auto}
 .cfgnote{font-size:11.5px;color:var(--dim);margin:7px 2px 0}
 .cfgnote b{color:var(--acc)}
@@ -545,13 +545,97 @@ td.archcell{max-width:120px}
 .tablewrap > table{min-width:720px}
 
 /* =====================================================================
+   HOME — il campo che apre la prescrizione, la notte, i migliori
+   ===================================================================== */
+.hero{display:flex;flex-direction:column;gap:var(--s5)}
+.hero-lab{
+  display:flex;align-items:center;gap:8px;
+  font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;
+  color:var(--acc);margin-bottom:10px;cursor:pointer;border-bottom:none;
+}
+.hero-lab > svg{width:17px;height:17px;flex:none}
+.hero-lab .ico{border-color:var(--acc);color:var(--acc)}
+/* Non e' un campo fra i tanti: e' il punto in cui nasce la prescrizione, e si
+   vede. Contrasto contro il fondo, bordo tinto, alone tenue, e abbastanza
+   respiro perche' «NGC 6888 — Nebulosa Crescent» ci stia senza stringersi. */
+.hero-input{
+  display:flex;align-items:center;gap:var(--s3);
+  background:var(--sunken);border:1px solid rgba(var(--acc-rgb),.45);
+  border-radius:var(--radius-lg);padding:0 var(--s4);
+  box-shadow:0 0 0 3px rgba(var(--acc-rgb),.06), var(--elev-lo);
+  transition:border-color .15s, box-shadow .15s;
+}
+.hero-input:focus-within{
+  border-color:var(--acc);box-shadow:0 0 0 4px rgba(var(--acc-rgb),.16), var(--elev);
+}
+.hero-input > svg{width:21px;height:21px;flex:none;color:var(--acc);opacity:.8}
+.hero-input input{
+  flex:1;min-width:0;background:transparent;border:none;border-radius:0;
+  font-size:21px;font-weight:600;color:var(--fg);padding:17px 0;
+}
+.hero-input input:focus{outline:none;border-color:transparent}
+.hero-input input::placeholder{color:var(--dim2);font-weight:400;font-size:17px}
+.hero-input .clr{position:static;flex:none;margin-left:var(--s2)}
+.hero-row{display:flex;gap:var(--s4);flex-wrap:wrap;align-items:stretch}
+.hero-num{justify-content:center;max-width:150px}
+.hero-num input{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.hero-go{font-size:15px;font-weight:600;padding:0 var(--s6);align-self:stretch;min-height:56px}
+
+/* La notte di riferimento: sta accanto al bersaglio perche' e' l'altra meta'
+   della domanda, non una proprieta' del telescopio. */
+.nightbox{
+  display:flex;flex-direction:column;justify-content:center;gap:3px;
+  background:var(--bg3);border:1px solid var(--line);border-radius:var(--radius);
+  padding:10px var(--s4);flex:1 1 300px;min-width:250px;
+}
+.nb-k{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim2)}
+.nb-k [data-tip]{border-bottom:none}
+.nb-v{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.nb-v input[type=date]{
+  font:inherit;font-size:18px;font-weight:700;color:var(--fg);background:transparent;
+  border:none;border-bottom:1px dotted var(--dim2);border-radius:0;padding:0;
+}
+.nb-v input[type=date]:focus{outline:none;border-bottom-color:var(--acc)}
+.nb-shift{font-size:13px;color:var(--fn-plan);font-weight:600}
+.nb-n{font-size:12px;color:var(--dim)}
+
+/* I migliori della notte. Riquadri veri, non pastiglie: e' la funzione da cui
+   parte la serata, e occupa lo spazio grande. */
+.bestgrid{display:grid;gap:var(--s3);grid-template-columns:repeat(auto-fill,minmax(236px,1fr))}
+.bestcard{
+  display:flex;flex-direction:column;gap:7px;text-align:left;
+  background:var(--bg3);border:1px solid var(--line);border-radius:var(--radius);
+  padding:13px 15px;cursor:pointer;color:var(--fg);
+  transition:border-color .13s, background .13s, transform .13s;
+}
+.bestcard:hover{border-color:var(--acc);background:rgba(var(--acc-rgb),.1);transform:translateY(-1px)}
+.bestcard.on{border-color:var(--acc);background:rgba(var(--acc-rgb),.14);
+  box-shadow:inset 3px 0 0 var(--acc)}
+.bestcard.on .bc-h{color:var(--acc)}
+.bestcard:hover .bc-h{color:var(--acc)}
+.bc-top{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s3)}
+.bc-n{font-size:15.5px;font-weight:650}
+.bc-h{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;
+  color:var(--fn-plan);white-space:nowrap}
+.bc-h i{font-style:normal;font-size:11.5px;font-weight:500;color:var(--dim)}
+.bc-bot{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s2);flex-wrap:wrap}
+.bc-a{font-size:11px;color:var(--fn-frame);text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.bc-b{font-size:11.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+@media(prefers-reduced-motion:reduce){.bestcard{transition:none}.bestcard:hover{transform:none}}
+@media(max-width:720px){
+  .hero-input input{font-size:18px;padding:14px 0}
+  .hero-go{min-height:48px;width:100%}
+  .hero-num{max-width:none;flex:1 1 130px}
+}
+
+/* =====================================================================
    RESPONSIVE
    ===================================================================== */
 @media(max-width:1400px){
   :root{--aside-w:294px}
 }
 @media(max-width:1180px){
-  :root{--nav-w:214px}
+  :root{--nav-w:192px}
   .wordmark{font-size:22px}
 }
 /* Sotto i 1100 il riepilogo scende sotto il contenuto: tre colonne strette
@@ -744,29 +828,51 @@ td.archcell{max-width:120px}
         </div>
       </div>
       <div class="card-body">
-        <div class="row">
-          <label class="f" style="flex:2;min-width:230px;position:relative"><span data-tip="Scrivi un oggetto e le ore che hai, e ti dico con quale tecnica riprenderlo, quante ore per canale, in che ordine e cosa aspettarti. Se le ore non bastano te lo dico, invece di darti una ripartizione che non sta in piedi. Lascialo vuoto e ti dico cosa conviene riprendere stanotte con questa configurazione.">Cosa vuoi riprendere <span class="ico">i</span></span>
-            <input id="rxTarget" list="dlObjects" autocomplete="off" style="padding-right:74px"
-              placeholder="NGC 6888, Crescent, M27…">
-            <button type="button" id="rxClear" class="fn fn-cfg clr" hidden
-              data-tip="Svuota il campo e torna all'elenco di cosa conviene riprendere stanotte. Anche con Esc.">Pulisci</button></label>
-          <label class="f" style="max-width:150px">Quante ore hai
-            <input type="number" id="rxHours" step="0.5" min="0.5" max="300"
-              title="Ore totali che puoi dedicare a questo oggetto, non quelle di una notte sola"></label>
-          <label class="f" style="max-width:150px">In quante notti
-            <input type="number" id="rxNights" step="1" min="1" max="60"
-              title="Solo distribuzione: non cambia le ore per canale, decide come spalmarle"></label>
-          <button class="primary" id="rxGo" style="align-self:flex-end">Prescrivi</button>
+        <div class="hero">
+          <div class="hero-field">
+            <label class="hero-lab" for="rxTarget"
+              data-tip="Scrivi un oggetto e le ore che hai, e ti dico con quale tecnica riprenderlo, quante ore per canale, in che ordine e cosa aspettarti. Se le ore non bastano te lo dico, invece di darti una ripartizione che non sta in piedi. Lascialo vuoto e ti dico cosa conviene riprendere stanotte con questa configurazione.">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+              Cosa vuoi riprendere <span class="ico">i</span></label>
+            <div class="hero-input">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="10.6" cy="10.6" r="6.6"/><path d="m15.4 15.4 4.6 4.6"/></svg>
+              <input id="rxTarget" list="dlObjects" autocomplete="off"
+                placeholder="NGC 6888, Crescent, M27…">
+              <button type="button" id="rxClear" class="fn fn-cfg clr" hidden
+                data-tip="Svuota il campo e torna all'elenco di cosa conviene riprendere stanotte. Anche con Esc.">Pulisci</button>
+            </div>
+          </div>
+          <div class="hero-row">
+            <div id="rxCtx"></div>
+            <label class="f hero-num">Quante ore hai
+              <input type="number" id="rxHours" step="0.5" min="0.5" max="300"
+                title="Ore totali che puoi dedicare a questo oggetto, non quelle di una notte sola"></label>
+            <label class="f hero-num">In quante notti
+              <input type="number" id="rxNights" step="1" min="1" max="60"
+                title="Solo distribuzione: non cambia le ore per canale, decide come spalmarle"></label>
+            <button class="primary hero-go" id="rxGo">Prescrivi</button>
+          </div>
         </div>
-        <div id="rxCtx"></div>
-        <div class="hintbox" style="margin-top:20px">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
-          <span>La prescrizione completa &mdash; canali, ore, ordine, posa, piano delle notti &mdash;
-            si legge in <b>Risultati</b>. Ogni modifica a target, condizioni, strumentazione o
-            filtri la ricalcola subito: puoi tornare avanti e indietro liberamente.</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head plan">
+        <span class="ch-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m12 3 2.6 5.6 6 .8-4.4 4.2 1.1 6.1L12 16.8 6.7 19.7l1.1-6.1L3.4 9.4l6-.8Z"/></svg></span>
+        <div class="ch-txt">
+          <h2>Stasera da qui questi sono i migliori</h2>
+          <div class="ch-sub">Un clic e li prescrivo. Ordinati dal motore su <b>questa</b>
+            configurazione e su <b>questa</b> notte, non in assoluto.</div>
         </div>
+      </div>
+      <div class="card-body">
+        <div id="bestNight"></div>
       </div>
     </div>
   </section>
@@ -903,6 +1009,9 @@ td.archcell{max-width:120px}
           <span id="filtSummary" class="small muted" style="align-self:center"></span>
         </div>
         <div id="gearMsg" class="small" style="margin-top:8px"></div>
+
+        <div class="subhead">Configurazione attiva</div>
+        <div id="cfgCtx"></div>
 
         <div class="subhead">Catena derivata</div>
         <div class="derived" id="derived">
@@ -3765,7 +3874,7 @@ function start(){
      primo refresh: chi apre l'app la prima volta deve trovarci già dentro una
      risposta, non un modulo da compilare. */
   loadRx();
-  $('rxGo').onclick=()=>{ persistRx(); refresh(); };
+  $('rxGo').onclick=()=>{ persistRx(); refresh(); go('risultati'); };
   $('rxTarget').addEventListener('change',()=>{ persistRx(); refresh(); });
   $('rxHours').addEventListener('change',()=>{ persistRx(); refresh(); });
   $('rxNights').addEventListener('change',()=>{ persistRx(); refresh(); });
@@ -4920,6 +5029,7 @@ function refresh(){
      strato «questo merita». Chi cerca un NGC qualsiasi lo trova scrivendolo. */
   EVAL=evalPool().map(t=>evaluate(t,dv,SITE,np,STATE)).sort((a,b)=>b.score-a.score);
   renderRows(np);
+  renderBest();
   renderRx(np);
   renderSummary();
 }
@@ -4963,7 +5073,58 @@ const isoDay=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')
   +'-'+String(d.getDate()).padStart(2,'0');
 const dayLabel=d=>d.toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'short'});
 
+/* La NOTTE DI RIFERIMENTO. Sta nella home, accanto al campo del target, perche'
+   e' un parametro della strategia — bersaglio piu' notte — e non una proprieta'
+   della strumentazione, che vive nella sua sezione e nel riepilogo laterale.
+   Il calcolo e' quello di prima, riga per riga: la Luna si legge sulla notte
+   VERA, quella risolta, non su quella chiesta. */
 function rxContext(){
+  const rn=RXNIGHT;
+  const chiesta=$('date').value;
+  /* La Luna si legge sulla notte VERA. Mostrare quella della notte chiesta
+     mentre il piano ne usa un'altra era il difetto: l'11 settembre la Luna
+     era all'1% sotto l'orizzonte, e il piano si eseguiva su nottate al 44-68%. */
+  const d=(rn&&rn.date)?isoDay(rn.date):chiesta;
+  const np=nightProfile(new Date(d+'T12:00:00'),SITE.lat,SITE.lon);
+  const mid=np.astro.start&&np.astro.end
+    ? new Date((np.astro.start.getTime()+np.astro.end.getTime())/2) : new Date(d+'T00:00:00');
+  const mi=moonIllum(toJD(mid)), mp=moonPos(toJD(mid));
+  const mAlt=altaz(mp.ra,mp.dec,SITE.lat,lstDeg(toJD(mid),SITE.lon)).alt;
+  const luna=`Luna ${Math.round(mi.k*100)}%, ${mAlt>0?'alta '+fmt(mAlt,0)+'°':'sotto l\'orizzonte'}`;
+  /* Tre cose da dichiarare, e nessuna va corretta in silenzio: la notte
+     chiesta e' passata, la notte chiesta non serve a niente per questo
+     oggetto, l'oggetto non sale abbastanza in nessuna notte dell'orizzonte. */
+  let nota='';
+  if(rn&&rn.past>0) nota+=` · <span class="off p-warn" data-tip="${esc(
+    'La notte scelta e passata da '+rn.past+' giorn'+(rn.past===1?'o':'i')+
+    '. Il motore la calcola comunque — puo servire a capire cosa si e ripreso — ma non e una notte pianificabile.')
+    }">notte passata</span>`;
+  if(rn&&rn.shift>0) nota+=` · <span class="off p-warn" data-tip="${esc(
+    'Quella notte l\'oggetto non e utilizzabile: resta sotto i '+Math.round(rn.floor||35)+
+    '° oppure ci sta cosi poco che non copre il minimo di '+fmt(rn.minNight||1,1)+
+    ' h. Il motore ha scandito avanti e la prima notte vera e questa, '+rn.shift+
+    ' giorni dopo. Ore, Luna, soglie e piano qui sotto sono di QUESTA notte, non di quella chiesta.'+
+    (rn.skipped&&rn.skipped.length?' Prima: '+rn.skipped.slice(0,3).map(k=>
+      dayLabel(k.date)+' — '+k.why).join(' · ')+(rn.skipped.length>3?' …':''):''))
+    }">spostata di ${rn.shift} g</span>`;
+  if(rn&&rn.usable===false) nota+=` · <span class="off p-bad" data-tip="${esc(
+    'Nelle prossime '+(rn.scanned||180)+' notti l\'oggetto non supera mai i '+
+    Math.round(rn.floor||35)+'° per almeno '+fmt(rn.minNight||1,1)+
+    ' h da questo sito. Non e una questione di ore: da qui, in questa stagione, non c\'e.')
+    }">mai utilizzabile</span>`;
+  return `<div class="nightbox">
+    <div class="nb-k">${tip('Notte di riferimento','moon')}</div>
+    <div class="nb-v"><input type="date" id="rxDate" value="${esc(chiesta)}">${
+      rn&&rn.shift>0?`<span class="nb-shift">→ ${esc(dayLabel(rn.date))}</span>`:''}</div>
+    <div class="nb-n">${luna}${nota}</div></div>`;
+}
+
+/* La CONFIGURAZIONE ATTIVA. Stessi cinque riquadri di prima, spostati dalla home
+   alla sezione Strumentazione: e' li' che si cambia il setup, ed e' li' che ha
+   senso vedere cosa quel setup e' diventato. Nella home occupavano lo spazio
+   che spetta ai bersagli. Il tasto «Modifica configurazione» non serve piu':
+   in questa sezione le tendine sono a due centimetri di distanza. */
+function cfgContext(){
   const dv=derive(CFG);
   const sn=$('site').selectedOptions[0]?$('site').selectedOptions[0].textContent:'sito personalizzato';
   const samp=samplingVerdict(dv.scale,SITE.fwhm);
@@ -4987,52 +5148,41 @@ function rxContext(){
         `seeing ${fmt(SITE.seeing,1)}″ ⊕ guida ${fmt(SITE.rms,2)}″`)}
     ${cell('Campionamento',fmt(dv.scale,2)+'″/px',
         `<span class="pill ${samp.cls}" style="font-size:10px">${samp.k}</span>`)}
-    ${(()=>{const rn=RXNIGHT;
-      const chiesta=$('date').value;
-      /* La Luna si legge sulla notte VERA. Mostrare quella della notte chiesta
-         mentre il piano ne usa un'altra era il difetto: l'11 settembre la Luna
-         era all'1% sotto l'orizzonte, e il piano si eseguiva su nottate al 44-68%. */
-      const d=(rn&&rn.date)?isoDay(rn.date):chiesta;
-      const np=nightProfile(new Date(d+'T12:00:00'),SITE.lat,SITE.lon);
-      const mid=np.astro.start&&np.astro.end
-        ? new Date((np.astro.start.getTime()+np.astro.end.getTime())/2) : new Date(d+'T00:00:00');
-      const mi=moonIllum(toJD(mid)), mp=moonPos(toJD(mid));
-      const mAlt=altaz(mp.ra,mp.dec,SITE.lat,lstDeg(toJD(mid),SITE.lon)).alt;
-      const luna=`Luna ${Math.round(mi.k*100)}%, ${mAlt>0?'alta '+fmt(mAlt,0)+'°':'sotto l\'orizzonte'}`;
-      /* Tre cose da dichiarare, e nessuna va corretta in silenzio: la notte
-         chiesta e' passata, la notte chiesta non serve a niente per questo
-         oggetto, l'oggetto non sale abbastanza in nessuna notte dell'orizzonte. */
-      let nota='';
-      if(rn&&rn.past>0) nota+=` · <span class="off p-warn" data-tip="${esc(
-        'La notte scelta e passata da '+rn.past+' giorn'+(rn.past===1?'o':'i')+
-        '. Il motore la calcola comunque — puo servire a capire cosa si e ripreso — ma non e una notte pianificabile.')
-        }">notte passata</span>`;
-      if(rn&&rn.shift>0) nota+=` · <span class="off p-warn" data-tip="${esc(
-        'Quella notte l\'oggetto non e utilizzabile: resta sotto i '+Math.round(rn.floor||35)+
-        '° oppure ci sta cosi poco che non copre il minimo di '+fmt(rn.minNight||1,1)+
-        ' h. Il motore ha scandito avanti e la prima notte vera e questa, '+rn.shift+
-        ' giorni dopo. Ore, Luna, soglie e piano qui sotto sono di QUESTA notte, non di quella chiesta.'+
-        (rn.skipped&&rn.skipped.length?' Prima: '+rn.skipped.slice(0,3).map(k=>
-          dayLabel(k.date)+' — '+k.why).join(' · ')+(rn.skipped.length>3?' …':''):''))
-        }">spostata di ${rn.shift} g</span>`;
-      if(rn&&rn.usable===false) nota+=` · <span class="off p-bad" data-tip="${esc(
-        'Nelle prossime '+(rn.scanned||180)+' notti l\'oggetto non supera mai i '+
-        Math.round(rn.floor||35)+'° per almeno '+fmt(rn.minNight||1,1)+
-        ' h da questo sito. Non e una questione di ore: da qui, in questa stagione, non c\'e.')
-        }">mai utilizzabile</span>`;
-      return `<div><div class="ck">${tip('Notte','moon')}</div>
-        <div class="cv"><input type="date" id="rxDate" value="${esc(chiesta)}"
-          style="font:inherit;font-size:15px;font-weight:700;color:var(--fg);background:transparent;
-                 border:none;border-bottom:1px dotted var(--dim2);padding:0">${
-          rn&&rn.shift>0?` <span class="muted" style="font-size:12px;font-weight:400">→ ${esc(dayLabel(rn.date))}</span>`:''}</div>
-        <div class="cn">${luna}${nota}</div></div>`;})()}
     <div class="grow"></div>
-    <button class="fn fn-cfg" onclick="document.getElementById('tel').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('tel').focus()"
-      >Modifica configurazione</button>
   </div>
-  <p class="cfgnote">Tutti i numeri qui sotto valgono <b>solo per questa configurazione</b>:
+  <p class="cfgnote">Tutti i numeri dell'app valgono <b>solo per questa configurazione</b>:
     cambiando tubo, camera, binning o sito la prescrizione si rifà da sola, e cambia davvero.</p>`;
 }
+
+/* ---------- i migliori della notte ----------
+   ERA il ramo a campo vuoto di renderRx(), e finiva nel riquadro della
+   prescrizione: cioe' compariva solo finche' non avevi scritto niente, come un
+   ripiego. E' invece il punto di partenza operativo — «cosa conviene riprendere
+   stanotte da qui» — e adesso sta nella home, nello spazio grande.
+
+   Selezione, ordine e valori sono gli stessi di prima, riga per riga: EVAL e'
+   gia' ordinato per score da refresh(), si filtra sulle ore utili del canale
+   critico e si taglia a dodici. Nessun secondo classificatore, nessuna soglia
+   nuova, nessun algoritmo nuovo. Un clic scrive il nome nel campo e prescrive:
+   e' rxPick(), quella di sempre. */
+function bestNightHtml(){
+  const top=EVAL.filter(x=>x.critH>0.5).slice(0,12);
+  const arch=x=>(TG.archetypes[x.tg.archetype]||{}).label||'';
+  const scelto=($('rxTarget').value||'').trim().toLowerCase();
+  if(!top.length) return `<p class="small muted">Da qui, in questa notte, nessuno degli
+    oggetti in catalogo sale abbastanza da valere un progetto. Cambia data o sito.</p>`;
+  return `<div class="bestgrid">${top.map(x=>
+    `<button class="bestcard${x.tg.names[0].toLowerCase()===scelto?' on':''}"
+       onclick="rxPick(${jsAttr(x.tg.names[0])})"
+       data-tip="${esc(arch(x)+' · '+fmt(x.critH,1)+' h utili in '+x.critBand+
+         ', culmina a '+fmt(x.maxAlt,0)+'° · '+x.feas.k+' · inquadratura '+x.fit.k)}">
+       <span class="bc-top"><span class="bc-n">${esc(x.tg.names[0])}</span>
+         <span class="bc-h">${fmt(x.critH,1)}<i> h</i></span></span>
+       <span class="bc-bot"><span class="bc-a">${esc(shortArch(x.tg.archetype))}</span>
+         <span class="bc-b">${esc(x.critBand)} · culmina a ${fmt(x.maxAlt,0)}°</span></span>
+     </button>`).join('')}</div>`;
+}
+function renderBest(){ const b=$('bestNight'); if(b) b.innerHTML=bestNightHtml(); }
 
 /* Penalizzazione lunare per la banda di un gruppo, con la larghezza del filtro
    che possiedi davvero: è la ragione per cui un Ha da 7 nm regge una notte che
@@ -5063,25 +5213,16 @@ function renderRx(np){
      quella vera: due render sono niente, una barra bugiarda no. */
   RXNIGHT=null; RXPR=null;
   $('rxCtx').innerHTML=rxContext();
+  /* La carta della configurazione vive in Strumentazione, non piu' nella home. */
+  const cc=$('cfgCtx'); if(cc) cc.innerHTML=cfgContext();
 
   if(!q){
-    /* Dodici, non quattro — e con addosso il perché: classe fisica e ore utili. Un
-       nome da solo non è un consiglio, è un indovinello. Il clic scrive il nome nel
-       campo e prescrive subito: nessuno deve ricopiare niente a mano. */
-    const top=EVAL.filter(x=>x.critH>0.5).slice(0,12);
-    const arch=x=>(TG.archetypes[x.tg.archetype]||{}).label||'';
-    out.innerHTML=`${top.length?`
-      <p class="small muted" style="margin:10px 0 6px">Stanotte da qui questi sono i migliori.
-        Un clic e li prescrivo. <span class="muted">Ordinati dal motore su
-        <b>questa</b> configurazione e su <b>questa</b> notte, non in assoluto.</span></p>
-      <div class="chips">${top.map(x=>
-        `<button class="chip tchip" onclick="rxPick(${jsAttr(x.tg.names[0])})"
-           data-tip="${esc(arch(x)+' · '+fmt(x.critH,1)+' h utili in '+x.critBand+
-             ', culmina a '+fmt(x.maxAlt,0)+'° · '+x.feas.k+' · inquadratura '+x.fit.k)}">
-           <b>${esc(x.tg.names[0])}</b><i>${esc(shortArch(x.tg.archetype))}</i>
-           <em>${fmt(x.critH,1)} h</em></button>`).join('')}</div>`
-      :`<p class="small muted" style="margin:10px 0 0">Da qui, in questa notte, nessuno degli
-        oggetti in catalogo sale abbastanza da valere un progetto. Cambia data o sito.</p>`}`;
+    /* I migliori della notte NON stanno piu' qui: sono saliti nella home, dove
+       sono il punto di partenza e non un ripiego per il campo vuoto. Vedi
+       bestNightHtml(), che e' esattamente il codice che stava in questo ramo. */
+    out.innerHTML=`<p class="small muted" style="margin:10px 0 0">Nessun oggetto scelto.
+      In <b>Strategia</b> ci sono i migliori di stanotte, calcolati su questa configurazione
+      e su questa notte: un clic su uno di quelli e la prescrizione compare qui.</p>`;
     return;
   }
 
