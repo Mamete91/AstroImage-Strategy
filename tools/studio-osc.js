@@ -38,8 +38,10 @@ const ENG={Ha:0.29,OIII:0.71,SII:0.28}, LAM={Ha:656.3,OIII:500.7,SII:672.4};
 const qtab=o=>{const k=Object.keys(o).map(Number).sort((a,b)=>a-b);
   return x=>{if(x<=k[0])return o[k[0]]; if(x>=k[k.length-1])return o[k[k.length-1]];
     for(let i=1;i<k.length;i++) if(x<=k[i]){const a=k[i-1],b=k[i];return o[a]+(o[b]-o[a])*(x-a)/(b-a);}}};
-const QEmono=qtab(DB.cameras.find(c=>c.id==='asi2600mm').qe);
-const QEosc =qtab(DB.cameras.find(c=>c.id==='asi2600mc').qe);
+/* 2026-09: le curve stanno sul SENSORE, non piu' sulle due schede camera. */
+const _s571=DB.sensors.find(s=>s.id==='imx571');
+const QEmono=qtab(_s571.qe);
+const QEosc =qtab(_s571.qe_cfa);
 
 H('1 · VERIFICA INDIPENDENTE — modello (IMX219) contro carta ZWO (IMX571)');
 console.log('  Normalizzazioni diverse: confronto i rapporti al canale dominante.\n');

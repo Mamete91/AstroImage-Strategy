@@ -1,5 +1,5 @@
-const {row,CFG,Cw,hrs,SQM,TSUB,FWHM_SG,SB}=require('/tmp/bench3.js');
-const {M}=require('/tmp/a61.js');
+const {row,CFG,Cw,hrs,SQM,TSUB,FWHM_SG,SB}=require('./bench-optics.js');
+const {M}=require('./lib/engine.js');
 const f=(x,n=3)=>Number(x).toFixed(n), P=(s,n)=>String(s).padEnd(n);
 console.log('SORGENTE ESTESA — [OIII] di Abell 61, brillanza superficiale MISURATA');
 console.log('  Frew+2013 logF(Ha)=-11.38 · Acker+1992 I5007/I6563=1.696 · raggio OIII 155"');

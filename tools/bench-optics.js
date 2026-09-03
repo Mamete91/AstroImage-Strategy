@@ -25,7 +25,7 @@
      -> QUI entra il campionamento.                              <- item 3/4
 
    ore a pari SNR:  t = SNR²/C(w)² · [S_arc + B_arc·P] / S_arc² */
-const {M,DB}=require('/tmp/a61.js');
+const {M,DB}=require('./lib/engine.js');
 const H=6.626e-27, Cc=3e10, ARCSEC2_SR=2.35044e-11;
 const ph=lam=>1/(H*Cc/(lam*1e-7));
 const F_Ha=Math.pow(10,-11.38), RATIO=950/560;

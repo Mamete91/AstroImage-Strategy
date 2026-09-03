@@ -17,7 +17,8 @@ const ONGC=fs.existsSync(__dirname+'/data/openngc.json')
 let OWNED=DB.default_filters.slice();
 const ctx={DB,TG,CAT:CAT.objects,CITIES:CIT.cities,OWNED,console,Math,Date,Object,JSON,isFinite,parseFloat,Number,window:{}};
 const fn=new Function(...Object.keys(ctx), pure+`
-  return {derive,refCfg,timeFactor,rates,varRate,factorValidated,skyRateFor,bandSpec,cfaFraction,
+  return {camSpec,resolveSensor,dyeAnchor,gainModes,
+          derive,refCfg,timeFactor,rates,varRate,factorValidated,skyRateFor,bandSpec,cfaFraction,
           oscEfficiency,bayerDye,mosaicFrac,bandThroughput,
           qeAt,interp,samplingVerdict,framing,nightProfile,
           altaz,lstDeg,toJD,parseCoords,
@@ -34,10 +35,15 @@ const M=fn(...Object.values(ctx));
 
 const nrm=x=>String(x).toLowerCase().replace(/[\s_'\u2019-]+/g,'');
 let pass=0,fail=0;
+/* Il quarto argomento e' una TOLLERANZA quando e' un numero; qualunque altra cosa
+   e' una NOTA da stampare. Prima una nota non numerica finiva dentro Math.abs e
+   faceva fallire un test corretto: un attrezzo che punisce chi lo documenta. */
 function chk(name,got,exp,tol){
-  const ok = tol==null ? got===exp : Math.abs(got-exp)<=tol;
+  const num=typeof tol==='number'&&isFinite(tol);
+  const note=(tol!=null&&!num)?String(tol):null;
+  const ok = num ? Math.abs(got-exp)<=tol : got===exp;
   console.log(`${ok?'  ok  ':' FAIL '} ${name}  =  ${typeof got==='number'?got.toFixed(3):got}` +
-    (ok?'':`   (atteso ${exp}${tol?' ±'+tol:''})`));
+    (note?`   [${note}]`:'') + (ok?'':`   (atteso ${exp}${num?' ±'+tol:''})`));
   ok?pass++:fail++;
 }
 
@@ -52,8 +58,17 @@ chk('ogni telescopio ha la focale nativa',
   DB.telescopes.every(t=>t.reducers.some(r=>r.factor===1)),true);
 chk('focali ridotte coerenti col fattore',
   DB.telescopes.every(t=>t.reducers.every(r=>Math.abs(r.focal_mm-t.focal_mm*r.factor)<=2)),true);
-chk('ogni camera ha qe oppure qe_peak',
-  DB.cameras.every(c=>c.qe||c.qe_peak),true);
+/* 2026-09: l'invariante non e' piu' "ogni scheda porta la sua tabella" — la curva
+   di una camera a matrice si deriva dal sensore — ma "ogni camera RISOLVE a una QE
+   usabile", che e' cio' che al motore serve davvero. */
+chk('ogni camera risolve a una QE utilizzabile',
+  DB.cameras.every(c=>{const q=M.qeAt(c,550);return isFinite(q)&&q>0.05&&q<=1;}),true);
+chk('e ogni camera dichiara come ci e arrivata',
+  DB.cameras.every(c=>{const k=M.camSpec(c).campi.qe;return k&&k.esito&&k.come;}),true);
+{const ris=DB.cameras.filter(c=>M.camSpec(c).sensor).length;
+ console.log(`      sensore riconosciuto su ${ris} camere di ${DB.cameras.length}`+
+   ` (le altre sono archetipi generici)`);
+ chk('il riconoscimento copre tutte le camere reali',ris,DB.cameras.length-2);}
 chk('setups: preset',DB.presets.length,6);
 chk('targets: numero',TG.targets.length,13);
 const archUsed=new Set(TG.targets.map(t=>t.archetype));
@@ -343,9 +358,19 @@ chk('l OIII cade su verdi e blu: ben piu di un quarto',M.cfaFraction(oscCam,'OII
 chk('e l OIII resta il piu favorito dei tre',
   M.cfaFraction(oscCam,'OIII')>M.cfaFraction(oscCam,'Ha')&&
   M.cfaFraction(oscCam,'OIII')>M.cfaFraction(oscCam,'SII'),true);
-chk('i valori dichiarano la propria fonte',!!oscCam.cfa_fraction_source,true);
+/* 2026-09: la frazione per canale e' una proprieta' del SENSORE, non della camera —
+   la stessa misura vale per ogni marca che monta quel silicio. L'intento del test
+   non cambia: il valore deve dichiarare da dove viene. */
+{const sen=M.camSpec(oscCam).sensor;
+ chk('la frazione e un dato del sensore ('+(sen?sen.name:'—')+'), non della camera',
+   !!(sen&&sen.cfa_fraction),true);
+ chk('i valori dichiarano la propria fonte',!!(sen&&sen.cfa_fraction_fonte&&sen.cfa_fraction_fonte.come),true);
+ chk('e la fonte si dichiara una MISURA',sen.cfa_fraction_fonte.esito,'misura');
+ chk('il vecchio valore ereditato resta per memoria',!!oscCam.cfa_fraction_ereditato,true);
+ chk('ma e fuori dal percorso operativo: si usa '+M.cfaFraction(oscCam,'Ha').toFixed(3)+
+   ', non l ereditato '+oscCam.cfa_fraction_ereditato.Ha,
+   M.cfaFraction(oscCam,'Ha')!==oscCam.cfa_fraction_ereditato.Ha,true);}
 chk('e su una mono non c e nessuna matrice',M.cfaFraction(DB.cameras.find(c=>c.id==='asi2600mm'),'OIII'),1);
-chk('la frazione e dichiarata con la sua derivazione',!!oscCam.cfa_fraction_note,true);
 const rHa=M.timeFactor(oscRef,'Ha')/M.timeFactor(monoRef,'Ha');
 const rO3=M.timeFactor(oscRef,'OIII')/M.timeFactor(monoRef,'OIII');
 console.log(`      OSC vs mono, stessa ottica: Ha ×${rHa.toFixed(2)}  OIII ×${rO3.toFixed(2)}`);
@@ -359,6 +384,14 @@ console.log(`      QE 2600MM: ${(M.qeAt(monoRef.c,500.7)*100).toFixed(0)}% a 500
 const fake={qe_peak:0.85};
 chk('camera con solo qe_peak usa la forma tipica',M.qeAt(fake,500),0.85,0.001);
 chk('e decade nel rosso',M.qeAt(fake,656)<M.qeAt(fake,500),true);
+/* 2026-09: su una camera A MATRICE il numero che l'utente ha in mano e' il picco
+   della MATRICE, non del silicio. Il motore lo riporta al silicio dividendo per la
+   trasmissione misurata del colorante, e la catena deve tornare al punto di
+   partenza: quello che entra dal modulo e' quello che esce al picco. */
+{const fkm={qe_peak:0.85,cfa_penalty:0.25,pixel_um:9.9,width_px:1,height_px:1};
+ chk('su matrice il picco inserito e quello della MATRICE, e torna',M.qeAt(fkm,500),0.85,0.005);
+ chk('e il silicio sotto e piu alto del colorante ('+M.camSpec(fkm).qeSil(500).toFixed(3)+')',
+   M.camSpec(fkm).qeSil(500)>0.85,true);}
 
 console.log('\n--- lettura coordinate incollate ---');
 const cases=[
@@ -1318,10 +1351,24 @@ console.log('      '+['Ha','OIII','SII','L','RGB'].map(b=>
 /* Chi ha il DATO vince sul modello — la stessa regola con cui il catalogo curato
    vince su OpenNGC. In banda stretta cfa_fraction e misurato sulle curve del
    sensore e resta al comando; il modello si calcola per il confronto. */
+const senMC=M.camSpec(mc).sensor;
 for(const b of ['Ha','OIII','SII']){
-  chk('banda stretta '+b+': vince il dato dichiarato',oe(b).eta,mc.cfa_fraction[b],1e-12);
+  chk('banda stretta '+b+': vince la misura del sensore',oe(b).eta,senMC.cfa_fraction[b],1e-12);
+  chk('  e il ramo lo dichiara',oe(b).src,'misura del sensore');
   chk('  e il modello resta disponibile per il confronto',oe(b).model!=null,true);
 }
+/* 2026-09, la correzione che conta: un valore EREDITATO non e' un dato. E' l'uscita
+   di un modello vecchio e irriproducibile, e non puo' battere per regola quello
+   attuale, che si rilancia e si testa. Su un sensore senza misura per canale deve
+   quindi vincere il modello — non i vecchi 0.29 / 0.71 / 0.28 generici. */
+{const mc294=DB.cameras.find(c=>c.id==='asi294mc');
+ const oe294=b=>M.oscEfficiency(mc294,b,M.bandSpec(b,mc294));
+ chk('senza misura per canale vince il MODELLO, non l ereditato',oe294('Ha').src,'modello spettrale');
+ chk('e il valore ereditato non e piu quello usato: '+oe294('Ha').eta.toFixed(3)+
+   ' contro '+mc294.cfa_fraction_ereditato.Ha,
+   Math.abs(oe294('Ha').eta-mc294.cfa_fraction_ereditato.Ha)>0.05,true);
+ chk('e il modello e piu vicino alla misura sul sensore gemello',
+   Math.abs(oe294('Ha').eta-0.357)<Math.abs(mc294.cfa_fraction_ereditato.Ha-0.357),true);}
 /* In banda larga il dato dichiarato conteneva il doppio conteggio (RGB 0.62 che
    veniva poi moltiplicato per OSC_BB 0.34): li vince il modello. */
 chk('banda larga L: vince il modello',oe('L').src,'modello spettrale');
@@ -1339,14 +1386,15 @@ const oeM=M.oscEfficiency(mm,'L',M.bandSpec('L',mm));
 chk('su camera mono eta = 1 esatto',oeM.eta,1,1e-15);
 chk('e dichiarata esatta',oeM.conf,'esatta');
 // ripiego: senza il blocco dati si torna a OSC_BB, dichiarato
-const keep=DB.cfa_response; delete DB.cfa_response;
-const fb=M.oscEfficiency(mc,'L',M.bandSpec('L',mc));
+const keep=DB.cfa_responses; DB.cfa_responses={};
+M.camSpec.cache&&M.camSpec.cache.clear&&M.camSpec.cache.clear();
+const fb=M.oscEfficiency({...mc},'L',M.bandSpec('L',mc));
 console.log(`      senza dati di matrice: eta ${fb.eta.toFixed(3)} — ${fb.src}`);
 chk('senza dati di matrice si ripiega su OSC_BB',fb.src,'ripiego OSC_BB');
 chk('e il ripiego si dichiara non validato',/non validata/.test(fb.conf),true);
-DB.cfa_response=keep;
+DB.cfa_responses=keep;
 chk('e ripristinando i dati si torna al modello',
-  M.oscEfficiency(mc,'L',M.bandSpec('L',mc)).src,'modello spettrale');
+  M.oscEfficiency({...mc},'L',M.bandSpec('L',mc)).src,'modello spettrale');
 }
 
 console.log('\n--- matrice di Bayer: una sola correzione, mai due ---');
@@ -1375,6 +1423,220 @@ const rn=M.rates(dvOsc,'OIII',sqm);
 chk('in banda stretta le due normalizzazioni coincidono',
   M.skyRateFor(dvOsc,'OIII',sqm,{spec:rn.sp}),
   M.skyRateFor(dvOsc,'OIII',sqm,{spec:rn.sp,mosaic:true}),1e-15);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SENSORE → MODO DI LETTURA → CAMERA
+   Vedi docs/architettura-catalogo-sensori.md. Tre cose da tenere ferme: che il
+   riconoscimento funzioni senza che l'utente scelga niente, che la precedenza
+   sia a DUE livelli con i valori ereditati fuori dal percorso, e che il
+   pozzetto si derivi invece di essere assunto in silenzio.
+   ═══════════════════════════════════════════════════════════════════════════ */
+console.log('\n--- catalogo per sensore: riconoscimento automatico ---');
+{
+const ris=DB.cameras.map(c=>({c,sp:M.camSpec(c)}));
+const noti=ris.filter(x=>x.sp.sensor);
+console.log(`      ${noti.length} camere su ${DB.cameras.length} risolte a un sensore`+
+  `; ${new Set(noti.map(x=>x.sp.sensor.id)).size} sensori distinti nel catalogo di ${DB.sensors.length}`);
+chk('il catalogo dei sensori esiste ed e popolato',DB.sensors.length>=8,true);
+chk('ogni sensore dichiara almeno un modo di lettura',
+  DB.sensors.every(s=>Array.isArray(s.modi)&&s.modi.length>=1),true);
+chk('ogni modo dichiara pixel e risoluzione',
+  DB.sensors.every(s=>s.modi.every(m=>m.pixel_um>0&&m.width_px>0&&m.height_px>0)),true);
+chk('ogni sensore porta la provenienza della propria QE',
+  DB.sensors.every(s=>s.qe_fonte&&s.qe_fonte.esito&&s.qe_fonte.come),true);
+chk('gli id dei sensori sono unici',
+  new Set(DB.sensors.map(s=>s.id)).size,DB.sensors.length);
+
+/* Il punto dell'architettura: lo stesso silicio sotto marche diverse. Sei camere
+   di quattro costruttori, nessuna in catalogo, riconosciute dalla sola geometria
+   che l'utente inserisce nel modulo. Nessuna scelta di modelli. */
+const nuove=[
+ ['Player One Poseidon-C Pro',{pixel_um:3.76,width_px:6248,height_px:4176,read_noise_e:1.2,qe_peak:0.80,cfa_penalty:0.25},'imx571','nativo'],
+ ['Altair Hypercam 26C',      {pixel_um:3.76,width_px:6248,height_px:4176,read_noise_e:1.2,qe_peak:0.90,cfa_penalty:0.25},'imx571','nativo'],
+ ['ToupTek ATR294C',          {pixel_um:4.63,width_px:4144,height_px:2822,read_noise_e:1.6,qe_peak:0.75,cfa_penalty:0.25},'imx294','bin 2'],
+ ['QHY294M Pro non binnata',  {pixel_um:2.315,width_px:8288,height_px:5644,read_noise_e:1.6,qe_peak:0.90},'imx294','nativo'],
+ ['QHY 600C',                 {pixel_um:3.76,width_px:9600,height_px:6422,read_noise_e:1.4,qe_peak:0.80,cfa_penalty:0.25},'imx455',null],
+];
+for(const [nome,geo,atteso,modo] of nuove){
+  const sp=M.camSpec({name:nome,...geo,dark_e_s:0.003});
+  chk('«'+nome+'» → '+atteso+(modo?' · '+modo:''),
+    sp.sensor&&sp.sensor.id===atteso&&(!modo||sp.mode.id===modo),true);
+}
+/* IMX294 e IMX492 sono lo STESSO silicio letto in due modi. E' il caso che rompe
+   uno schema sensore→camera senza il livello intermedio, ed e' il motivo per cui
+   la chiave e la COPPIA. */
+const bin2=M.camSpec({name:'x',pixel_um:4.63,width_px:4144,height_px:2822,qe_peak:0.9});
+const nat =M.camSpec({name:'x',pixel_um:2.315,width_px:8288,height_px:5644,qe_peak:0.9});
+chk('IMX294 e IMX492 sono lo stesso sensore',bin2.sensor.id,nat.sensor.id);
+chk('ma due modi di lettura diversi',bin2.mode.id!==nat.mode.id,true,
+  bin2.mode.id+' contro '+nat.mode.id);
+chk('e i pixel differiscono esattamente di due',bin2.mode.pixel_um/nat.mode.pixel_um,2,0.01);
+
+/* Nessun falso positivo: una geometria che non e di nessun sensore noto non deve
+   agganciarsi al piu vicino. Con tolleranza al 5% una reflex full frame generica
+   da 5,9 um cadeva sull'IMX410. */
+chk('una geometria ignota resta IGNOTA',
+  M.camSpec({name:'boh',pixel_um:4.2,width_px:5000,height_px:3500,qe_peak:0.7}).sensor,null);
+chk('e una reflex generica non viene scambiata per un IMX410',
+  M.camSpec(DB.cameras.find(c=>c.id==='dslr_ff')).sensor,null);
+chk('gli archetipi generici lo dichiarano nella scheda',
+  DB.cameras.filter(c=>c.sensore_generico).length,2);
+}
+
+console.log('\n--- catalogo per sensore: precedenza a due livelli ---');
+{
+const mc=DB.cameras.find(c=>c.id==='asi2600mc');
+const mc294=DB.cameras.find(c=>c.id==='asi294mc');
+const oe=(c,b)=>M.oscEfficiency(c,b,M.bandSpec(b,c));
+console.log('      2600MC Ha: '+oe(mc,'Ha').eta.toFixed(3)+' ('+oe(mc,'Ha').src+')'+
+  '   ·   294MC Ha: '+oe(mc294,'Ha').eta.toFixed(3)+' ('+oe(mc294,'Ha').src+')');
+/* Due livelli, non tre: MISURA batte MODELLO, e basta. Un valore EREDITATO non e
+   un dato — e l'uscita di un modello vecchio e irriproducibile — quindi non
+   partecipa alla precedenza. */
+chk('dove c e la misura del sensore, vince la misura',oe(mc,'Ha').src,'misura del sensore');
+chk('dove non c e, vince il modello',oe(mc294,'Ha').src,'modello spettrale');
+chk('nessun ramo restituisce mai un valore ereditato',
+  DB.cameras.filter(c=>c.cfa_penalty).every(c=>['Ha','OIII','SII'].every(b=>{
+    const e=oe(c,b).eta, er=(c.cfa_fraction_ereditato||{})[b];
+    return er==null||Math.abs(e-er)>1e-9;})),true);
+chk('e i valori ereditati sono comunque conservati',
+  DB.cameras.filter(c=>c.cfa_penalty).every(c=>c.cfa_fraction_ereditato&&c.cfa_fraction_ereditato_note),true);
+chk('nessuna scheda camera espone piu un cfa_fraction operativo',
+  DB.cameras.every(c=>c.cfa_fraction===undefined),true);
+/* La stessa regola vale a ogni livello, ancora compresa: la misura SU QUESTO
+   sensore batte la media sui sei. */
+const a571=M.dyeAnchor(DB.sensors.find(s=>s.id==='imx571'));
+const amed=M.dyeAnchor(null);
+chk('l ancora del colorante preferisce la misura sul proprio sensore',/questo sensore/.test(a571.src),true);
+chk('e ripiega sulla media dove non c e',/media/.test(amed.src),true,
+  a571.t.toFixed(3)+' contro la media '+amed.t.toFixed(3));
+/* Ogni campo della scheda risolta deve dichiarare come ci si e arrivati: e la
+   differenza fra un motore che degrada in modo dichiarato e uno che degrada in
+   silenzio. */
+const esiti=new Set();
+for(const c of DB.cameras) for(const k of Object.keys(M.camSpec(c).campi))
+  esiti.add(M.camSpec(c).campi[k].esito);
+chk('ogni campo dichiara il proprio esito',
+  [...esiti].every(e=>['misura','modello','dichiarato','esatta','ignoto'].includes(e)),true,
+  [...esiti].sort().join(', '));
+chk('e ogni campo dice anche COME',
+  DB.cameras.every(c=>Object.values(M.camSpec(c).campi).every(v=>v.come&&v.come.length>5)),true);
+}
+
+console.log('\n--- catalogo per sensore: il pozzetto si deriva ---');
+{
+/* pozzetto = min( carica di saturazione del SENSORE , fondo scala ADC x e/ADU ).
+   Il minimo taglia da entrambi i lati: completa chi non dichiara — la posa in
+   banda larga usciva a 60 s invece di 180 — e corregge chi dichiara troppo,
+   perche ToupTek e Moravian pubblicano come pozzetto il fondo scala. */
+const s571=DB.sensors.find(s=>s.id==='imx571');
+chk('il sensore porta la carica di saturazione, misurata',s571.saturazione_e>0,true,
+  s571.saturazione_e+' e-');
+chk('e la dichiara una misura',s571.saturazione_fonte.esito,'misura');
+const mc=DB.cameras.find(c=>c.id==='asi2600mc');
+const lcg=M.gainModes(mc).find(m=>m.name==='LCG');
+chk('un pozzetto dichiarato oltre la saturazione viene tagliato',lcg.clamped,true,
+  lcg.dichiarato+' → '+lcg.full_well_e);
+chk('e il taglio dice da dove viene',/saturazione/.test(lcg.fw_src),true);
+/* Una camera nuova senza gain_modes: prima riceveva 20000 e- in silenzio. */
+const nuova={name:'ToupTek ATR294C',pixel_um:4.63,width_px:4144,height_px:2822,
+  read_noise_e:1.6,qe_peak:0.75,cfa_penalty:0.25,dark_e_s:0.003};
+const g=M.gainModes(nuova)[0];
+chk('una camera nuova prende il pozzetto dal sensore, non un segnaposto',g.assumed,false);
+chk('e il valore e quello del sensore',g.full_well_e,
+  DB.sensors.find(s=>s.id==='imx294').saturazione_e);
+/* Il difetto vero, misurato: la stessa camera con e senza il sensore riconosciuto.
+   Senza, il pozzetto e un segnaposto da 20000 e- e la posa in banda larga esce a
+   60 s dove ne servono 150 — due volte e mezzo le pose, gli eventi di lettura e lo
+   scarico, senza che nulla lo dicesse. */
+{const site={lat:46,lon:10.3,sqm:21.3,seeing:1.6,rms:0.6,fwhm:1.7,horizonMin:20,clearFrac:0.4};
+ const tg=TG.targets.find(t=>t.names[0]==='NGC 6888');
+ const opt={tg,arch:TG.archetypes[tg.archetype]};
+ const base={pixel_um:4.63,width_px:4144,height_px:2822,read_noise_e:1.6,
+   qe_peak:0.75,cfa_penalty:0.25,dark_e_s:0.003,name:'ToupTek ATR294C'};
+ DB.cameras.push({id:'_t_ok',...base});
+ DB.cameras.push({id:'_t_no',...base,sensore_generico:true});
+ const posa=id=>M.subExposure(M.derive({tel:'askar71f',red:0.8,cam:id,mnt:'am5',bin:1}),
+   site,'RGB',opt).sec;
+ const ok=posa('_t_ok'), no=posa('_t_no');
+ chk('col pozzetto derivato dal sensore la posa non collassa',ok>=120,true,ok+' s');
+ chk('e senza sensore riconosciuto collassa davvero',no<=90,true,no+' s, dal segnaposto');
+ chk('il rapporto e quello del pozzetto',ok/no>2,true,'x'+(ok/no).toFixed(1));
+ DB.cameras.splice(DB.cameras.findIndex(c=>c.id==='_t_ok'),1);
+ DB.cameras.splice(DB.cameras.findIndex(c=>c.id==='_t_no'),1);}
+/* Sensore ignoto: il segnaposto resta, ma si DICHIARA. */
+const ign=M.gainModes({name:'boh',pixel_um:4.2,width_px:5000,height_px:3500,
+  read_noise_e:2,qe_peak:0.7,cfa_penalty:0.25})[0];
+chk('senza sensore il segnaposto resta',ign.full_well_e,20000);
+chk('ma si dichiara assunto',ign.assumed,true);
+chk('e dice perche',/segnaposto/.test(ign.fw_src),true);
+}
+
+console.log('\n--- catalogo per sensore: la trasmissione del colorante, misurata ---');
+{
+/* Le misure EMVA 1288 danno mono e colore della STESSA camera sulla stessa scala
+   assoluta, quindi il loro rapporto E la trasmissione del colorante. Sei sensori
+   Sony, quattro generazioni, tre laboratori. E' l'ancora che porta una curva
+   relativa sul livello giusto, e va protetta da qualunque modifica futura. */
+const A=DB.dye_anchors;
+chk('le misure di ancoraggio sono in scheda',A&&A.punti&&A.punti.length>=6,true,
+  A.punti.length+' sensori');
+chk('e ognuna dichiara la propria fonte',A.punti.every(p=>p.come&&p.come.length>10),true);
+const ts=A.punti.map(p=>p.verde/p.mono);
+const med=ts.reduce((a,b)=>a+b,0)/ts.length;
+const sd=Math.sqrt(ts.reduce((s,x)=>s+(x-med)*(x-med),0)/ts.length);
+console.log('      T al picco del verde: '+A.punti.map((p,i)=>
+  p.sensore+' '+ts[i].toFixed(3)).join(' · '));
+console.log(`      media ${med.toFixed(3)}  scarto tipo ${sd.toFixed(3)} (${(100*sd/med).toFixed(1)}%)`);
+chk('la trasmissione al picco vale circa 0,86',med,0.864,0.01);
+chk('e lo scarto fra quattro generazioni di silicio resta sotto il 3%',sd/med<0.03,true);
+chk('ogni singola misura sta entro il 5% dalla media',
+  ts.every(t=>Math.abs(t/med-1)<0.05),true);
+/* Il rapporto colore/mono che il motore produce deve valere quello misurato,
+   non quello che si leggeva dalle due curve del costruttore (0,916). */
+const mm=DB.cameras.find(c=>c.id==='asi2600mm'), mc=DB.cameras.find(c=>c.id==='asi2600mc');
+const r=M.qeAt(mc,A.lam_nm)/M.qeAt(mm,A.lam_nm);
+const p571=A.punti.find(p=>/571/.test(p.sensore));
+console.log(`      rapporto colore/mono a ${A.lam_nm} nm: motore ${r.toFixed(3)}`+
+  `  misurato ${(p571.verde/p571.mono).toFixed(3)}  vecchie tabelle 0.916`);
+chk('il rapporto colore/mono e quello MISURATO sul sensore',r,p571.verde/p571.mono,0.005);
+chk('e non piu lo 0,916 delle due tabelle del costruttore',Math.abs(r-0.916)>0.05,true);
+/* La forma resta quella della curva del costruttore: solo il livello e corretto. */
+chk('la forma viene dalla curva a colori del sensore',
+  !!DB.sensors.find(s=>s.id==='imx571').qe_cfa,true);
+chk('e il rapporto resta ragionevole su tutta la banda',
+  [450,500,550,600,656,700].every(l=>{const x=M.qeAt(mc,l)/M.qeAt(mm,l);return x>0.7&&x<0.95;}),true);
+/* Dove la curva a colori non c e non se ne inventa una: livello misurato, forma
+   non inventata. E il picco inserito dall'utente deve tornare fuori identico. */
+const mc294=DB.cameras.find(c=>c.id==='asi294mc');
+const sp294=M.camSpec(mc294);
+chk('senza curva a colori si applica la trasmissione misurata, piatta',
+  Math.abs(sp294.dye(450)-sp294.dye(650))<1e-12,true);
+chk('e la scheda lo dichiara',/piatta/.test(sp294.campi.dye.come),true);
+}
+
+console.log('\n--- catalogo per sensore: nessuna regressione fotometrica ---');
+{
+/* La riorganizzazione non deve toccare cio che era gia giusto. Su MONO non
+   esiste colorante: la QE deve restare identica a quella della scheda sensore,
+   e eta deve valere 1 esatto su ogni banda. */
+const mm=DB.cameras.find(c=>c.id==='asi2600mm');
+const sen=DB.sensors.find(s=>s.id==='imx571');
+chk('su mono la QE e esattamente quella del sensore',
+  [400,500,550,656,700].every(l=>Math.abs(M.qeAt(mm,l)-M.camSpec(mm).qeSil(l))<1e-15),true);
+chk('e coincide con la tabella del catalogo ai suoi nodi',M.qeAt(mm,500),sen.qe['500'],1e-15);
+chk('su mono il colorante vale 1 esatto',M.camSpec(mm).dye(550),1,0);
+for(const b of ['Ha','OIII','SII','L','RGB'])
+  chk('  eta = 1 esatto su mono, banda '+b,
+    M.oscEfficiency(mm,b,M.bandSpec(b,mm)).eta,1,0);
+/* E il riferimento non si e mosso: e la base di tutti i fattori. */
+const rc=DB.reference_config;
+const dref=M.derive({tel:rc.telescope,red:rc.reducer,cam:rc.camera});
+chk('il riferimento resta a fattore 1 esatto',M.timeFactor(dref,'Ha',600),1,1e-12);
+chk('e la sua camera e riconosciuta',!!M.camSpec(dref.c).sensor,true,
+  M.camSpec(dref.c).sensor.name);
 }
 
 console.log(`\n${pass} verifiche superate, ${fail} fallite\n`);

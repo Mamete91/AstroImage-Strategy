@@ -13,7 +13,7 @@ function load(dir,setups){
   const ctx={DB,TG,CAT:CAT.objects,CITIES:CIT.cities,OWNED:DB.default_filters.slice(),
     console,Math,Date,Object,JSON,isFinite,parseFloat,parseInt,Number,window:{}};
   const ex=`return {derive,timeFactor,rates,bandSpec,evaluate,prescribe,nightProfile,
-    effFWHM,oscEfficiency,skyRateFor,qeAt${dir===R?',bandThroughput':''}};`;
+    effFWHM,oscEfficiency,skyRateFor,qeAt${dir===R?',bandThroughput,camSpec':''}};`;
   return {M:new Function(...Object.keys(ctx),pure+ex)(...Object.values(ctx)),DB,TG};
 }
 /* Il "prima" non e una cartella temporanea sulla macchina di chi ha scritto il
@@ -151,28 +151,44 @@ H('4 · DOVE LA CORREZIONE ATTERRA DAVVERO: mono contro matrice');
  chk('RGB su matrice migliora: il segnale ora prende la sua larghezza',
    B.M.timeFactor(dB,'RGB',180)<A.M.timeFactor(dA,'RGB',180),true,
    '×'+f(A.M.timeFactor(dA,'RGB',180),2)+' → ×'+f(B.M.timeFactor(dB,'RGB',180),2));
- chk('L su matrice resta quasi invariata (larghezze gia uguali, 250 vs 250)',
-   Math.abs(B.M.timeFactor(dB,'L',180)/A.M.timeFactor(dA,'L',180)-1)<0.05,true);}
+ /* v1.6 chiudeva qui con "L resta invariata", ed era vero allora: la larghezza era
+    gia' 250 contro 250 e il termine mancante non la toccava. In v1.7 L si muove di
+    circa l'8%, e NON per la larghezza — per il LIVELLO della curva a matrice,
+    riportato alla trasmissione del colorante misurata. L'affermazione originale
+    resta verificabile nella sua forma esatta: sulla larghezza, RGB si muove di un
+    ordine di grandezza piu' di L. */
+ const dL=B.M.timeFactor(dB,'L',180)/A.M.timeFactor(dA,'L',180)-1;
+ const dRGB=1-B.M.timeFactor(dB,'RGB',180)/A.M.timeFactor(dA,'RGB',180);
+ chk('la larghezza tocca RGB e non L: RGB si muove molto di piu',
+   dRGB>5*Math.abs(dL),true,'RGB '+(100*dRGB).toFixed(0)+'% contro L '+(100*dL).toFixed(1)+
+   '%, cioe x'+(dRGB/Math.abs(dL)).toFixed(1));
+ chk('e il residuo su L e il livello del colorante, non la larghezza',
+   Math.abs(dL)<0.15,true,'+'+(100*dL).toFixed(1)+'% dalla correzione di livello v1.7');}
 
 /* ═══ 5 ═══ */
 H('5 · CFA BANDA STRETTA — i tre sintomi dichiarati');
 {const mcA=A.DB.cameras.find(c=>c.id==='asi2600mc'), mcB=B.DB.cameras.find(c=>c.id==='asi2600mc');
  console.log('  '+P('banda',7)+P('prima',9)+P('dopo',9)+P('modello indip.',15)+P('sintomo',26));
  const sy={Ha:'sottostimata',OIII:'sopravvalutata',SII:'sottostimata'};
+ /* 2026-09: il valore non si legge piu' dalla scheda camera — vive sul SENSORE e
+    passa dalla regola di precedenza. Si interroga quindi il motore, che e' anche
+    il modo giusto di scrivere il test: si verifica cio' che il motore USA. */
+ const etaA=b=>A.M.oscEfficiency(mcA,b,A.M.bandSpec(b,mcA)).eta;
+ const etaB=b=>B.M.oscEfficiency(mcB,b,B.M.bandSpec(b,mcB)).eta;
  for(const b of ['Ha','OIII','SII']){
    const oe=B.M.oscEfficiency(mcB,b,B.M.bandSpec(b,mcB));
-   console.log('  '+P(b,7)+P(f(mcA.cfa_fraction[b],3),9)+P(f(mcB.cfa_fraction[b],3),9)
+   console.log('  '+P(b,7)+P(f(etaA(b),3),9)+P(f(etaB(b),3),9)
      +P(f(oe.model,3),15)+P(sy[b]+' → corretta',26));
  }
- chk('Ha era sottostimata: il valore sale',mcB.cfa_fraction.Ha>mcA.cfa_fraction.Ha,true,
-   f(mcA.cfa_fraction.Ha,3)+' → '+f(mcB.cfa_fraction.Ha,3));
- chk('SII era sottostimata: il valore sale',mcB.cfa_fraction.SII>mcA.cfa_fraction.SII,true,
-   f(mcA.cfa_fraction.SII,3)+' → '+f(mcB.cfa_fraction.SII,3));
- chk('OIII era sopravvalutata: il valore scende',mcB.cfa_fraction.OIII<mcA.cfa_fraction.OIII,true,
-   f(mcA.cfa_fraction.OIII,3)+' → '+f(mcB.cfa_fraction.OIII,3));
+ chk('Ha era sottostimata: il valore sale',etaB('Ha')>etaA('Ha'),true,
+   f(etaA('Ha'),3)+' → '+f(etaB('Ha'),3));
+ chk('SII era sottostimata: il valore sale',etaB('SII')>etaA('SII'),true,
+   f(etaA('SII'),3)+' → '+f(etaB('SII'),3));
+ chk('OIII era sopravvalutata: il valore scende',etaB('OIII')<etaA('OIII'),true,
+   f(etaA('OIII'),3)+' → '+f(etaB('OIII'),3));
  for(const b of ['Ha','OIII','SII'])
    chk('  '+b+' concorda col modello spettrale indipendente entro il 6%',
-     Math.abs(mcB.cfa_fraction[b]/B.M.oscEfficiency(mcB,b,B.M.bandSpec(b,mcB)).model-1)<0.06,true);
+     Math.abs(etaB(b)/B.M.oscEfficiency(mcB,b,B.M.bandSpec(b,mcB)).model-1)<0.06,true);
  console.log();
  console.log('  '+P('config',26)+P('banda',6)+P('prima',9)+P('dopo',9)+P('variazione',12));
  const dA=A.M.derive({tel:'askar71f',red:0.75,cam:'asi2600mc',mnt:'am5',bin:1});
@@ -186,9 +202,18 @@ H('5 · CFA BANDA STRETTA — i tre sintomi dichiarati');
    B.M.timeFactor(dB,'Ha',600)<A.M.timeFactor(dA,'Ha',600),true);
  chk('OIII su matrice costa piu tempo (era troppo generosa)',
    B.M.timeFactor(dB,'OIII',600)>A.M.timeFactor(dA,'OIII',600),true);
- chk('le altre camere a matrice NON sono state toccate',
-   ['asi294mc','asi533mc','asi6200mc','asi183mc'].every(id=>
-     B.DB.cameras.find(c=>c.id===id).cfa_fraction.Ha===A.DB.cameras.find(c=>c.id===id).cfa_fraction.Ha),true,
+ /* v1.6 diceva: "le altre camere a matrice non sono state toccate", perche' i loro
+    valori generici erano rimasti al loro posto. In v1.7 quei valori sono usciti dal
+    percorso operativo e le camere usano il modello. L'INTENTO del test resta pero'
+    identico ed e' quello che conta: la misura fatta su un sensore non deve
+    trasferirsi a un altro sensore senza titolo. */
+ const senza=['asi294mc','asi533mc','asi6200mc','asi183mc'];
+ chk('sui sensori senza misura per canale vince il modello',
+   senza.every(id=>{const c=B.DB.cameras.find(x=>x.id===id);
+     return B.M.oscEfficiency(c,'Ha',B.M.bandSpec('Ha',c)).src==='modello spettrale';}),true);
+ chk('e la misura dell IMX571 NON si trasferisce a loro',
+   senza.every(id=>{const c=B.DB.cameras.find(x=>x.id===id);
+     return Math.abs(B.M.oscEfficiency(c,'Ha',B.M.bandSpec('Ha',c)).eta-0.357)>1e-6;}),true,
    'nessun dato per canale esiste per quei sensori');}
 
 /* ═══ 6 ═══ */
@@ -201,8 +226,8 @@ H('6 · INTERACTION TEST — nessun doppio conteggio');
       larghezza di banda -> continuo, su ogni camera                        */
  for(const b of ['Ha','OIII','SII']){
    const r=B.M.rates(dv,b,sqm);
-   chk('banda stretta '+b+': eta = dato dichiarato, una volta sola',
-     r.oe.eta,B.DB.cameras.find(c=>c.id==='asi2600mc').cfa_fraction[b],1e-12);
+   chk('banda stretta '+b+': eta = misura del sensore, una volta sola',
+     r.oe.eta,B.DB.sensors.find(x=>x.id==='imx571').cfa_fraction[b],1e-12);
    chk('  e il segnale non prende la larghezza (e una riga)',
      r.k,B.M.bandThroughput(dv,r.sp,'signal')*r.oe.eta,1e-12);
  }

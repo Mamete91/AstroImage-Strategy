@@ -15,7 +15,7 @@ const CAT=JSON.parse(fs.readFileSync(ROOT+'/data/catalog.json','utf8'));
 const CIT=JSON.parse(fs.readFileSync(ROOT+'/data/cities.json','utf8'));
 const ctx={DB,TG,CAT:CAT.objects,CITIES:CIT.cities,OWNED:DB.default_filters.slice(),
   console,Math,Date,Object,JSON,isFinite,parseFloat,parseInt,Number,window:{}};
-const M=new Function(...Object.keys(ctx),pure+`return {derive,refCfg,timeFactor,qeAt,
+const M=new Function(...Object.keys(ctx),pure+`return {camSpec,derive,refCfg,timeFactor,qeAt,
   skyRateFor,bandSpec,cfaFraction,samplingVerdict,effFWHM,BAND_LAMBDA};`)(...Object.values(ctx));
 
 const f=(x,n=3)=>(x==null||!isFinite(x))?'—':Number(x).toFixed(n);
@@ -190,17 +190,33 @@ console.log('\n  C · test invarianti');
  // QE: cambia fotometria, non geometria
  /* la camera da modificare NON puo' essere quella del riferimento, altrimenti
     la variazione entra a numeratore e denominatore e si semplifica. */
- const mcCfg={tel:'askar71f',red:0.75,cam:'asi2600mc',mnt:'am5',bin:1};
+ /* 2026-09: la QE non e' piu' un campo della camera ma del SENSORE. Va quindi
+    toccata li' — e va scelto un sensore che il RIFERIMENTO non condivide, oppure
+    la variazione entra a numeratore e denominatore e si semplifica. Il riferimento
+    monta un IMX571: si usa allora una 294, che monta un IMX294. */
+ const mcCfg={tel:'askar71f',red:0.75,cam:'asi294mc',mnt:'am5',bin:1};
  const tmc0=timeFactorNew(M.derive(mcCfg),'OIII',600,0);
- const cam=DB.cameras.find(x=>x.id==='asi2600mc'); const oq=cam.qe['500'];
- cam.qe['500']=oq*0.5;
- const d3=M.derive(mcCfg), t3=timeFactorNew(d3,'OIII',600,0);
+ const sen=DB.sensors.find(x=>x.id==='imx294');
+ const oq=sen.qe_peak;
+ sen.qe_peak=oq*0.5; M.camSpec.reset&&M.camSpec.reset();
+ const d3=M.derive({...mcCfg}), t3=timeFactorNew(d3,'OIII',600,0);
  chk('cambiare QE -> cambia fotometria', t3>tmc0*1.5, f(t3,3)+' contro '+f(tmc0,3));
  chk('cambiare QE -> geometria INVARIATA',
    Math.abs(d3.fRatio-M.derive(mcCfg).fRatio)<1e-12&&Math.abs(d3.scale-M.derive(mcCfg).scale)<1e-12,
    'f/'+f(d3.fRatio,2)+'  '+f(d3.scale,3)+'"/px');
- cam.qe['500']=oq;
- chk('QE ripristinata', Math.abs(timeFactorNew(M.derive(mcCfg),'OIII',600,0)-tmc0)<1e-12);
+ sen.qe_peak=oq; M.camSpec.reset&&M.camSpec.reset();
+ chk('QE ripristinata', Math.abs(timeFactorNew(M.derive({...mcCfg}),'OIII',600,0)-tmc0)<1e-12);
+ /* E la proprieta' emergente dell'architettura nuova, che merita di essere fissata:
+    toccare il SENSORE muove tutte le camere che lo montano, non una sola. */
+ const mm=M.derive({tel:'rc8',red:1,cam:'asi294mm',mnt:'cem70g',bin:1});
+ const mc=M.derive({tel:'rc8',red:1,cam:'asi294mc',mnt:'cem70g',bin:1});
+ const a0=timeFactorNew(mm,'OIII',600,0), b0=timeFactorNew(mc,'OIII',600,0);
+ sen.qe_peak=oq*0.5; M.camSpec.reset&&M.camSpec.reset();
+ const a1=timeFactorNew(M.derive({tel:'rc8',red:1,cam:'asi294mm',mnt:'cem70g',bin:1}),'OIII',600,0);
+ const b1=timeFactorNew(M.derive({tel:'rc8',red:1,cam:'asi294mc',mnt:'cem70g',bin:1}),'OIII',600,0);
+ sen.qe_peak=oq; M.camSpec.reset&&M.camSpec.reset();
+ chk('un dato del sensore muove TUTTE le camere che lo montano',
+   a1>a0*1.5&&b1>b0*1.5, '294MM x'+f(a1/a0,2)+'  294MC x'+f(b1/b0,2));
  // seeing: non deve toccare il flusso raccolto
  const src=fs.readFileSync(ROOT+'/tools/verifica-modello.js','utf8');
  chk('seeing NON compare nella funzione fotometrica',

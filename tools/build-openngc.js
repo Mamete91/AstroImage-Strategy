@@ -19,6 +19,19 @@ const SRC=process.argv[2]||'/tmp/ongc/database_files/NGC.csv';
 const OUT=path.join(__dirname,'..','data','openngc.json');
 
 /* ---------- lettura ---------- */
+/* E' un importatore una tantum: gli serve il CSV di OpenNGC, che non sta nel
+   repository (data/openngc.json e' gia' il suo risultato). Se manca lo dice,
+   invece di morire su uno stack trace. */
+if(!fs.existsSync(SRC)){
+  console.error('\n  Serve il CSV di OpenNGC, che non e in questo repository.\n'
+    +'    ' + SRC + '  (non trovato)\n\n'
+    +'  Si prende da github.com/mattiaverga/OpenNGC (CC-BY-SA-4.0), file\n'
+    +'  database_files/NGC.csv, e si passa come primo argomento:\n'
+    +'    node tools/build-openngc.js /percorso/NGC.csv\n\n'
+    +'  data/openngc.json e gia il risultato di questa conversione: rieseguirla\n'
+    +'  serve solo per aggiornare il catalogo a una versione nuova di OpenNGC.\n');
+  process.exit(2);
+}
 const raw=fs.readFileSync(SRC,'utf8').split(/\r?\n/).filter(Boolean);
 const head=raw[0].split(';');
 const rows=raw.slice(1).map(l=>{const c=l.split(';'),o={};head.forEach((h,i)=>o[h]=c[i]||'');return o;});

@@ -673,7 +673,224 @@ function interp(tbl,x){
    QE di picco invece dell'intera curva: l'errore che si introduce è di qualche
    punto percentuale, un ordine di grandezza sotto l'incertezza sul dato dell'oggetto. */
 const QE_SHAPE={400:0.80,450:0.97,500:1.00,550:0.96,600:0.86,650:0.70,700:0.56};
+
+/* ═════════════════════════════════════════════════════════════════════════
+   SENSORE → MODO DI LETTURA → CAMERA
+   Introdotto 2026-09, vedi docs/architettura-catalogo-sensori.md.
+
+   Lo stesso silicio Sony compare sotto ZWO, QHY, Player One, ToupTek, Altair,
+   RisingCam: cambiano elettronica, raffreddamento e implementazione, non il
+   cuore fotometrico. Un catalogo per MARCA duplica lo stesso sensore dieci
+   volte e sbaglia dieci volte insieme; un catalogo per SENSORE lo descrive una
+   volta sola, e una misura nuova sistema tutte le camere che lo montano.
+
+   La chiave e' la COPPIA sensore + modo di lettura, non il sensore da solo: il
+   pixel non e' una proprieta' del silicio ma della LETTURA. L'IMX294 e l'IMX492
+   sono lo STESSO sensore — 2x2 binnato a 4,63 um oppure nativo a 2,315 um — e
+   uno schema che non porta i modi si rompe su quella coppia il primo giorno.
+
+   L'UTENTE NON SCEGLIE NIENTE. Inserisce i dati che ha in mano — pixel,
+   risoluzione, rumore, QE di picco, mono o colore — e il motore riconosce la
+   coppia da solo: prima dalla GEOMETRIA, che e' fisica e non dipende dal marchio,
+   poi dalla NOMENCLATURA come conferma. Se le due sono d'accordo la confidenza
+   sale; se litigano vince la geometria e il disaccordo si dichiara.
+
+   REGOLA DEI DATI, due livelli e uno stato:
+     MISURA   metodo, riferimento e GRANDEZZA dichiarati senza ambiguita'
+     MODELLO  calcolato adesso, riproducibile, coperto da test
+     IGNOTO   ne' l'una ne' l'altro: segnaposto DICHIARATO, mai silenzioso
+   I valori ereditati non sono un terzo gradino: sono l'uscita di un modello
+   vecchio e irriproducibile, e non possono battere per regola quello attuale.
+   Vivono nei campi *_ereditato, fuori dal percorso operativo.  ══════════════ */
+
+/* La trasmissione del colorante al picco, MISURATA. Le misure EMVA 1288 danno
+   mono e colore della stessa camera sulla stessa scala assoluta, quindi il loro
+   rapporto E' la trasmissione del colorante. Sei sensori Sony, quattro
+   generazioni, tre laboratori: 0.864 con scarto tipo 0.015. E' l'ancora che
+   trasforma una curva RELATIVA di mosaico in una trasmissione assoluta. */
+let _dye=null;
+function dyeAnchor(sen){
+  if(!_dye){
+    const a=DB.dye_anchors;
+    if(!a||!a.punti||!a.punti.length) _dye={t:0.864,sd:null,n:0,src:'ripiego, nessuna misura in scheda'};
+    else{
+      const ts=a.punti.map(p=>p.verde/p.mono);
+      const t=ts.reduce((x,y)=>x+y,0)/ts.length;
+      const sd=Math.sqrt(ts.reduce((s,x)=>s+(x-t)*(x-t),0)/ts.length);
+      _dye={t,sd,n:ts.length,src:'media EMVA 1288 su '+ts.length+' sensori'};
+    }
+  }
+  /* La stessa regola vale anche qui: la misura SU QUESTO sensore batte la media.
+     Se c'e' un punto per questo silicio si usa quello; altrimenti la media, che
+     su sei sensori e quattro generazioni ha uno scarto tipo dell'1,8%. */
+  if(sen&&DB.dye_anchors&&DB.dye_anchors.punti){
+    const keys=[sen.id].concat(sen.aka||[]).map(k=>String(k).toUpperCase().replace(/[^A-Z0-9]/g,''));
+    const hit=DB.dye_anchors.punti.find(p=>{
+      const k=String(p.sensore).toUpperCase().replace(/[^A-Z0-9]/g,'');
+      return keys.indexOf(k)>=0;});
+    if(hit) return {t:hit.verde/hit.mono,sd:_dye.sd,n:1,
+      src:'misura su questo sensore — '+hit.come};
+  }
+  return _dye;
+}
+
+/* La scheda risolta si calcola una volta per oggetto camera. La chiave e'
+   l'OGGETTO, non l'id: modificando una camera dall'interfaccia la scheda viene
+   sostituita e il calcolo si rifa' da solo. Il contatore di generazione serve al
+   caso opposto — cambia un dato del SENSORE — dove le camere sono le stesse ma
+   la risposta no. */
+let _specGen=0;
+const _specOf=new WeakMap();
+
+/* Riconoscimento. La geometria e' il criterio primario perche' e' fisica; il
+   nome e' la conferma. Il passo del pixel deve coincidere entro il 2% — sotto
+   quella soglia sono sensori diversi — mentre larghezza e altezza tollerano
+   l'1,5%, perche' QHY legge qualche riga in piu' di ZWO sullo stesso silicio
+   (600M: +0,25%; 268M: +0,5%). Piu' larghi di cosi' e si comincia a pescare per
+   caso: con il 5% una reflex full frame generica da 5,9 um cadeva sull'IMX410. */
+function resolveSensor(cam){
+  const list=DB.sensors||[];
+  if(!list.length||!cam) return null;
+  if(cam.sensore_generico) return null;      // archetipo di classe, non un modello reale
+  if(cam.sensor_id){
+    const s=list.find(x=>x.id===cam.sensor_id);
+    if(s) return {sensor:s,mode:(s.modi||[])[0],via:'dichiarato nella scheda',conf:'alta'};
+  }
+  const px=cam.pixel_um, w=cam.width_px, h=cam.height_px;
+  let geo=null;
+  if(px>0&&w>0&&h>0) for(const s of list) for(const m of (s.modi||[])){
+    if(Math.abs(m.pixel_um/px-1)>0.02) continue;
+    const dw=Math.abs(m.width_px/w-1), dh=Math.abs(m.height_px/h-1);
+    if(dw>0.015||dh>0.015) continue;
+    const err=dw+dh;
+    if(!geo||err<geo.err) geo={sensor:s,mode:m,err};
+  }
+  /* Nomenclatura: il token del sensore puo' stare nel campo libero "sensore"
+     ("IMX571 mono") o nel nome commerciale. Si cerca fra id e alias. */
+  const hay=((cam.sensor||'')+' '+(cam.name||'')).toUpperCase().replace(/[^A-Z0-9]/g,'');
+  let nom=null;
+  for(const s of list){
+    const keys=[s.id].concat(s.aka||[]).map(k=>String(k).toUpperCase().replace(/[^A-Z0-9]/g,''));
+    if(keys.some(k=>k.length>=5&&hay.indexOf(k)>=0)){ nom=s; break; }
+  }
+  if(geo&&nom&&geo.sensor.id===nom.id)
+    return {sensor:geo.sensor,mode:geo.mode,via:'geometria e nome concordi',conf:'alta'};
+  if(geo&&nom)
+    return {sensor:geo.sensor,mode:geo.mode,via:'geometria (il nome suggeriva '+nom.name+
+      ': vince la geometria, che e fisica)',conf:'media',conflitto:nom.id};
+  if(geo) return {sensor:geo.sensor,mode:geo.mode,via:'geometria',conf:'alta'};
+  if(nom){
+    const m=(nom.modi||[])[0];
+    return {sensor:nom,mode:m,via:'nome (la geometria non corrisponde a nessun modo noto)',conf:'bassa'};
+  }
+  return null;
+}
+
+/* LA SCHEDA RISOLTA. Tutto cio' che il motore chiede a una camera passa di qui,
+   con la provenienza attaccata a ogni campo. Chi chiama non sa piu' se il numero
+   viene dal sensore, dalla camera o da un modello: sa solo qual e' il migliore
+   disponibile, e quanto vale. */
+function camSpec(cam){
+  if(!cam) return null;
+  const memo=_specOf.get(cam);
+  if(memo&&memo._gen===_specGen) return memo;
+  const r=resolveSensor(cam), sen=r?r.sensor:null;
+  const cfa=!!cam.cfa_penalty;
+  const resp=(DB.cfa_responses&&sen&&sen.cfa_response)?DB.cfa_responses[sen.cfa_response]
+            :(DB.cfa_responses?DB.cfa_responses.sony_bayer_generic:null);
+  const anc=dyeAnchor(sen);
+  const campi={};
+
+  /* 1. la curva del SILICIO — sempre monocromatica, sempre la stessa per tutte
+        le camere che montano quel sensore. */
+  let qeTab=null, qePeak=null;
+  if(cam.qe_misurata){ qeTab=cam.qe_misurata; campi.qe={esito:'misura',come:'misura della CAMERA'}; }
+  else if(sen&&sen.qe){ qeTab=sen.qe; campi.qe={esito:(sen.qe_fonte||{}).esito||'dichiarato',
+    come:'curva del sensore '+sen.name+((sen.qe_fonte||{}).come?' — '+sen.qe_fonte.come:'')}; }
+  else if(sen&&sen.qe_peak!=null){ qePeak=sen.qe_peak; campi.qe={esito:(sen.qe_fonte||{}).esito||'dichiarato',
+    come:'picco del sensore '+sen.name+', forma CMOS tipica'+((sen.qe_fonte||{}).come?' — '+sen.qe_fonte.come:'')}; }
+  else if(cam.qe){ qeTab=cam.qe; campi.qe={esito:'dichiarato',come:'curva della scheda camera'}; }
+  else {
+    /* Nessun sensore riconosciuto. Il numero che l'utente ha in mano e' quello
+       che stampa il costruttore: su una camera a colori e' gia' il picco DELLA
+       MATRICE, quindi per risalire al silicio si toglie il colorante. */
+    qePeak=(cam.qe_peak||0.80)/(cfa?anc.t:1);
+    campi.qe={esito:'ignoto',come:'sensore non riconosciuto: picco inserito a mano su forma CMOS tipica'
+      +(cfa?', riportato al silicio dividendo per la trasmissione del colorante':'')};
+  }
+  const qeSil=lam=>qeTab?interp(qeTab,lam):qePeak*interp(QE_SHAPE,lam);
+
+  /* 2. IL COLORANTE. Su una matrice la camera vede QE_silicio x T_migliore(lam),
+        dove T_migliore e' l'inviluppo dei tre coloranti. Il problema non e' mai
+        stato la forma di quell'inviluppo — la curva a colori del costruttore e'
+        una misura della camera vera e la forma la descrive bene — ma il suo
+        LIVELLO: il rapporto colore/mono delle due curve ZWO vale 0,916 a 527,5 nm
+        contro lo 0,846 misurato sullo stesso sensore, e su sei sensori Sony la
+        trasmissione al picco vale 0,864 +- 0,015. Si corregge quindi il livello
+        con UN solo scalare e si tiene la forma.
+
+        Dove la curva a colori non c'e' non se ne inventa una: si applica la
+        trasmissione MISURATA, piatta. Livello noto, forma non inventata.
+
+        NON si usa qui l'inviluppo del modello di Bayer generico: quella curva
+        viene dall'IMX219, il cui colorante rosso cade piu' in fretta di quello
+        di una camera astronomica (+26% a 656 nm, +44% a 672 — sta scritto nel
+        suo stesso campo di validazione). Nel RAPPORTO mosaico/migliore che serve
+        a eta quell'errore si semplifica in buona parte; nell'inviluppo da solo
+        no, e propagarlo sulla QE peggiorerebbe una cosa che funziona. */
+  const ancLam=(DB.dye_anchors&&DB.dye_anchors.lam_nm)||527.5;
+  let dye, dyeSrc;
+  if(!cfa){ dye=()=>1; dyeSrc={esito:'esatta',come:'monocromatica'}; }
+  else {
+    const cfaTab=cam.qe_cfa||(sen&&sen.qe_cfa)||null;
+    const base=cfaTab?interp(cfaTab,ancLam)/qeSil(ancLam):null;
+    if(cfaTab&&base>0){
+      const k=anc.t/base;
+      dye=lam=>interp(cfaTab,lam)/qeSil(lam)*k;
+      dyeSrc={esito:'misura',come:'forma dalla curva a colori del costruttore, livello riportato '+
+        'alla trasmissione misurata '+anc.t.toFixed(3)+' (correzione x'+k.toFixed(3)+
+        (anc.n?'; media di '+anc.n+' sensori, scarto tipo '+anc.sd.toFixed(3):'')+')'};
+    } else {
+      dye=()=>anc.t;
+      dyeSrc={esito:'misura',come:'nessuna curva a colori per questo sensore: trasmissione '+
+        'misurata '+anc.t.toFixed(3)+' applicata piatta'+
+        (anc.n?' (media di '+anc.n+' sensori, scarto tipo '+anc.sd.toFixed(3)+')':'')};
+    }
+  }
+  campi.dye=dyeSrc;
+
+  /* 3. carica di saturazione: proprieta' del silicio. */
+  let satE=null;
+  if(sen&&sen.saturazione_e!=null){ satE=sen.saturazione_e;
+    campi.sat={esito:(sen.saturazione_fonte||{}).esito||'dichiarato',
+      come:(sen.saturazione_fonte||{}).come||('sensore '+sen.name)}; }
+  else campi.sat={esito:'ignoto',come:sen?('il sensore '+sen.name+' non dichiara la carica di saturazione')
+    :'sensore non riconosciuto'};
+
+  /* 4. frazione di mosaico in banda stretta: dato del SENSORE, mai della camera. */
+  const cfaFraction=b=>(sen&&sen.cfa_fraction&&sen.cfa_fraction[b]!=null)?sen.cfa_fraction[b]:null;
+  campi.cfa=(sen&&sen.cfa_fraction)?{esito:(sen.cfa_fraction_fonte||{}).esito||'misura',
+    come:(sen.cfa_fraction_fonte||{}).come||('sensore '+sen.name)}
+    :{esito:'modello',come:'nessuna misura per canale su questo sensore: si usa il modello spettrale'};
+
+  const spec={sensor:sen,mode:r?r.mode:null,via:r?r.via:'non riconosciuto',
+    conf:r?r.conf:null,conflitto:r?r.conflitto:null,
+    cfa,resp,anc,qeSil,dye,satE,cfaFraction,campi,
+    rnFloor:sen?sen.pavimento_rumore_e:null,
+    qe:lam=>qeSil(lam)*dye(lam),_gen:_specGen};
+  _specOf.set(cam,spec);
+  return spec;
+}
+/* Da chiamare quando cambia il CATALOGO, non quando cambia una camera. */
+camSpec.reset=()=>{ _specGen++; _dye=null; };
+
+/* Quello che la CAMERA vede: silicio per colorante. Su un mono il colorante
+   vale 1 esatto. Su una matrice la curva non e' piu' un dato indipendente da
+   digitalizzare — si deriva — ed e' il motivo per cui il rapporto colore/mono
+   esce giusto a ogni lunghezza d'onda invece che solo al picco. */
 function qeAt(cam,lambda){
+  const sp=camSpec(cam);
+  if(sp) return sp.qe(lambda);
   if(cam.qe) return interp(cam.qe,lambda);
   return (cam.qe_peak||0.80)*interp(QE_SHAPE,lambda);
 }
@@ -748,8 +965,8 @@ function refCfg(){
    di quasi due ordini di grandezza e per questi sensori non e' misurata. In banda
    larga e' una perturbazione piccola su un segnale grande; sull'Ha e' TUTTO il
    contributo di verde e blu, ed e' per questo che li' il modello non decide. */
-function bayerDye(ch,lam){
-  const r=DB.cfa_response; if(!r) return null;
+function bayerDye(ch,lam,resp){
+  const r=resp||(DB.cfa_responses?DB.cfa_responses.sony_bayer_generic:null); if(!r) return null;
   const g=r.grid_nm, y=r[ch];
   if(lam<=g[0]) return y[0]/100;
   if(lam>=g[g.length-1]) return y[y.length-1]/100;
@@ -757,8 +974,8 @@ function bayerDye(ch,lam){
     return (y[i-1]+(y[i]-y[i-1])*(lam-g[i-1])/(g[i]-g[i-1]))/100;
   return null;
 }
-function mosaicFrac(lam){
-  const R=bayerDye('R',lam),G=bayerDye('G',lam),B=bayerDye('B',lam);
+function mosaicFrac(lam,resp){
+  const R=bayerDye('R',lam,resp),G=bayerDye('G',lam,resp),B=bayerDye('B',lam,resp);
   if(R==null) return null;
   const best=Math.max(R,G,B);
   return best>0 ? (R+2*G+B)/4/best : null;
@@ -770,15 +987,22 @@ function mosaicFrac(lam){
    si calcola comunque, per poterlo confrontare nella diagnostica. */
 function oscEfficiency(cam,band,sp){
   if(!cam.cfa_penalty) return {eta:1,src:'mono',conf:'esatta',model:null,declared:null};
-  const decl=(cam.cfa_fraction&&cam.cfa_fraction[band]!=null)?cam.cfa_fraction[band]:null;
+  /* Il dato per canale e' una proprieta' del SENSORE, non della camera: la stessa
+     misura vale per ogni marca che monta quel silicio. E deve essere una MISURA —
+     i vecchi valori generici erano l'uscita di un modello congelato e per regola
+     scavalcavano un modello migliore, che e' il difetto corretto qui. */
+  const cs=camSpec(cam);
+  const resp=cs?cs.resp:null;
+  const decl=cs?cs.cfaFraction(band):null;
+  const misurato=decl!=null&&(cs.campi.cfa||{}).esito==='misura';
   if(sp.narrow){
-    const lam=sp.lines[0], model=mosaicFrac(lam);
+    const lam=sp.lines[0], model=mosaicFrac(lam,resp);
     const green=lam>=470&&lam<=580;                 // dove il modello e' solido
-    if(decl!=null) return {eta:decl,src:'dato dichiarato',model,declared:decl,
+    if(misurato) return {eta:decl,src:'misura del sensore',model,declared:decl,
       conf:green?'alta (±5%)':'media (±35%: la fuga nel rosso non e misurata su questo sensore)'};
-    if(model!=null) return {eta:model,src:'modello spettrale',model,declared:null,
-      conf:green?'alta (±5%)':'bassa (±35%)'};
-    return {eta:cfaLegacy(cam,band),src:'regola di ripiego',model:null,declared:null,conf:'bassa'};
+    if(model!=null) return {eta:model,src:'modello spettrale',model,declared:decl,
+      conf:green?'alta (±5%)':'media (±35%: la fuga nel rosso non e misurata su questo sensore)'};
+    return {eta:cfaLegacy(cam,band),src:'regola di ripiego',model:null,declared:decl,conf:'bassa'};
   }
   /* Banda larga: l'integrale sulla banda. Il motore modella il tasso come
        QE_pubblicata(lam_eff) x T_filtro x larghezza x eta
@@ -795,7 +1019,7 @@ function oscEfficiency(cam,band,sp){
   const lo=Math.max(380,le-sp.fwhm/2), hi=Math.min(720,le+sp.fwhm/2);
   let num=0,w=0,ok=true;
   for(let l=lo;l<=hi;l+=2){
-    const fr=mosaicFrac(l); if(fr==null){ok=false;break;}
+    const fr=mosaicFrac(l,resp); if(fr==null){ok=false;break;}
     const q=qeAt(cam,l); num+=q*fr; w+=1;
   }
   const qe0=qeAt(cam,le);
@@ -867,11 +1091,13 @@ const TSUB_NOMINAL=b=>BB_BANDS.includes(b)?180:600;
    con la 2600MC faceva la differenza fra «non ci sta» e «progetto pieno».
    Il numero sta in setups.json con la derivazione scritta; senza, si torna alla
    vecchia regola. */
+/* Scorciatoia di lettura: una sola sorgente di verita', oscEfficiency(). Prima
+   questa funzione aveva una sua copia della regola e leggeva cam.cfa_fraction
+   direttamente — cioe' scavalcava la precedenza. Due implementazioni della stessa
+   decisione sono due decisioni. */
 function cfaFraction(cam,band){
   if(!cam.cfa_penalty) return 1;
-  const t=cam.cfa_fraction;
-  if(t&&t[band]!=null) return t[band];
-  return ['OIII','B','Ha','SII','R'].includes(band)?0.25:0.5;   // vecchia regola
+  return oscEfficiency(cam,band,bandSpec(band,cam)).eta;
 }
 function timeFactor(dv, band, tsub, sFot){
   const r=refCfg(), ts=tsub||TSUB_NOMINAL(band), sqm=r.sqm;
@@ -1743,11 +1969,10 @@ const OSC_BB=0.34;
 function gainModeFor(cam,band,opts){
   const o=opts||{};
   const nb=!BB_BANDS.includes(band);
-  const ms=cam.gain_modes;
-  if(o.gainMode) { const m=(ms||[]).find(x=>x.name===o.gainMode); if(m) return {...m,picked:'scelto'}; }
-  if(!ms||!ms.length) return {name:cam.gain_note||'unico modo',gain:null,offset:null,
-    read_noise_e:cam.read_noise_e||1.5, full_well_e:cam.full_well_e||20000,
-    picked:'assunto', assumed:true};
+  const ms=gainModes(cam);                 // gia' con il pozzetto derivato e dichiarato
+  if(o.gainMode) { const m=ms.find(x=>x.name===o.gainMode); if(m) return {...m,picked:'scelto'}; }
+  if(!cam.gain_modes||!cam.gain_modes.length) return {...ms[0],
+    picked:ms[0].assumed?'assunto':'modo unico, pozzetto dal sensore'};
   const s=ms.slice();
   const m = nb ? s.sort((a,b)=>a.read_noise_e-b.read_noise_e)[0]
                : s.sort((a,b)=>b.full_well_e-a.full_well_e)[0];
@@ -1883,11 +2108,31 @@ const snapExp=t=>{ let p=null;
    rende meglio a parita' di posa. Vince chi ha il merito piu' alto. E' il motivo
    per cui in banda stretta esce HCG e in luminanza esce il pozzetto profondo,
    senza che nessuno lo abbia scritto a mano. */
+/* IL POZZETTO SI DERIVA. Fino a ieri una camera senza gain_modes riceveva 20000 e-
+   in silenzio, e su una banda larga faceva uscire 60 s dove ne servono 180: tre
+   volte le pose, gli eventi di lettura e lo scarico, senza che nulla lo dicesse.
+
+       pozzetto = min( carica di saturazione del SENSORE , fondo scala ADC x e-/ADU )
+
+   Le due grandezze sono diverse e i costruttori le confondono: ToupTek e Moravian
+   pubblicano come "pozzetto" il fondo scala, verificabile aritmeticamente sulle loro
+   stesse tabelle (e-/ADU x 65536), e ToupTek arriva a dichiarare 102,5 ke- per un
+   IMX571 il cui pixel satura a 48,2 ke- misurati. Il minimo taglia l'errore da
+   entrambi i lati: completa chi non dichiara e corregge chi dichiara troppo. */
 function gainModes(cam){
-  if(cam.gain_modes&&cam.gain_modes.length) return cam.gain_modes;
+  const cs=camSpec(cam), sat=cs?cs.satE:null;
+  const clamp=(fw,src)=>{
+    if(sat==null) return {full_well_e:fw!=null?fw:20000,
+      assumed:fw==null,fw_src:fw!=null?src:'segnaposto: ne la camera ne il sensore dichiarano il pozzetto'};
+    if(fw==null||fw>sat) return {full_well_e:sat,assumed:false,fw_src:'carica di saturazione del sensore',
+      clamped:fw!=null&&fw>sat,dichiarato:fw};
+    return {full_well_e:fw,assumed:false,fw_src:src};
+  };
+  if(cam.gain_modes&&cam.gain_modes.length)
+    return cam.gain_modes.map(m=>({...m,...clamp(m.full_well_e,'modo dichiarato dalla camera')}));
   return [{name:cam.gain_note||'unico modo',gain:null,offset:null,
            read_noise_e:cam.read_noise_e||1.5,
-           full_well_e:cam.full_well_e||20000,assumed:true}];
+           ...clamp(cam.full_well_e!=null?cam.full_well_e:null,'segnaposto')}];
 }
 /* QUANTO REGGE IL SOGGETTO — il tetto che mancava.
    Finora la posa era limitata solo dalle stelle di CAMPO. Ma su un globulare non
@@ -3126,9 +3371,13 @@ function openGearForm(kind,editId){
   }
 
   if(kind==='cam'){
-    body+=`<p class="small muted">La QE di picco basta: l'app usa una forma di curva CMOS tipica
-      normalizzata su quel valore. L'errore che ne deriva è di qualche punto percentuale, molto
-      sotto l'incertezza sul dato dell'oggetto. Se non la conosci, 80% è una stima ragionevole.</p>
+    body+=`<p class="small muted">Metti quello che hai in mano: sono i numeri che ogni costruttore
+      stampa. Al resto pensa il motore — dalla <b>geometria</b> riconosce il sensore e il modo di
+      lettura, e da lì prende curva di QE, carica di saturazione e risposta della matrice. Lo stesso
+      silicio Sony sta sotto ZWO, QHY, Player One, ToupTek, Altair: se è in catalogo, la tua camera
+      è già descritta anche se il nome non lo è. Su una camera a colori la QE di picco è quella
+      <b>della matrice</b>, cioè quella che leggi sulla scheda: non correggerla a mano.</p>
+      <div id="gf_sensor" class="small" style="margin:-4px 0 10px"></div>
       <div class="row"><label class="f" style="flex:2;min-width:200px">Nome
         <input id="gf_name" list="dlCam" autocomplete="off" value="${item?esc(item.name):''}" placeholder="es. ZWO ASI294MC Pro"></label>
         <label class="f" style="min-width:150px">Sensore<select id="gf_cfa">
@@ -3167,6 +3416,34 @@ function openGearForm(kind,editId){
 
   $('gearBody').innerHTML=body;
   $('gearSheet').classList.add('on');
+  /* Il riconoscimento si vede mentre si scrive: senza, l'utente non ha modo di
+     sapere che il motore ha capito, e la promessa "al resto pensa lui" resta
+     una promessa. */
+  if(kind==='cam'){
+    const show=()=>{
+      const box=$('gf_sensor'); if(!box) return;
+      const px=parseFloat(v2('px')), w=parseFloat(v2('w')), h=parseFloat(v2('h'));
+      if(!(px>0&&w>0&&h>0)){ box.innerHTML='<span class="muted">Pixel e risoluzione: da lì riconosco il sensore.</span>'; return; }
+      const cs=camSpec({name:v2('name'),pixel_um:px,width_px:Math.round(w),height_px:Math.round(h),
+        qe_peak:(parseFloat(v2('qe'))||80)/100,
+        cfa_penalty:$('gf_cfa')&&$('gf_cfa').value==='osc'?0.25:undefined});
+      if(cs&&cs.sensor){
+        const m=cs.sensor.modi.length>1?' · modo <b>'+esc(cs.mode.id)+'</b>':'';
+        box.innerHTML=`<span class="pill p-ok">riconosciuto</span> <b>${esc(cs.sensor.name)}</b>${m}`+
+          ` <span class="muted">— ${esc(cs.via)}. `+
+          (cs.satE!=null?`Pozzetto ${cs.satE} e⁻ dal sensore. `:'Il sensore non dichiara il pozzetto. ')+
+          `QE: ${esc(String((cs.campi.qe||{}).come||'').slice(0,90))}…</span>`;
+      } else {
+        box.innerHTML='<span class="pill p-warn">sensore ignoto</span> <span class="muted">'+
+          'Nessun sensore in catalogo ha questa geometria. Uso i numeri che hai inserito, '+
+          'e dove manca un dato lo dichiaro invece di indovinarlo.</span>';
+      }
+    };
+    const v2=id=>$('gf_'+id)?$('gf_'+id).value.trim():'';
+    ['px','w','h','qe','name'].forEach(id=>{const e=$('gf_'+id); if(e) e.addEventListener('input',show);});
+    if($('gf_cfa')) $('gf_cfa').addEventListener('change',show);
+    show();
+  }
   /* Se il nome digitato coincide con uno del catalogo, i campi si compilano da soli:
      evita che lo stesso strumento finisca censito con dieci nomi diversi. */
   $('gf_name').addEventListener('input',()=>{
@@ -4092,8 +4369,16 @@ function rxContext(){
   return `<div class="cfgcard">
     ${cell('Ottica',esc(dv.t.name.replace(/\s*\(.*\)/,'')),
         `${dv.F} mm · f/${fmt(dv.fRatio,1)}${dv.r.factor!==1?' · '+esc(dv.r.label):''}`)}
-    ${cell('Sensore',esc(dv.c.name.replace(/^ZWO /,'')),
-        `${dv.c.pixel_um} µm${dv.bin>1?` · bin ${dv.bin} → ${fmt(dv.pixel,2)} µm`:''}`)}
+    ${(()=>{const cs=camSpec(dv.c);
+      /* Il silicio sotto il nome commerciale. Non e' un dettaglio da nerd: e' da
+         li' che vengono QE, pozzetto e risposta della matrice, ed e' il motivo per
+         cui una camera mai vista prima funziona subito. */
+      const sen=cs&&cs.sensor
+        ? `<span class="off" data-tip="${esc('Riconosciuto da solo: '+cs.via+'. Da qui vengono la QE, la carica di saturazione e la risposta della matrice. '+
+            (cs.campi.qe?'QE: '+cs.campi.qe.come:''))}">${esc(cs.sensor.name)}${cs.mode&&cs.sensor.modi.length>1?' · '+esc(cs.mode.id):''}</span>`
+        : `<span class="off p-warn" data-tip="${esc('Nessun sensore del catalogo corrisponde a questa geometria: il motore usa i numeri della scheda e lo dichiara. Vedi docs/architettura-catalogo-sensori.md')}">sensore ignoto</span>`;
+      return cell('Sensore',esc(dv.c.name.replace(/^ZWO /,'')),
+        `${dv.c.pixel_um} µm${dv.bin>1?` · bin ${dv.bin} → ${fmt(dv.pixel,2)} µm`:''} · ${sen}`);})()}
     ${cell('Cielo',esc(sn.replace(/\s*[-–].*/,'')),`SQM ${fmt(SITE.sqm,1)} · Bortle ${bortleFor(SITE.sqm).n}`)}
     ${cell(tip('FWHM reale','rms'),fmt(SITE.fwhm,2)+'″',
         `seeing ${fmt(SITE.seeing,1)}″ ⊕ guida ${fmt(SITE.rms,2)}″`)}
@@ -4708,7 +4993,15 @@ function rxExpoHtml(expo,dv,pr){
       'rischio / montatura':'Quanto sei disposto a perdere quando un fotogramma va storto.'}[e.binding]||'';
     return `<tr><td><b style="color:${RXCOL[x.group]||'var(--fg)'}">${esc(b)}</b></td>
       <td><b>${e.sec} s</b></td>
-      <td>${e.gm.gain!=null?'gain '+e.gm.gain+' <span class="muted">'+esc(e.gm.name)+'</span>':'<span class="muted">'+esc(e.gm.name)+'</span>'}</td>
+      <td>${e.gm.gain!=null?'gain '+e.gm.gain+' <span class="muted">'+esc(e.gm.name)+'</span>':'<span class="muted">'+esc(e.gm.name)+'</span>'}${
+        e.gm.assumed?' <span class="pill p-warn" style="font-size:9px" data-tip="'+esc(
+          'Il pozzetto non è un dato: né la camera né il sensore lo dichiarano, quindi vale un segnaposto da '
+          +e.gm.full_well_e+' e⁻. La posa che ne esce è una stima prudente — con il pozzetto vero può essere '
+          +'due o tre volte più lunga. Se conosci il valore, mettilo nella scheda della camera.')+'">pozzetto assunto</span>'
+        :(e.gm.clamped?' <span class="off" style="font-size:9px" data-tip="'+esc(
+          'La camera dichiara '+e.gm.dichiarato+' e⁻, ma il pixel di questo sensore ne tiene '+e.gm.full_well_e
+          +' misurati. Il valore più alto è il fondo scala dell\'ADC, non la carica di saturazione: '
+          +'sono due grandezze diverse, e vale la più piccola.')+'">pozzetto dal sensore</span>':'')}</td>
       <td>bin ${dv.bin}</td>
       <td>${Math.round(x.totalH*3600/e.sec)} pose</td>
       <td><span class="pill ${bcls}" style="font-size:10px" data-tip="${esc(bwhy)}">${esc(e.binding)}</span>
