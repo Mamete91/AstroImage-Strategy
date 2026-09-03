@@ -97,6 +97,11 @@ label.f > input, label.f > select{text-transform:none;font-size:13px;letter-spac
 .g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
 .gf{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+/* Il tasto che svuota il campo dell'oggetto. Sta DENTRO il campo, all'estremo
+   destro: e' li' che si guarda quando si vuole cancellare quello che c'e' scritto,
+   e non ruba una colonna alla riga. Compare solo quando c'e' qualcosa da pulire. */
+.clr{position:absolute;right:5px;bottom:5px;padding:2px 8px;font-size:10px;
+  line-height:1.7;letter-spacing:.06em;text-transform:uppercase}
 
 .derived{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;
   background:var(--line2);border:1px solid var(--line2);border-radius:6px;overflow:hidden;margin-top:12px}
@@ -328,9 +333,11 @@ td.archcell{max-width:120px}
   <div class="panel">
     <h2>Come lo riprendo</h2>
     <div class="row">
-      <label class="f" style="flex:2;min-width:230px"><span data-tip="Scrivi un oggetto e le ore che hai, e ti dico con quale tecnica riprenderlo, quante ore per canale, in che ordine e cosa aspettarti. Se le ore non bastano te lo dico, invece di darti una ripartizione che non sta in piedi. Lascialo vuoto e ti dico cosa conviene riprendere stanotte con questa configurazione.">Cosa vuoi riprendere <span class="ico">i</span></span>
-        <input id="rxTarget" list="dlObjects" autocomplete="off"
-          placeholder="NGC 6888, Crescent, M27…"></label>
+      <label class="f" style="flex:2;min-width:230px;position:relative"><span data-tip="Scrivi un oggetto e le ore che hai, e ti dico con quale tecnica riprenderlo, quante ore per canale, in che ordine e cosa aspettarti. Se le ore non bastano te lo dico, invece di darti una ripartizione che non sta in piedi. Lascialo vuoto e ti dico cosa conviene riprendere stanotte con questa configurazione.">Cosa vuoi riprendere <span class="ico">i</span></span>
+        <input id="rxTarget" list="dlObjects" autocomplete="off" style="padding-right:74px"
+          placeholder="NGC 6888, Crescent, M27…">
+        <button type="button" id="rxClear" class="fn fn-cfg clr" hidden
+          data-tip="Svuota il campo e torna all'elenco di cosa conviene riprendere stanotte. Anche con Esc.">Pulisci</button></label>
       <label class="f" style="max-width:150px">Quante ore hai
         <input type="number" id="rxHours" step="0.5" min="0.5" max="300"
           title="Ore totali che puoi dedicare a questo oggetto, non quelle di una notte sola"></label>
@@ -10447,6 +10454,22 @@ function start(){
   $('rxHours').addEventListener('change',()=>{ persistRx(); refresh(); });
   $('rxNights').addEventListener('change',()=>{ persistRx(); refresh(); });
   $('rxTarget').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ persistRx(); refresh(); } });
+  /* Pulisci. Non si limita a svuotare il campo: un campo vuoto e' uno STATO che il
+     motore sa gia' rendere — l'elenco di cosa conviene riprendere stanotte da qui,
+     con questa configurazione — quindi si rilancia il calcolo invece di lasciare a
+     schermo la scheda dell'oggetto precedente. Il cursore resta nel campo: il senso
+     del tasto e' scriverne subito un altro. */
+  const rxClearBtn=$('rxClear');
+  const rxClearSync=()=>{ rxClearBtn.hidden=!($('rxTarget').value||'').trim(); };
+  rxClearBtn.onclick=()=>{
+    $('rxTarget').value=''; persistRx(); refresh();
+    rxClearSync(); $('rxTarget').focus();
+  };
+  $('rxTarget').addEventListener('input',rxClearSync);
+  $('rxTarget').addEventListener('keydown',ev=>{
+    if(ev.key==='Escape'&&($('rxTarget').value||'').trim()){ ev.preventDefault(); rxClearBtn.onclick(); }
+  });
+  rxClearSync();
   wireObjectList('rxTarget');
   $('btnAddTgt').onclick=()=>openTargetForm(null);
   $('btnFilters').onclick=openFilters;
@@ -12469,7 +12492,8 @@ function rxDiagHtml(pr,e,dv,t){
 
   </div></details>`;
 }
-function rxPick(name){ $('rxTarget').value=name; persistRx(); refresh(); }
+function rxPick(name){ $('rxTarget').value=name; persistRx(); refresh();
+  const b=$('rxClear'); if(b) b.hidden=false; }
 function rxApply(presetId,bin){
   const p=DB.presets.find(x=>x.id===presetId); if(!p) return;
   applyPreset(p); $('bin').value=String(bin);
@@ -12489,6 +12513,7 @@ function loadRx(){
   $('rxHours').value=v.h||10;
   $('rxNights').value=v.n||3;
   $('rxTarget').value=v.t||'';
+  const b=$('rxClear'); if(b) b.hidden=!(v.t||'').trim();
 }
 /* Costruito una volta sola: dipende dal catalogo, non dalla configurazione, e
    comporre 169 schede sintetiche a ogni refresh sarebbe lavoro buttato. */
