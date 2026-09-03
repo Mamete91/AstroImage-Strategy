@@ -17,7 +17,7 @@ const ONGC=fs.existsSync(__dirname+'/data/openngc.json')
 let OWNED=DB.default_filters.slice();
 const ctx={DB,TG,CAT:CAT.objects,CITIES:CIT.cities,OWNED,console,Math,Date,Object,JSON,isFinite,parseFloat,Number,window:{}};
 const fn=new Function(...Object.keys(ctx), pure+`
-  return {camSpec,resolveSensor,dyeAnchor,gainModes,
+  return {camSpec,resolveSensor,dyeAnchor,gainModes,resolveNight,nightWindows,planNights,synthTarget,
           derive,refCfg,timeFactor,rates,varRate,factorValidated,skyRateFor,bandSpec,cfaFraction,
           oscEfficiency,bayerDye,mosaicFrac,bandThroughput,
           qeAt,interp,samplingVerdict,framing,nightProfile,
@@ -1637,6 +1637,98 @@ const dref=M.derive({tel:rc.telescope,red:rc.reducer,cam:rc.camera});
 chk('il riferimento resta a fattore 1 esatto',M.timeFactor(dref,'Ha',600),1,1e-12);
 chk('e la sua camera e riconosciuta',!!M.camSpec(dref.c).sensor,true,
   M.camSpec(dref.c).sensor.name);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA NOTTE RICHIESTA E LA NOTTE VERA
+   La data nel campo e una RICHIESTA — «non prima di questa notte» — e il motore
+   la risolve nella prima notte in cui l'oggetto esiste davvero. Prima erano due
+   variabili temporali scollegate: le ore si calcolavano sulla notte CHIESTA e il
+   piano si posava su quelle TROVATE.
+   ═══════════════════════════════════════════════════════════════════════════ */
+console.log('\n--- la notte richiesta e la notte vera ---');
+{
+const dv=M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1});
+const sB=DB.sites.find(x=>x.id==='borno');
+const st={lat:sB.lat_deg,lon:sB.lon_deg,sqm:sB.sqm_zenith,seeing:sB.seeing_typ_arcsec,rms:0.6,
+  horizonMin:Math.min(...Object.values(sB.horizon).filter(v=>typeof v==='number')),
+  clearFrac:sB.clear_night_fraction};
+st.fwhm=M.effFWHM(st.seeing,st.rms);
+const eskimo=M.synthTarget(CAT.objects.find(x=>x.name==='NGC 2392'));
+const oggi=new Date(2026,8,3,12,0,0);            // riferimento fisso: 3 settembre 2026
+
+/* Il caso segnalato. NGC 2392 e in Gemini: a settembre, da Borno, sorge quando
+   la notte astronomica e gia finita. Il motore scandiva avanti e pianificava in
+   ottobre — cosa corretta — senza dirlo a nessuno. */
+const rn=M.resolveNight(eskimo,st,new Date(2026,8,11,12,0,0),{now:oggi});
+console.log(`      NGC 2392 chiesto l 11 set → prima notte vera ${rn.date.toLocaleDateString('it-IT')}`+
+  ` (+${rn.shift} g, ${rn.skipped.length} notti scartate)`);
+chk('la notte chiesta si risolve nella prima notte utile',rn.usable,true);
+chk('e lo spostamento e un numero, non un silenzio',rn.shift>0,true,'+'+rn.shift+' giorni');
+chk('la notte risolta e SEMPRE uguale o successiva a quella chiesta',rn.date>=rn.wanted,true);
+chk('ogni notte scartata dichiara il proprio perche',
+  rn.skipped.length>0&&rn.skipped.every(k=>k.why&&k.why.length>3),true);
+chk('la prima ragione e che l oggetto non sale',/sotto la soglia/.test(rn.skipped[0].why),true,
+  rn.skipped[0].why);
+/* Il difetto vero: sulla notte CHIESTA l'oggetto non esiste, quindi le ore utili
+   sono zero e la Luna non e nemmeno misurabile. Calcolare la prescrizione la e
+   calcolarla nel vuoto. */
+const npChiesta=M.nightProfile(rn.wanted,st.lat,st.lon);
+const npVera=M.nightProfile(rn.date,st.lat,st.lon);
+const eC=M.evaluate(eskimo,dv,st,npChiesta,{});
+const eV=M.evaluate(eskimo,dv,st,npVera,{});
+console.log(`      ore utili sul critico: notte chiesta ${eC.critH.toFixed(2)} h · notte vera ${eV.critH.toFixed(2)} h`);
+chk('sulla notte chiesta le ore utili sono zero',eC.critH<0.01,true);
+/* dMagV e null, non NaN. E isFinite(null) in JS vale TRUE, perche null coerce
+   a zero: e proprio il modo in cui una notte inesistente si traveste da notte
+   senza Luna. Il controllo va fatto su null, non sulla finitezza. */
+chk('e la Luna non e nemmeno misurabile',eC.dMagV==null,true,String(eC.dMagV));
+chk('sulla notte vera le ore utili esistono',eV.critH>0.5,true,eV.critH.toFixed(2)+' h');
+chk('e la Luna e un numero',eV.dMagV!=null&&isFinite(eV.dMagV),true,'ΔmagV '+eV.dMagV.toFixed(2));
+/* Il piano deve posarsi sulla notte risolta, e le sue notti devono coincidere
+   con quelle che la risoluzione ha trovato: una sola catena, non due. */
+const pr=M.prescribe(eV,8,dv);
+const pl=M.planNights(pr,eV,dv,3,{site:st,date:rn.date});
+const w=M.nightWindows(eskimo,st,rn.date,3,{});
+chk('il piano parte dalla notte risolta',
+  w.nights[0].date.toDateString()===rn.date.toDateString(),true,
+  w.nights[0].date.toLocaleDateString('it-IT'));
+chk('e non scarta piu nulla: la prima notte e gia buona',w.skipped.length,0);
+
+/* Nessun falso positivo: lo stesso oggetto in stagione non si muove di un giorno. */
+const inv=M.resolveNight(eskimo,st,new Date(2027,0,15,12,0,0),{now:oggi});
+chk('lo stesso oggetto in stagione non viene spostato',inv.shift,0);
+chk('e non scarta nessuna notte',inv.skipped.length,0);
+/* E un oggetto estivo chiesto d estate nemmeno. */
+const cres=TG.targets.find(x=>x.names[0]==='NGC 6888');
+chk('un oggetto in stagione non viene spostato',
+  M.resolveNight(cres,st,new Date(2026,8,11,12,0,0),{now:oggi}).shift,0);
+
+/* Il passato si DICHIARA, non si corregge da solo: guardare cosa si e ripreso
+   una notte trascorsa e una richiesta legittima. */
+const pas=M.resolveNight(cres,st,new Date(2026,7,20,12,0,0),{now:oggi});
+chk('una notte passata viene contata in giorni',pas.past,14);
+chk('e non viene spostata a stanotte di nascosto',pas.wanted.getMonth(),7);
+chk('mentre una notte futura non e passata',
+  M.resolveNight(cres,st,new Date(2026,9,20,12,0,0),{now:oggi}).past,0);
+
+/* Un oggetto che da qui non sale MAI deve dirlo, non restituire una data finta.
+   Il catalogo curato non contiene nulla sotto i -45°, quindi il caso si costruisce:
+   da 46°N un oggetto a dec -70° non passa mai l'orizzonte, in nessuna notte
+   dell'anno. Il motore non deve rispondere con una data. */
+{const invisibile={...cres,id:'test_sud',names:['test sud'],ra_deg:6.0,dec_deg:-70.0};
+ const r=M.resolveNight(invisibile,st,new Date(2026,8,11,12,0,0),{now:oggi,horizonDays:60});
+ console.log(`      oggetto a dec -70° da ${st.lat.toFixed(0)}°N: utilizzabile ${r.usable},`+
+   ` notti scandite ${r.scanned}`);
+ chk('un oggetto che non sale mai lo dichiara',r.usable,false);
+ chk('e non inventa una data',r.date.toDateString(),r.wanted.toDateString());
+ chk('e dice quante notti ha guardato prima di arrendersi',r.scanned>=60,true,r.scanned+' notti');
+ chk('con la ragione su ognuna',r.skipped.every(k=>/sotto la soglia/.test(k.why)),true);}
+/* Senza bersaglio non c e niente da risolvere: la notte chiesta resta quella. */
+const vuoto=M.resolveNight(null,st,new Date(2026,8,11,12,0,0),{now:oggi});
+chk('senza bersaglio la notte chiesta resta intatta',vuoto.shift,0);
+chk('e non si inventa uno stato di utilizzabilita',vuoto.usable,null);
 }
 
 console.log(`\n${pass} verifiche superate, ${fail} fallite\n`);

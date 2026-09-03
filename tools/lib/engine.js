@@ -17,6 +17,7 @@ const ctx={DB,TG,CAT:CAT.objects,CITIES:CIT.cities,OWNED:DB.default_filters.slic
   console,Math,Date,Object,JSON,isFinite,parseFloat,parseInt,Number,window:{}};
 const M=new Function(...Object.keys(ctx),pure+`return {derive,refCfg,timeFactor,rates,varRate,
   qeAt,camSpec,resolveSensor,dyeAnchor,gainModes,gainModeFor,oscEfficiency,bayerDye,mosaicFrac,
+  nightWindows,nightsBounds,bestStart,planNights,resolveNight,moonIllum,moonPos,toJD,altaz,lstDeg,
   bandThroughput,samplingVerdict,framing,nightProfile,effFWHM,evaluate,prescribe,synthTarget,
   roadChannels,roadSum,costGroups,accessibleH,moonPenalty,lpPenalty,filterFor,
   dualPass,BAND_LAMBDA,BB_NM,leakOf,kExt,mosaicPanels,binAdvice,expectFor,

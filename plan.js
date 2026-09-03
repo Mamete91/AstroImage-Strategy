@@ -19,7 +19,7 @@ const CITJ=JSON.parse(fs.readFileSync(path.join(D,'data/cities.json'),'utf8'));
 const OWNED=DB.default_filters.slice();
 const ctx={DB,TG,CAT:CATJ.objects,CITIES:CITJ.cities,OWNED,console,Math,Date,Object,JSON,
            isFinite,parseFloat,Number,Array,String,window:{}};
-const M=new Function(...Object.keys(ctx),pure+`return {derive,evaluate,prescribe,nightProfile,
+const M=new Function(...Object.keys(ctx),pure+`return {derive,evaluate,prescribe,nightProfile,resolveNight,
   nightWindows,nightsBounds,planNights,bestStart,exposurePlan,subPlan,subExposure,
   ninaSequence,ninaCheck,mountRms,effFWHM,synthTarget,framing,mosaicPanels,fmt};`)(...Object.values(ctx));
 
@@ -45,7 +45,12 @@ const site={lat:S.lat_deg,lon:S.lon_deg,sqm:S.sqm_zenith,seeing:S.seeing_typ_arc
   horizonMin:Math.min(...Object.values(S.horizon).filter(v=>typeof v==='number')),
   clearFrac:S.clear_night_fraction};
 site.rms=M.mountRms(P.mount,dv.scale); site.fwhm=M.effFWHM(site.seeing,site.rms);
-const np=M.nightProfile(date,site.lat,site.lon);
+/* La data e una RICHIESTA: si risolve nella prima notte in cui l'oggetto esiste
+   davvero, e da li in giu vale quella. Calcolare le ore su una notte in cui
+   l'oggetto non sale, e poi pianificare su altre, erano due catene separate. */
+const RN=M.resolveNight(t,site,date,{});
+const notte=RN.usable===false?date:RN.date;
+const np=M.nightProfile(notte,site.lat,site.lon);
 const e=M.evaluate(t,dv,site,np,{});
 const pr=M.prescribe(e,hours,dv);
 const mos=M.mosaicPanels(t,dv,undefined,rot), panels=Math.max(1,mos.cols*mos.rows);
@@ -53,8 +58,18 @@ const H=s=>console.log('\n\x1b[1m'+s+'\x1b[0m');
 const f=(x,n=1)=>M.fmt(x,n);
 
 console.log(`\n\x1b[1m${t.names[0]}\x1b[0m — ${P.label}, bin ${bin}, ${S.name}`);
+if(RN.past>0)
+  console.log(`\x1b[33m   la notte chiesta e passata da ${RN.past} giorn${RN.past===1?'o':'i'}: `
+    +`i conti valgono come analisi, non come piano.\x1b[0m`);
+if(RN.shift>0)
+  console.log(`\x1b[33m   notte spostata: il ${RN.wanted.toLocaleDateString('it-IT')} l'oggetto da qui non e `
+    +`utilizzabile (${RN.skipped[0].why}).\n   Prima notte vera: ${RN.date.toLocaleDateString('it-IT')}, `
+    +`+${RN.shift} giorni, ${RN.skipped.length} notti scartate. Tutto quanto segue e di QUELLA notte.\x1b[0m`);
+if(RN.usable===false)
+  console.log(`\x1b[31m   da qui l'oggetto non supera mai i ${Math.round(RN.floor)}° per almeno `
+    +`${M.fmt(RN.minNight,1)} h nelle prossime ${RN.scanned} notti: non c'e stagione.\x1b[0m`);
 console.log(`${dv.F} mm f/${f(dv.fRatio)} · ${f(dv.scale,2)}"/px · FWHM ${f(site.fwhm,2)}" · SQM ${f(site.sqm)}`);
-console.log(`data di partenza ${date.toLocaleDateString('it-IT')} · ${hours} h richieste su ${N} notti`);
+console.log(`notte ${notte.toLocaleDateString('it-IT')}${RN.shift>0?' (chiesta '+RN.wanted.toLocaleDateString('it-IT')+')':''} · ${hours} h richieste su ${N} notti`);
 
 H('1 · PRESCRIZIONE (non la tocca il pianificatore)');
 console.log(`   livello ${pr.level} · strada ${pr.road.id} · spese ${f(pr.spent,2)} h di ${hours}`);
@@ -74,7 +89,7 @@ console.log(`   overhead tolto: ${f(b.windows.overhead)} h a notte · soglia di 
 H('3 · GUARDIA');
 console.log(`   notti ammesse: da ${b.min} a ${b.max}   (servono ${f(b.need,1)} h, le prime ${b.windows.nights.length} notti ne offrono ${f(b.capacity,0)})`);
 const expo0=M.exposurePlan(pr,dv,site,{panels,archetype:t.archetype,tg:t});
-const pl=M.planNights(pr,e,dv,N,{site,date,panels,expo:expo0,mode:MODE});
+const pl=M.planNights(pr,e,dv,N,{site,date:notte,panels,expo:expo0,mode:MODE});
 if(!pl.ok){ console.log(`   \x1b[31mRIFIUTATO (${pl.reason.code})\x1b[0m ${pl.reason.msg}`); process.exit(0); }
 console.log(`   ${N} notti: dentro l'intervallo`);
 const bs=M.bestStart(t,dv,site,date,N,{});

@@ -1,3 +1,6 @@
 .sync-*.tar.gz
 sequenze/
 node_modules/
+
+# copie di cortesia dei file consegnati in chat: il documento vero sta in docs/
+Claude outputs/

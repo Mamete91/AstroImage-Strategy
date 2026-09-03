@@ -1638,6 +1638,47 @@ function nightWindows(tg,site,start,count,opts){
   return out;
 }
 
+/* ═════════════════════════════════════════════════════════════════════════
+   LA NOTTE RICHIESTA E LA NOTTE VERA
+   Corretto 2026-09. C'erano DUE variabili temporali che non si parlavano.
+
+   La data nel campo veniva usata per il fondo cielo, la Luna e quindi per le ORE
+   della prescrizione. Il piano invece chiamava nightWindows(), che scandisce
+   avanti e SCARTA le notti in cui l'oggetto non sale abbastanza — e su un oggetto
+   fuori stagione ne scarta molte. Chiedendo NGC 2392 per l'11 settembre da Borno
+   il motore scartava venti notti di fila («oggetto sempre sotto la soglia», poi
+   «solo 0.1 h sopra i 35°», «0.2 h», «0.3 h»…) e posava il piano sul 1° ottobre.
+
+   Il calcolo era giusto. Il difetto era che nessuno lo diceva, e soprattutto che
+   le ore restavano calcolate sulla notte CHIESTA mentre il piano si eseguiva su
+   quelle TROVATE: la Luna dell'11 settembre era all'1% sotto l'orizzonte, quella
+   del 1-3 ottobre al 44-68%. Prescrizione su una notte, esecuzione su un'altra.
+
+   Ora la data e' una richiesta — «non prima di questa notte» — e il motore la
+   RISOLVE nella prima notte in cui l'oggetto esiste davvero. Tutta la catena a
+   valle usa la notte risolta, e lo spostamento si dichiara.
+
+   Il passato non si corregge da solo: una notte gia' passata puo' essere una
+   richiesta legittima (si guarda cosa si e' ripreso), quindi si segnala e si
+   offre il salto, non si impone.                                              */
+function resolveNight(tg,site,wanted,opts){
+  const o=opts||{};
+  const day=d=>new Date(d.getFullYear(),d.getMonth(),d.getDate(),12,0,0);
+  const w0=day(wanted instanceof Date?wanted:new Date(wanted));
+  const oggi=day(o.now instanceof Date?o.now:new Date());
+  const past=w0<oggi?Math.round((oggi-w0)/86400000):0;
+  const base={wanted:w0,date:w0,shift:0,past,skipped:[],usable:null};
+  if(!tg||!site||tg.ra_deg==null) return base;
+  const w=nightWindows(tg,site,w0,1,o);
+  if(!w.nights.length)
+    return {...base,usable:false,skipped:w.skipped,scanned:w.scanned,
+            floor:w.floor,minNight:w.minNight,critBand:w.critBand};
+  const first=day(w.nights[0].date);
+  return {wanted:w0,date:first,shift:Math.round((first-w0)/86400000),past,
+          usable:true,night:w.nights[0],skipped:w.skipped,
+          floor:w.floor,minNight:w.minNight,critBand:w.critBand};
+}
+
 /* La guardia. Un numero di notti non è un'opinione: o le ore ci stanno o no.
    MINIMO — la capienza cumulata delle prime N notti reali deve coprire le ore
      prescritte. Cento ore in una notte non esistono, e dirlo prima vale più
@@ -1807,7 +1848,8 @@ function planNights(pr,e,dv,nights,opts){
   if(N<bounds.min) return {ok:false,reason:{code:'poche',want:bounds.min,
     hours:Math.floor((bounds.cumul[N-1]||0)/panels*2)/2,
     msg:`${N} nott${N===1?'e non basta':'i non bastano'}. ${N===1?'Nella prima notte utile':'Nelle prime '+N+' notti utili'} `+
-        `da qui ci sono ${fmt(bounds.cumul[N-1]||0,1)} h realmente disponibili, e il piano ne chiede `+
+        `${W.nights.length?'a partire dal '+W.nights[0].date.toLocaleDateString('it-IT',{day:'numeric',month:'long'}):'da qui'} `+
+        `ci sono ${fmt(bounds.cumul[N-1]||0,1)} h realmente disponibili, e il piano ne chiede `+
         `${fmt(bounds.need,1)}. Il minimo è ${bounds.min} nott${bounds.min===1?'e':'i'} — oppure scendi a `+
         `${fmt(Math.floor((bounds.cumul[N-1]||0)/panels*2)/2,1)} h, che in ${N===1?'una notte':N+' notti'} ci stanno.`},
     bounds,nights:[],windows:W};
@@ -4360,6 +4402,13 @@ let RXEVAL=null;
    generica per M31, è la prescrizione di M31 PER QUESTA CONFIGURAZIONE. Finché
    era una riga grigia sotto il titolo, nessuno la leggeva — e senza quella
    nessuno dei numeri sotto significa niente. */
+/* Giorno locale in forma ISO. toISOString() converte in UTC e a est di
+   Greenwich, a mezzogiorno, restituisce il giorno giusto per caso: a ovest no.
+   Un pianificatore di notti non puo' sbagliare il giorno per un fuso. */
+const isoDay=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')
+  +'-'+String(d.getDate()).padStart(2,'0');
+const dayLabel=d=>d.toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'short'});
+
 function rxContext(){
   const dv=derive(CFG);
   const sn=$('site').selectedOptions[0]?$('site').selectedOptions[0].textContent:'sito personalizzato';
@@ -4384,20 +4433,45 @@ function rxContext(){
         `seeing ${fmt(SITE.seeing,1)}″ ⊕ guida ${fmt(SITE.rms,2)}″`)}
     ${cell('Campionamento',fmt(dv.scale,2)+'″/px',
         `<span class="pill ${samp.cls}" style="font-size:10px">${samp.k}</span>`)}
-    ${(()=>{const d=$('date').value;
+    ${(()=>{const rn=RXNIGHT;
+      const chiesta=$('date').value;
+      /* La Luna si legge sulla notte VERA. Mostrare quella della notte chiesta
+         mentre il piano ne usa un'altra era il difetto: l'11 settembre la Luna
+         era all'1% sotto l'orizzonte, e il piano si eseguiva su nottate al 44-68%. */
+      const d=(rn&&rn.date)?isoDay(rn.date):chiesta;
       const np=nightProfile(new Date(d+'T12:00:00'),SITE.lat,SITE.lon);
       const mid=np.astro.start&&np.astro.end
         ? new Date((np.astro.start.getTime()+np.astro.end.getTime())/2) : new Date(d+'T00:00:00');
       const mi=moonIllum(toJD(mid)), mp=moonPos(toJD(mid));
       const mAlt=altaz(mp.ra,mp.dec,SITE.lat,lstDeg(toJD(mid),SITE.lon)).alt;
-      /* La data non è un dettaglio di contorno: sposta la Luna, e la Luna decide
-         quali canali sono utilizzabili quella notte. Programmare in avanti senza
-         poterla cambiare da qui significava non programmare affatto. */
+      const luna=`Luna ${Math.round(mi.k*100)}%, ${mAlt>0?'alta '+fmt(mAlt,0)+'°':'sotto l\'orizzonte'}`;
+      /* Tre cose da dichiarare, e nessuna va corretta in silenzio: la notte
+         chiesta e' passata, la notte chiesta non serve a niente per questo
+         oggetto, l'oggetto non sale abbastanza in nessuna notte dell'orizzonte. */
+      let nota='';
+      if(rn&&rn.past>0) nota+=` · <span class="off p-warn" data-tip="${esc(
+        'La notte scelta e passata da '+rn.past+' giorn'+(rn.past===1?'o':'i')+
+        '. Il motore la calcola comunque — puo servire a capire cosa si e ripreso — ma non e una notte pianificabile.')
+        }">notte passata</span>`;
+      if(rn&&rn.shift>0) nota+=` · <span class="off p-warn" data-tip="${esc(
+        'Quella notte l\'oggetto non e utilizzabile: resta sotto i '+Math.round(rn.floor||35)+
+        '° oppure ci sta cosi poco che non copre il minimo di '+fmt(rn.minNight||1,1)+
+        ' h. Il motore ha scandito avanti e la prima notte vera e questa, '+rn.shift+
+        ' giorni dopo. Ore, Luna, soglie e piano qui sotto sono di QUESTA notte, non di quella chiesta.'+
+        (rn.skipped&&rn.skipped.length?' Prima: '+rn.skipped.slice(0,3).map(k=>
+          dayLabel(k.date)+' — '+k.why).join(' · ')+(rn.skipped.length>3?' …':''):''))
+        }">spostata di ${rn.shift} g</span>`;
+      if(rn&&rn.usable===false) nota+=` · <span class="off p-bad" data-tip="${esc(
+        'Nelle prossime '+(rn.scanned||180)+' notti l\'oggetto non supera mai i '+
+        Math.round(rn.floor||35)+'° per almeno '+fmt(rn.minNight||1,1)+
+        ' h da questo sito. Non e una questione di ore: da qui, in questa stagione, non c\'e.')
+        }">mai utilizzabile</span>`;
       return `<div><div class="ck">${tip('Notte','moon')}</div>
-        <div class="cv"><input type="date" id="rxDate" value="${esc(d)}"
+        <div class="cv"><input type="date" id="rxDate" value="${esc(chiesta)}"
           style="font:inherit;font-size:15px;font-weight:700;color:var(--fg);background:transparent;
-                 border:none;border-bottom:1px dotted var(--dim2);padding:0"></div>
-        <div class="cn">Luna ${Math.round(mi.k*100)}%, ${mAlt>0?'alta '+fmt(mAlt,0)+'°':'sotto l\'orizzonte'}</div></div>`;})()}
+                 border:none;border-bottom:1px dotted var(--dim2);padding:0">${
+          rn&&rn.shift>0?` <span class="muted" style="font-size:12px;font-weight:400">→ ${esc(dayLabel(rn.date))}</span>`:''}</div>
+        <div class="cn">${luna}${nota}</div></div>`;})()}
     <div class="grow"></div>
     <button class="fn fn-cfg" onclick="document.getElementById('tel').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('tel').focus()"
       >Modifica configurazione</button>
@@ -4416,11 +4490,20 @@ function rxMoon(band,e){
   return {p,f};
 }
 
+let RXNIGHT=null;                 // la notte risolta: la usano barra, scheda e piano
+const rxDate=()=>new Date(($('date').value||'')+'T12:00:00');
+
 function renderRx(np){
   const out=$('rxOut'); if(!out) return;
-  $('rxCtx').innerHTML=rxContext();
   const q=($('rxTarget').value||'').trim();
   const hours=rxHours();
+  /* La barra si disegna SEMPRE, subito, sulla notte chiesta: renderRx() esce
+     presto da parecchie strade — oggetto non trovato, non deep-sky, filtro
+     mancante — e legarla alla risoluzione lasciava la barra della richiesta
+     precedente. Quando la notte si sposta, si ridisegna una seconda volta con
+     quella vera: due render sono niente, una barra bugiarda no. */
+  RXNIGHT=null;
+  $('rxCtx').innerHTML=rxContext();
 
   if(!q){
     /* Dodici, non quattro — e con addosso il perché: classe fisica e ore utili. Un
@@ -4475,7 +4558,17 @@ function renderRx(np){
   }
 
   const dv=derive(CFG);
-  const e=EVAL.find(x=>x.tg.id===t.id)||evaluate(t,dv,SITE,np,STATE);
+  /* Qui si chiude la catena. La notte si risolve UNA volta, e da qui in giu' —
+     ore, Luna, soglie, posa, piano — vale quella risolta, non quella chiesta. */
+  const RN=resolveNight(t,SITE,rxDate(),OPSET);
+  RXNIGHT=RN;
+  /* Si ridisegna solo se c'e' qualcosa di nuovo da dire. */
+  if(RN.shift>0||RN.past>0||RN.usable===false) $('rxCtx').innerHTML=rxContext();
+  const npRx=RN.shift>0?nightProfile(RN.date,SITE.lat,SITE.lon):np;
+  /* La pozza EVAL e' calcolata sulla notte chiesta: se la notte si e' spostata
+     NON si puo' riusare, o si tornerebbe al difetto di partenza. */
+  const e=RN.shift>0?evaluate(t,dv,SITE,npRx,STATE)
+                    :(EVAL.find(x=>x.tg.id===t.id)||evaluate(t,dv,SITE,np,STATE));
   RXEVAL=e;
   const pr=prescribe(e,hours,dv);
   const L=RXLVL[pr.level];
@@ -4873,8 +4966,9 @@ const hm=h=>{const m=Math.round(h*60); return m>=60?`${Math.floor(m/60)} h ${Str
 
 function rxPlanHtml(pr,e,dv,t){
   const N=rxNights();
-  const dstr=$('date').value;
-  const date=new Date(dstr+'T12:00:00');
+  /* La notte e' quella risolta in renderRx: rileggere il campo qui era proprio
+     il punto in cui le due variabili temporali si separavano. */
+  const date=(RXNIGHT&&RXNIGHT.date)||rxDate();
   const fit=framing(t,dv,rotFor(t));
   const mos=mosaicPanels(t,dv,undefined,rotFor(t));
   const panels=Math.max(1,mos.cols*mos.rows);
@@ -5049,7 +5143,25 @@ function rxWindowsHtml(w,n){
       <div class="idx">${fmtDate(x.date)}</div>
       <div class="ch"><span class="muted">alt. max ${fmt(x.maxAlt,0)}° · Luna ${Math.round(x.moonK*100)}%</span></div>
       <div class="hh">${fmt(x.availH,1)} h</div></div>`).join('');
-  return `<p class="small muted" style="margin:10px 0 2px">Le ore che queste date offrono davvero,
+  /* «da qui» non basta: bisogna dire DOVE e' qui. Un elenco di date d'ottobre
+     sotto una richiesta di settembre, senza una riga che spieghi il salto, si
+     legge come un errore del programma — e per venti nottate lo sembrava. */
+  const rn=RXNIGHT;
+  const salto=(rn&&rn.shift>0)?`<div class="warnbox" style="margin:8px 0">
+      <b>Non si parte dalla notte che hai chiesto.</b> Il ${esc(dayLabel(rn.wanted))} l'oggetto
+      da qui non è utilizzabile: ${esc(rn.skipped&&rn.skipped.length?String(rn.skipped[0].why):'resta troppo basso')}.
+      La prima notte vera è il <b>${esc(dayLabel(rn.date))}</b>, ${rn.shift} giorni più in là, e
+      <b>tutto quello che leggi sopra — ore, Luna, soglie, posa — è di quella notte</b>, non di quella chiesta.
+      ${rn.skipped&&rn.skipped.length>1?`<div class="small muted" style="margin-top:6px">Scartate ${rn.skipped.length} notti: ${
+        esc(rn.skipped.slice(0,4).map(k=>dayLabel(k.date)+' '+k.why.replace(/^solo /,'')).join(' · '))
+      }${rn.skipped.length>4?' …':''}</div>`:''}
+    </div>`:'';
+  const passata=(rn&&rn.past>0)?`<div class="warnbox" style="margin:8px 0">
+      <b>La notte che hai chiesto è passata</b> da ${rn.past} giorn${rn.past===1?'o':'i'}.
+      I conti restano validi come analisi, ma un piano su una notte trascorsa non si può eseguire.
+      <div style="margin-top:6px"><button class="fn fn-plan solid" onclick="setRxDate('${isoDay(new Date())}')">porta a stanotte</button></div>
+    </div>`:'';
+  return passata+salto+`<p class="small muted" style="margin:10px 0 2px">Le ore che queste date offrono davvero,
     già al netto di ${fmt(w.overhead,1)} h di messa a fuoco, plate solve e calibrazione della guida:</p>${rows}`;
 }
 function setNights(n){ $('rxNights').value=String(n); persistRx(); refresh(); }
