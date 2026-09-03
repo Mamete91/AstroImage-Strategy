@@ -598,4 +598,18 @@ esattamente il problema che questo progetto esiste per risolvere.
 
 ## Licenza
 
-MIT.
+**Software proprietario.** © 2026 Alessandro Curci — tutti i diritti riservati.
+
+Questo **non** è software open source. L'uso è consentito attraverso il servizio web
+ufficiale, per finalità personali e non commerciali. Il codice sorgente è pubblicato per
+trasparenza e consultazione: non è concessa alcuna licenza per copiarlo, modificarlo,
+distribuirlo, forkarlo, incorporarlo in altri prodotti o servizi, né per usarlo a fini
+commerciali. Ogni uso ulteriore richiede autorizzazione scritta preventiva.
+
+Termini completi in **[LICENSE](LICENSE)**.
+
+> **Eccezione — dati di terze parti.** `data/openngc.json` è derivato da
+> [OpenNGC](https://github.com/mattiaverga/OpenNGC) di Mattia Verga ed è distribuito
+> sotto **CC-BY-SA-4.0**, insieme al testo di licenza e all'attribuzione che lo
+> accompagnano — vedi [data/OPENNGC-CREDITS.md](data/OPENNGC-CREDITS.md). Quel materiale
+> resta soggetto alla propria licenza e non è coperto dalle restrizioni proprietarie.

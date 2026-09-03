@@ -1,0 +1,489 @@
+ASTROIMAGE-STRATEGY — PROPRIETARY SOFTWARE LICENSE
+
+Copyright © 2026 Alessandro Curci. All rights reserved. / Tutti i diritti riservati.
+
+Versione 1.0 — 3 settembre 2026
+Repository ufficiale: https://github.com/Mamete91/AstroImage-Strategy
+
+
+AVVISO / NOTICE
+
+Questo NON è software open source e NON è software libero. La pubblicazione del
+codice sorgente su GitHub ha finalità di trasparenza e consultazione e non
+costituisce concessione di alcun diritto di copia, modifica o ridistribuzione.
+
+This is NOT open source and NOT free software. Publication of the source code on
+GitHub is for transparency and inspection purposes only and grants no right to
+copy, modify or redistribute.
+
+Fa eccezione il materiale di terze parti indicato alla Sezione 7, che resta
+soggetto alla propria licenza originaria.
+The third-party material identified in Section 7 is excepted and remains subject
+to its own original license.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ TESTO ITALIANO — VERSIONE FACENTE FEDE
+═══════════════════════════════════════════════════════════════════════════════
+
+
+1. DEFINIZIONI
+
+1.1 «Autore» indica Alessandro Curci, titolare esclusivo dei diritti sul
+    Software, salvo quanto previsto dalla Sezione 7.
+
+1.2 «Software» indica AstroImage-Strategy nel suo complesso: il codice sorgente,
+    il codice oggetto ed eseguibile, il modello fisico e le formule che lo
+    implementano, il motore di calcolo, il catalogo curato dei target, le schede,
+    gli archetipi, gli algoritmi, l'interfaccia utente, la struttura del
+    progetto, la documentazione, i file di dati e ogni altro contenuto del
+    Repository, con esclusione del materiale di terze parti di cui alla
+    Sezione 7.
+
+1.3 «Repository» indica https://github.com/Mamete91/AstroImage-Strategy e ogni
+    sua copia, mirror o pubblicazione autorizzata dall'Autore.
+
+1.4 «Servizio» indica l'applicazione web AstroImage-Strategy quale resa
+    disponibile e mantenuta ufficialmente dall'Autore.
+
+1.5 «Utente» indica la persona fisica o giuridica che accede al Software, al
+    Servizio o al Repository, in qualunque forma.
+
+1.6 «Uso commerciale» indica ogni uso diretto o indiretto finalizzato a un
+    vantaggio economico o a un corrispettivo, ivi compresi l'erogazione di
+    servizi a terzi, la consulenza, la formazione a pagamento, l'inserimento in
+    un'offerta commerciale e l'uso interno a un'attività d'impresa o
+    professionale.
+
+
+2. NATURA PROPRIETARIA DEL SOFTWARE
+
+2.1 Il Software è software proprietario. È protetto dalla legge sul diritto
+    d'autore, dalle norme in materia di programmi per elaboratore e banche dati
+    e dai trattati internazionali applicabili.
+
+2.2 Il Software è concesso in uso nei soli limiti della Sezione 3. Non è in
+    alcun caso venduto, ceduto né trasferito. L'Autore conserva la piena ed
+    esclusiva titolarità di ogni diritto, titolo e interesse sul Software.
+
+
+3. AMBITO DELLA LICENZA CONCESSA
+
+3.1 L'Autore concede all'Utente una licenza personale, non esclusiva, non
+    trasferibile, non sublicenziabile, revocabile e limitata a: utilizzare
+    l'applicazione attraverso il Servizio, esclusivamente per uso personale e
+    non commerciale.
+
+3.2 La licenza di cui al punto 3.1 è l'unica concessa. Non si estende al codice
+    sorgente, che è regolato dalla Sezione 4.
+
+3.3 L'Autore non assume alcun obbligo di erogare, mantenere, aggiornare o
+    conservare il Servizio, che può essere modificato, sospeso o cessato in
+    qualsiasi momento e senza preavviso.
+
+
+4. NESSUNA LICENZA SUL CODICE SORGENTE
+
+4.1 Nessuna licenza, espressa o implicita, è concessa sul codice sorgente del
+    Software oltre a quanto espressamente indicato nella presente licenza.
+
+4.2 La possibilità tecnica di leggere, scaricare o clonare il codice sorgente
+    dal Repository, o di ispezionare il codice eseguito dal browser nell'ambito
+    del normale funzionamento del Servizio, non costituisce e non implica
+    concessione di alcun diritto di utilizzo, riproduzione, modifica o
+    distribuzione di tale codice.
+
+
+5. RESTRIZIONI
+
+5.1 Senza preventiva autorizzazione scritta dell'Autore è vietato:
+
+    (a) copiare o riprodurre il Software o parti del codice sorgente, in tutto o
+        in parte, con qualsiasi mezzo e su qualsiasi supporto;
+
+    (b) modificare, adattare, tradurre o creare opere derivate del Software o di
+        parti di esso;
+
+    (c) distribuire, pubblicare, trasmettere, concedere in licenza o
+        sublicenza, noleggiare, prestare o comunque rendere disponibile a terzi
+        il Software o il codice sorgente;
+
+    (d) effettuare fork del Repository o redistribuire copie del progetto;
+
+    (e) incorporare il Software o parti di esso in altri prodotti, servizi,
+        applicazioni, modelli o insiemi di dati;
+
+    (f) utilizzare il Software o il codice sorgente per finalità commerciali;
+
+    (g) aggirare, disattivare o alterare eventuali limitazioni o misure tecniche
+        adottate dall'Autore per proteggere il Software o il Servizio.
+
+5.2 È altresì vietato, negli stessi limiti, decompilare, disassemblare o
+    sottoporre il Software a reverse engineering, salvo nei limiti inderogabili
+    consentiti dalla legge applicabile.
+
+5.3 È vietato rimuovere, oscurare o alterare le note di copyright, le
+    attribuzioni e i riferimenti alla presente licenza.
+
+5.4 Le restrizioni della presente Sezione non si applicano al materiale di terze
+    parti di cui alla Sezione 7 e non pregiudicano gli atti che l'Utente ha
+    diritto di compiere in forza di norme inderogabili di legge.
+
+
+6. PUBBLICAZIONE SU GITHUB
+
+6.1 La pubblicazione del Repository su GitHub non costituisce concessione di
+    alcun diritto sul Software, fatti salvi esclusivamente i diritti minimi
+    eventualmente imposti dai Termini di Servizio di GitHub in capo al gestore
+    della piattaforma e ai suoi utenti per il solo funzionamento della
+    piattaforma stessa.
+
+6.2 In caso di contrasto fra la presente licenza e quanto sopra, le funzioni
+    della piattaforma non ampliano i diritti dell'Utente oltre il minimo
+    inderogabile.
+
+
+7. MATERIALI DI TERZE PARTI
+
+7.1 La presente licenza NON si applica ai seguenti materiali, che restano
+    soggetti alle rispettive licenze originarie e prevalgono su ogni
+    disposizione contrastante della presente licenza:
+
+    (a) data/openngc.json — strato catalografico derivato da OpenNGC
+        (Mattia Verga, https://github.com/mattiaverga/OpenNGC), concesso in
+        licenza Creative Commons Attribution-ShareAlike 4.0 International
+        (CC-BY-SA-4.0). Trattandosi di opera derivata, tale file è distribuito
+        sotto la medesima licenza CC-BY-SA-4.0;
+
+    (b) data/OPENNGC-LICENSE.txt — testo integrale della licenza di cui alla
+        lettera (a);
+
+    (c) data/OPENNGC-CREDITS.md — attribuzione e descrizione delle modifiche
+        apportate al materiale di cui alla lettera (a).
+
+7.2 Nessuna disposizione della presente licenza limita, né può essere
+    interpretata come limitativa, dei diritti concessi dalla licenza
+    CC-BY-SA-4.0 sui materiali di cui al punto 7.1. In particolare, le
+    restrizioni di cui alla Sezione 5 non si applicano a tali materiali.
+
+7.3 Ogni altro contenuto del Repository — ivi compresi il codice che genera,
+    filtra e arricchisce lo strato catalografico (tools/build-openngc.js), il
+    modello fisico, il motore, il catalogo curato, le schede, gli archetipi, la
+    documentazione e l'interfaccia — è Software proprietario ai sensi della
+    Sezione 2.
+
+
+8. RISERVA DI DIRITTI
+
+Tutti i diritti non espressamente concessi dalla presente licenza restano
+riservati all'Autore. Nessun diritto è concesso per implicazione, preclusione o
+altro titolo. Nessuna licenza è concessa su marchi, denominazioni, loghi o
+brevetti dell'Autore.
+
+
+9. ESCLUSIONE DI GARANZIE
+
+Il Software e il Servizio sono forniti «così come sono» («as is») e «come
+disponibili», senza garanzie di alcun tipo, espresse o implicite, nella misura
+massima consentita dalla legge applicabile. Sono in particolare escluse le
+garanzie di commerciabilità, idoneità a uno scopo particolare, assenza di
+violazione di diritti altrui, accuratezza, continuità e assenza di errori.
+
+Il Software fornisce stime e prescrizioni derivate da un modello fisico
+dichiarato e non validato su dati osservativi (si vedano i limiti dichiarati
+nella documentazione). L'Utente resta l'unico responsabile delle proprie
+decisioni operative e del proprio uso dei risultati.
+
+
+10. LIMITAZIONE DI RESPONSABILITÀ
+
+Nella misura massima consentita dalla legge applicabile, l'Autore non risponde
+in alcun caso di danni diretti, indiretti, incidentali, speciali, punitivi o
+consequenziali, né di perdita di dati, di tempo di osservazione, di profitto o
+di opportunità, derivanti dall'uso o dall'impossibilità d'uso del Software o del
+Servizio, anche se avvisato della possibilità di tali danni.
+
+Nulla nella presente licenza esclude o limita la responsabilità che non possa
+essere esclusa o limitata per legge, ivi compresa quella per dolo o colpa grave.
+
+
+11. DURATA E RISOLUZIONE
+
+11.1 La licenza di cui alla Sezione 3 ha effetto dal primo utilizzo e cessa
+     automaticamente, senza necessità di comunicazione, in caso di violazione di
+     una qualsiasi disposizione della presente licenza.
+
+11.2 Alla cessazione, l'Utente deve interrompere ogni uso del Software e
+     distruggere ogni copia in proprio possesso, fatta eccezione per i materiali
+     di cui alla Sezione 7.
+
+11.3 Le Sezioni 1, 2, 4, 5, 6, 7, 8, 9, 10, 11.3, 13 e 14 sopravvivono alla
+     cessazione.
+
+
+12. RICHIESTE DI AUTORIZZAZIONE
+
+Ogni autorizzazione ulteriore rispetto a quanto concesso dalla presente licenza —
+ivi compresi usi commerciali, integrazioni, opere derivate e licenze
+personalizzate — deve essere richiesta preventivamente e per iscritto all'Autore
+tramite il Repository ufficiale indicato in intestazione. Il silenzio non
+costituisce assenso.
+
+
+13. LEGGE APPLICABILE E FORO
+
+La presente licenza è regolata dalla legge italiana. Per ogni controversia è
+competente il foro del luogo di residenza dell'Autore, salve le norme
+inderogabili a tutela del consumatore che attribuiscano competenza al foro del
+consumatore.
+
+
+14. DISPOSIZIONI FINALI
+
+14.1 L'eventuale invalidità o inefficacia di una clausola non pregiudica le
+     restanti, che restano pienamente efficaci; la clausola invalida è sostituita
+     da quella valida più prossima alla volontà originaria.
+
+14.2 La tolleranza o il mancato esercizio di un diritto da parte dell'Autore non
+     costituisce rinuncia allo stesso.
+
+14.3 L'Autore può pubblicare versioni successive della presente licenza. Le
+     modifiche non hanno effetto retroattivo sugli usi già consentiti al momento
+     della pubblicazione della nuova versione.
+
+14.4 La presente licenza costituisce l'intero accordo fra l'Autore e l'Utente
+     riguardo al Software e sostituisce ogni precedente dichiarazione di licenza
+     relativa al medesimo, ivi compresa ogni indicazione di licenza MIT
+     eventualmente contenuta in versioni anteriori del Repository.
+
+14.5 Il testo italiano che precede è la versione facente fede. La traduzione
+     inglese che segue è fornita per comodità; in caso di divergenza prevale il
+     testo italiano.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ ENGLISH TEXT — COURTESY TRANSLATION (the Italian text above prevails)
+═══════════════════════════════════════════════════════════════════════════════
+
+
+1. DEFINITIONS
+
+1.1 "Author" means Alessandro Curci, sole owner of the rights in the Software,
+    except as provided in Section 7.
+
+1.2 "Software" means AstroImage-Strategy as a whole: the source code, object and
+    executable code, the physical model and the formulas implementing it, the
+    computation engine, the curated target catalogue, the target sheets, the
+    archetypes, the algorithms, the user interface, the project structure, the
+    documentation, the data files and any other content of the Repository,
+    excluding the third-party material identified in Section 7.
+
+1.3 "Repository" means https://github.com/Mamete91/AstroImage-Strategy and any
+    copy, mirror or publication thereof authorised by the Author.
+
+1.4 "Service" means the AstroImage-Strategy web application as officially made
+    available and maintained by the Author.
+
+1.5 "User" means any natural or legal person accessing the Software, the Service
+    or the Repository, in any form.
+
+1.6 "Commercial use" means any direct or indirect use aimed at economic
+    advantage or consideration, including the provision of services to third
+    parties, consultancy, paid training, inclusion in a commercial offering, and
+    internal use within a business or professional activity.
+
+
+2. PROPRIETARY NATURE OF THE SOFTWARE
+
+2.1 The Software is proprietary software. It is protected by copyright law, by
+    the rules on computer programs and databases, and by applicable
+    international treaties.
+
+2.2 The Software is licensed for use only within the limits of Section 3. It is
+    never sold, assigned or transferred. The Author retains full and exclusive
+    ownership of all right, title and interest in the Software.
+
+
+3. SCOPE OF THE LICENSE GRANTED
+
+3.1 The Author grants the User a personal, non-exclusive, non-transferable,
+    non-sublicensable, revocable and limited license to use the application
+    through the Service, solely for personal and non-commercial purposes.
+
+3.2 The license under 3.1 is the only one granted. It does not extend to the
+    source code, which is governed by Section 4.
+
+3.3 The Author undertakes no obligation to provide, maintain, update or preserve
+    the Service, which may be modified, suspended or discontinued at any time
+    and without notice.
+
+
+4. NO LICENSE TO THE SOURCE CODE
+
+4.1 No license, express or implied, is granted in the source code of the
+    Software beyond what is expressly stated in this license.
+
+4.2 The technical ability to read, download or clone the source code from the
+    Repository, or to inspect the code executed by the browser in the ordinary
+    operation of the Service, neither constitutes nor implies the grant of any
+    right to use, reproduce, modify or distribute that code.
+
+
+5. RESTRICTIONS
+
+5.1 Without the Author's prior written authorisation, it is prohibited to:
+
+    (a) copy or reproduce the Software or parts of the source code, in whole or
+        in part, by any means and on any medium;
+
+    (b) modify, adapt, translate or create derivative works of the Software or
+        parts of it;
+
+    (c) distribute, publish, transmit, license or sublicense, rent, lend or
+        otherwise make the Software or the source code available to third
+        parties;
+
+    (d) fork the Repository or redistribute copies of the project;
+
+    (e) incorporate the Software or parts of it into other products, services,
+        applications, models or datasets;
+
+    (f) use the Software or the source code for commercial purposes;
+
+    (g) circumvent, disable or alter any technical limitations or measures
+        adopted by the Author to protect the Software or the Service.
+
+5.2 It is likewise prohibited, within the same limits, to decompile, disassemble
+    or reverse engineer the Software, save to the extent mandatorily permitted
+    by applicable law.
+
+5.3 It is prohibited to remove, obscure or alter copyright notices,
+    attributions and references to this license.
+
+5.4 The restrictions in this Section do not apply to the third-party material
+    identified in Section 7 and do not prejudice acts the User is entitled to
+    perform under mandatory provisions of law.
+
+
+6. PUBLICATION ON GITHUB
+
+6.1 Publication of the Repository on GitHub does not constitute the grant of any
+    right in the Software, save solely for the minimum rights that GitHub's
+    Terms of Service may impose in favour of the platform operator and its users
+    for the sole operation of the platform itself.
+
+6.2 In the event of conflict between this license and the above, platform
+    features do not extend the User's rights beyond the mandatory minimum.
+
+
+7. THIRD-PARTY MATERIALS
+
+7.1 This license does NOT apply to the following materials, which remain subject
+    to their respective original licenses and prevail over any conflicting
+    provision of this license:
+
+    (a) data/openngc.json — catalogue layer derived from OpenNGC (Mattia Verga,
+        https://github.com/mattiaverga/OpenNGC), licensed under the Creative
+        Commons Attribution-ShareAlike 4.0 International license
+        (CC-BY-SA-4.0). Being a derivative work, that file is distributed under
+        the same CC-BY-SA-4.0 license;
+
+    (b) data/OPENNGC-LICENSE.txt — full text of the license referred to in (a);
+
+    (c) data/OPENNGC-CREDITS.md — attribution and description of the
+        modifications made to the material referred to in (a).
+
+7.2 Nothing in this license limits, or may be construed as limiting, the rights
+    granted by the CC-BY-SA-4.0 license in the materials referred to in 7.1. In
+    particular, the restrictions in Section 5 do not apply to those materials.
+
+7.3 All other content of the Repository — including the code that generates,
+    filters and enriches the catalogue layer (tools/build-openngc.js), the
+    physical model, the engine, the curated catalogue, the target sheets, the
+    archetypes, the documentation and the interface — is proprietary Software
+    within the meaning of Section 2.
+
+
+8. RESERVATION OF RIGHTS
+
+All rights not expressly granted by this license are reserved to the Author. No
+right is granted by implication, estoppel or otherwise. No license is granted in
+the Author's trademarks, trade names, logos or patents.
+
+
+9. DISCLAIMER OF WARRANTIES
+
+The Software and the Service are provided "as is" and "as available", without
+warranties of any kind, express or implied, to the maximum extent permitted by
+applicable law. In particular, the warranties of merchantability, fitness for a
+particular purpose, non-infringement, accuracy, continuity and freedom from
+error are excluded.
+
+The Software provides estimates and prescriptions derived from a declared
+physical model that has not been validated against observational data (see the
+declared limits in the documentation). The User remains solely responsible for
+their own operational decisions and for their use of the results.
+
+
+10. LIMITATION OF LIABILITY
+
+To the maximum extent permitted by applicable law, the Author shall in no event
+be liable for any direct, indirect, incidental, special, punitive or
+consequential damages, nor for loss of data, observing time, profit or
+opportunity, arising from the use of or inability to use the Software or the
+Service, even if advised of the possibility of such damages.
+
+Nothing in this license excludes or limits liability that cannot be excluded or
+limited by law, including liability for wilful misconduct or gross negligence.
+
+
+11. TERM AND TERMINATION
+
+11.1 The license under Section 3 takes effect upon first use and terminates
+     automatically, without notice, upon breach of any provision of this
+     license.
+
+11.2 Upon termination, the User must cease all use of the Software and destroy
+     any copy in their possession, except for the materials referred to in
+     Section 7.
+
+11.3 Sections 1, 2, 4, 5, 6, 7, 8, 9, 10, 11.3, 13 and 14 survive termination.
+
+
+12. AUTHORISATION REQUESTS
+
+Any authorisation beyond what is granted by this license — including commercial
+use, integrations, derivative works and custom licenses — must be requested in
+advance and in writing from the Author through the official Repository indicated
+in the heading. Silence does not constitute consent.
+
+
+13. GOVERNING LAW AND JURISDICTION
+
+This license is governed by Italian law. Any dispute shall be subject to the
+jurisdiction of the courts of the Author's place of residence, without prejudice
+to mandatory consumer-protection rules conferring jurisdiction on the consumer's
+forum.
+
+
+14. FINAL PROVISIONS
+
+14.1 The invalidity or unenforceability of any clause shall not affect the
+     remaining clauses, which remain fully effective; the invalid clause shall
+     be replaced by the valid one closest to the original intent.
+
+14.2 The Author's forbearance or failure to exercise a right does not constitute
+     a waiver of that right.
+
+14.3 The Author may publish subsequent versions of this license. Changes have no
+     retroactive effect on uses already permitted at the time the new version is
+     published.
+
+14.4 This license constitutes the entire agreement between the Author and the
+     User regarding the Software and supersedes any prior license statement
+     relating to it, including any MIT license indication contained in earlier
+     versions of the Repository.
+
+14.5 The Italian text above is the prevailing version. This English translation
+     is provided for convenience; in case of divergence the Italian text
+     prevails.

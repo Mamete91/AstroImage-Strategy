@@ -27,5 +27,6 @@ Cosa è stato fatto sui dati originali:
 La mappatura è nostra e non fa parte di OpenNGC: eventuali errori di classificazione
 astrofotografica sono da attribuire a questo progetto, non alla fonte.
 
-Il resto del progetto (codice, catalogo curato, schede, archetipi) resta sotto licenza
-MIT come dichiarato nel README.
+Il resto del progetto (codice, catalogo curato, schede, archetipi) è **software
+proprietario** — © 2026 Alessandro Curci, tutti i diritti riservati. Vedi
+[`LICENSE`](../LICENSE) nella root del repository.
