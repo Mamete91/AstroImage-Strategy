@@ -4324,12 +4324,19 @@ function enrichTargets(){
     (o.aliases||[]).forEach(a=>{ if(!key.has(norm(a))) key.set(norm(a),o); });
   }
   let n=0;
+  /* Due innesti INDIPENDENTI. Prima l'angolo di posizione faceva da guardia a
+     tutto il ciclo: una scheda che ce l'avesse gia' saltava anche la
+     magnitudine, che e' una proprieta' senza alcun rapporto con lui. Oggi
+     nessuna scheda porta pa_deg nei dati e la funzione gira una volta sola,
+     quindi il difetto non morde ancora — ma morderebbe al primo target che
+     arrivasse con l'angolo gia' dentro, e la magnitudine e' cio' da cui
+     objectSatTime ricava il tetto del soggetto: perderla lo rende cieco. */
   for(const t of TG.targets){
-    if(t.pa_deg!=null) continue;
     let src=null;
     for(const nm of t.names){ src=key.get(norm(nm)); if(src) break; }
-    if(src&&src.pa_deg!=null){ t.pa_deg=src.pa_deg; n++; }
-    if(src&&t.mag==null&&src.mag!=null) t.mag=src.mag;
+    if(!src) continue;
+    if(t.pa_deg==null && src.pa_deg!=null){ t.pa_deg=src.pa_deg; n++; }
+    if(t.mag==null   && src.mag!=null)    t.mag=src.mag;
   }
   return n;
 }
