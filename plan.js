@@ -97,11 +97,19 @@ if(bs) console.log(`   \x1b[33mpartendo dal ${bs.date.toLocaleDateString('it-IT'
 
 H('4 · POSA (decisa una volta sul totale, prima del piano)');
 const expo=expo0;
-Object.keys(expo).filter(k=>k!=='__modes').forEach(k=>{const x=expo[k],ex=x.ex;
+/* __modes e __hdr sono chiavi di servizio della mappa, non bande: la mappa le
+   porta accanto alle pose e vanno saltate entrambe. Saltarne una sola faceva
+   fallire questo strumento su ogni target con archetipo HDR. */
+Object.keys(expo).filter(k=>k!=='__modes'&&k!=='__hdr').forEach(k=>{const x=expo[k],ex=x.ex;
   console.log(`   ${k.padEnd(5)} ${String(ex.sec).padStart(4)} s  gain ${String(ex.gm.gain).padEnd(4)} bin ${dv.bin}  `+
     `${String(Math.round(x.totalH*3600/ex.sec)).padStart(4)} pose  vincolo ${ex.binding.padEnd(22)} `+
     `resa ${String(Math.round(ex.eff*100)).padStart(3)}%  satura oltre V ${f(ex.magSafe)}`);});
 Object.values(expo.__modes||{}).forEach(m=>console.log(`   modo ${m.mode.name} (gain ${m.mode.gain}) su ${m.bands.join('/')}: ${m.why}`));
+/* La serie corta fa parte del piano, quindi si dichiara. Nessun calcolo qui:
+   si stampa quello che exposurePlan() ha gia' messo in __hdr. */
+if(expo.__hdr){ const h=expo.__hdr;
+  console.log(`   serie corta ${h.sec} s x ${h.n} su ${h.bands.join('/')} = ${f(h.hours,2)} h,`+
+    ` sottratta al canale ${h.group} della prima notte${h.why?' — '+h.why:''}`); }
 
 H('5 · PIANO — modalita '+(MODE==='sessione'?'SESSIONE COMPLETA (ogni notte autonoma)':'OTTIMIZZAZIONE SUL PROGETTO'));
 let tot=0;
