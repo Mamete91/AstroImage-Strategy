@@ -578,6 +578,17 @@ td.archcell{max-width:120px}
 .hero-input .clr{position:static;flex:none;margin-left:var(--s2)}
 .hero-row{display:flex;gap:var(--s4);flex-wrap:wrap;align-items:stretch}
 .hero-num{justify-content:center;max-width:150px}
+/* Il tempo disponibile non e' un campo: e' un risultato. Ha la forma di un dato
+   letto, non di una casella da riempire — nessun bordo da input, nessun cursore. */
+.hero-avail{display:flex;flex-direction:column;justify-content:center;gap:2px;
+  background:var(--bg3);border:1px solid var(--line);border-radius:var(--radius);
+  padding:9px var(--s4);flex:1 1 240px;min-width:210px;border-bottom:none}
+.ha-k{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim2)}
+.ha-v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;
+  color:var(--fn-plan)}
+.ha-v .u{font-size:12px;font-weight:500;color:var(--dim)}
+.ha-v.short{color:var(--warn)}
+.ha-n{font-size:11.5px;color:var(--dim);line-height:1.45}
 .hero-num input{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
 .hero-go{font-size:15px;font-weight:600;padding:0 var(--s6);align-self:stretch;min-height:56px}
 
@@ -823,8 +834,8 @@ td.archcell{max-width:120px}
           <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg></span>
         <div class="ch-txt">
           <h2>Strategia di acquisizione</h2>
-          <div class="ch-sub">Cosa vuoi riprendere, quante ore hai, in quante notti.
-            Il resto lo calcola il motore.</div>
+          <div class="ch-sub">Cosa vuoi riprendere, in quale notte, in quante notti.
+            Le ore le conta il motore: sono quelle che l'oggetto concede da qui.</div>
         </div>
       </div>
       <div class="card-body">
@@ -848,12 +859,14 @@ td.archcell{max-width:120px}
           </div>
           <div class="hero-row">
             <div id="rxCtx"></div>
-            <label class="f hero-num">Quante ore hai
-              <input type="number" id="rxHours" step="0.5" min="0.5" max="300"
-                title="Ore totali che puoi dedicare a questo oggetto, non quelle di una notte sola"></label>
             <label class="f hero-num">In quante notti
               <input type="number" id="rxNights" step="1" min="1" max="60"
-                title="Solo distribuzione: non cambia le ore per canale, decide come spalmarle"></label>
+                title="Le notti che vuoi dedicare al progetto. Le ore le conta il motore."></label>
+            <div class="hero-avail" data-tip="Le ore in cui l'oggetto sta sopra la soglia di altezza dentro la notte astronomica, meno l'overhead operativo. Non le decidi tu: le decide il cielo di questo sito in queste notti.">
+              <div class="ha-k">Tempo disponibile</div>
+              <div class="ha-v" id="rxHours">&mdash;</div>
+              <div class="ha-n" id="rxNeed">scegli un oggetto</div>
+            </div>
             <button class="primary hero-go" id="rxGo">Prescrivi</button>
           </div>
         </div>
@@ -5074,7 +5087,13 @@ const ARCH_SHORT={hii_classic:'HII',hii_faint_he:'HII debole',wr_bubble:'bolla W
   elliptical_group:'ellittica',tidal_ifn:'maree / IFN',
   cluster_globular:'globulare',cluster_open:'aperto'};
 const shortArch=key=>ARCH_SHORT[key]||((TG.archetypes[key]||{}).label||'');
-const rxHours=()=>clamp(+$('rxHours').value||10,0.5,300);
+/* Le ore non si chiedono piu' all'utente: le conta il motore sulle notti che ha
+   scelto. RXAVAIL e' la somma di availH — ore sopra la soglia di altezza dentro
+   la notte astronomica, meno l'overhead — sulle prime N notti utili a partire da
+   quella risolta. La calcola renderRx() con nightWindows(), che e' la stessa
+   funzione da cui passano il piano e la guardia: una sorgente sola. */
+let RXAVAIL=0;
+const rxHours=()=>RXAVAIL>0?RXAVAIL:10;
 const rxNights=()=>Math.round(clamp(+$('rxNights').value||3,1,60));
 // l'ultima valutazione mostrata: gli oggetti composti dal catalogo non stanno in EVAL
 let RXEVAL=null;
@@ -5202,6 +5221,41 @@ function bestNightHtml(){
 }
 function renderBest(){ const b=$('bestNight'); if(b) b.innerHTML=bestNightHtml(); }
 
+/* IL TEMPO DISPONIBILE, dichiarato invece che chiesto.
+   Tre numeri, tutti gia' calcolati altrove: quante ore offrono le notti scelte,
+   quante ne chiede la strada per intero — pr.roadTotals.ideal, cioe' il costo
+   pieno di quella che il motore ha scelto — e quante notti servirebbero per
+   arrivarci. Nessuna formula nuova: si cammina sulle stesse finestre di
+   nightWindows() finche' il cumulato copre il fabbisogno, che e' esattamente
+   quello che fa nightsBounds() per la sua guardia. */
+function nightsForHours(t,from,need){
+  if(!(need>0)) return null;
+  const W=nightWindows(t,SITE,from,60,OPSET);
+  let c=0;
+  for(let i=0;i<W.nights.length;i++){ c+=W.nights[i].availH; if(c>=need-1e-9) return i+1; }
+  return null;
+}
+function showAvail(t,rn,n,pr){
+  const v=$('rxHours'), nt=$('rxNeed'); if(!v||!nt) return;
+  /* Senza bersaglio non esiste un numero da mostrare: le ore utili non sono la
+     lunghezza della notte, sono le ore in cui QUESTO oggetto sta abbastanza in
+     alto. Lasciare a schermo quelle del bersaglio precedente sarebbe la stessa
+     bugia della barra che restava sulla notte vecchia. */
+  if(!t){ v.className='ha-v'; v.innerHTML='&mdash;';
+    nt.textContent='scegli un oggetto: le ore utili dipendono da quando sale'; return; }
+  const av=RXAVAIL;
+  v.innerHTML=`${fmt(av,1)}<span class="u"> h</span>`;
+  const ideal=pr&&pr.roadTotals?pr.roadTotals.ideal:0;
+  const corto=ideal>av+1e-9;
+  v.className='ha-v'+(corto?' short':'');
+  const min=corto?nightsForHours(t,rn&&rn.date?rn.date:rxDate(),ideal):null;
+  nt.innerHTML=`su ${n} nott${n===1?'e':'i'} da ${esc(dayLabel(rn&&rn.date?rn.date:rxDate()))}`+
+    (corto
+      ? ` &middot; il progetto intero ne chiede <b>${fmt(ideal,1)}</b>`+
+        (min?`: servono <b>${min}</b> nott${min===1?'e':'i'}`:'')
+      : ` &middot; bastano per la strada intera`);
+}
+
 /* Penalizzazione lunare per la banda di un gruppo, con la larghezza del filtro
    che possiedi davvero: è la ragione per cui un Ha da 7 nm regge una notte che
    una luminanza non regge. */
@@ -5223,13 +5277,12 @@ const rxDate=()=>new Date(($('date').value||'')+'T12:00:00');
 function renderRx(np){
   const out=$('rxOut'); if(!out) return;
   const q=($('rxTarget').value||'').trim();
-  const hours=rxHours();
   /* La barra si disegna SEMPRE, subito, sulla notte chiesta: renderRx() esce
      presto da parecchie strade — oggetto non trovato, non deep-sky, filtro
      mancante — e legarla alla risoluzione lasciava la barra della richiesta
      precedente. Quando la notte si sposta, si ridisegna una seconda volta con
      quella vera: due render sono niente, una barra bugiarda no. */
-  RXNIGHT=null; RXPR=null;
+  RXNIGHT=null; RXPR=null; RXAVAIL=0; showAvail(null);
   $('rxCtx').innerHTML=rxContext();
   /* La carta della configurazione vive in Strumentazione, non piu' nella home. */
   const cc=$('cfgCtx'); if(cc) cc.innerHTML=cfgContext();
@@ -5285,11 +5338,19 @@ function renderRx(np){
   const npRx=RN.shift>0?nightProfile(RN.date,SITE.lat,SITE.lon):np;
   /* La pozza EVAL e' calcolata sulla notte chiesta: se la notte si e' spostata
      NON si puo' riusare, o si tornerebbe al difetto di partenza. */
+  /* Qui si chiude anche la seconda meta' della domanda. Le notti le sceglie chi
+     riprende, le ore no: sono quelle che l'oggetto concede da questo sito, in
+     queste notti. nightWindows() e' gia' quella del piano e della guardia. */
+  const NN=rxNights();
+  const WA=nightWindows(t,SITE,RN.date,NN,OPSET);
+  RXAVAIL=WA.nights.slice(0,NN).reduce((a,x)=>a+x.availH,0);
+  const hours=rxHours();
   const e=RN.shift>0?evaluate(t,dv,SITE,npRx,STATE)
                     :(EVAL.find(x=>x.tg.id===t.id)||evaluate(t,dv,SITE,np,STATE));
   RXEVAL=e;
   const pr=prescribe(e,hours,dv);
-  RXPR=pr;                          // idem: il riepilogo la legge da qui
+  RXPR=pr;
+  showAvail(t,RN,NN,pr);                          // idem: il riepilogo la legge da qui
   const L=RXLVL[pr.level];
   const ba=binAdvice(CFG,SITE.fwhm);
 
@@ -5714,7 +5775,6 @@ function rxPlanHtml(pr,e,dv,t){
     return head+mosNote+`<div class="warnbox">
       <b>Questa combinazione non si può pianificare.</b><br>${esc(pl.reason.msg)}
       ${fixTo?`<div style="margin-top:8px"><button class="fn fn-plan solid" onclick="setNights(${fixTo})">porta a ${fixTo} nott${fixTo===1?'e':'i'}</button>
-        ${pl.reason.hours>0.4?`<button class="fn fn-plan" onclick="setRxHours(${pl.reason.hours})" style="margin-left:6px">oppure ${fmt(pl.reason.hours,1)} h in ${N}</button>`:''}
         <span class="muted" style="margin-left:8px">o cambia le ore: sono due parametri diversi e nessuno dei due corregge l'altro.</span></div>`:''}
       </div>
       ${b.windows?rxWindowsHtml(b.windows,Math.min(6,N)):''}`;
@@ -5884,7 +5944,6 @@ function rxWindowsHtml(w,n){
     già al netto di ${fmt(w.overhead,1)} h di messa a fuoco, plate solve e calibrazione della guida:</p>${rows}`;
 }
 function setNights(n){ $('rxNights').value=String(n); persistRx(); refresh(); }
-function setRxHours(h){ $('rxHours').value=String(h); persistRx(); refresh(); }
 function setRxDate(s){ $('date').value=s; const r=$('rxDate'); if(r) r.value=s; refresh(); }
 
 /* ---------- export N.I.N.A. ---------- */
@@ -6106,11 +6165,10 @@ function rxOpenSheet(id){
 }
 function persistRx(){
   try{ localStorage.setItem('ap_rx',JSON.stringify(
-    {t:$('rxTarget').value,h:$('rxHours').value,n:$('rxNights').value})); }catch(e){}
+    {t:$('rxTarget').value,n:$('rxNights').value})); }catch(e){}
 }
 function loadRx(){
   let v={}; try{ v=JSON.parse(localStorage.getItem('ap_rx')||'{}'); }catch(e){}
-  $('rxHours').value=v.h||10;
   $('rxNights').value=v.n||3;
   $('rxTarget').value=v.t||'';
   const b=$('rxClear'); if(b) b.hidden=!(v.t||'').trim();
@@ -6627,7 +6685,7 @@ function renderSummary(){
     h+=sumBlock('Tempo totale di integrazione',
       `<span class="sumv big">${fmt(pr.spent,1)}<span class="u"> h</span></span>`,
       `Distribuite su ${rxNights()} nott${rxNights()===1?'e':'i'} &middot; `+
-      `richieste ${fmt(rxHours(),1)} h`);
+      `disponibili ${fmt(rxHours(),1)} h`);
     h+=sumBlock('Esito',
       `<span class="pill ${L.pill||'p-dim'}">${esc(L.k||pr.level)}</span>`,
       pr.critGroup?`Canale che decide l'immagine: <b>${esc(pr.critGroup)}</b>.`:'');

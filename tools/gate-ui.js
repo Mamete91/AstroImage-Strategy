@@ -104,7 +104,7 @@ console.log(`      ${STATIC.size} id statici · ${RUNTIME.size} generati a runti
    I contenitori senza i quali una sezione resta muta. */
 console.log('\n--- D · ancoraggi strutturali della dashboard ---');
 const ANCHORS=['app','boot','rows','rxOut','rxCtx','cfgCtx','bestNight',
-               'rxTarget','rxHours','rxNights','rxGo',
+               'rxTarget','rxHours','rxNeed','rxNights','rxGo',
                'derived','night','filtBody','stateList','sumBody','preset','tel','cam','mnt',
                'site','lat','lon','sqm','date','see','rms','bin','drop','fileIn','scanOut',
                'sheet','sheetBody','tgtBody','gearBody','dlObjects'];
