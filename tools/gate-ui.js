@@ -164,5 +164,55 @@ const enrichSrc=fs.existsSync(path.join(ROOT,'tools/lib/enrich.js'))
   ? fs.readFileSync(path.join(ROOT,'tools/lib/enrich.js'),'utf8') : '';
 chk('e non scrive niente su disco', !/writeFileSync|createWriteStream/.test(enrichSrc));
 
+/* ═══ G · la diagnosi nomina il colpevole giusto ═══
+   Sotto il pavimento operativo si finisce per tre motivi: satura il soggetto,
+   il tetto di posa e' basso, oppure le ore non bastano al numero minimo di
+   fotogrammi. Prima l'app diceva sempre «il soggetto satura», anche quando il
+   soggetto non aveva nemmeno una magnitudine con cui saturare. Qui si verifica
+   che non torni il falso positivo — e, altrettanto importante, che la
+   correzione non assolva chi e' davvero colpevole.
+   I due bersagli sono costruiti apposta e non dipendono dai dati: cosi' la
+   verifica misura il ragionamento, non il catalogo del giorno. */
+console.log('\n--- G · attribuzione del vincolo sulla posa ---');
+let ENG=null;
+try{ ENG=require('./lib/engine.js'); }
+catch(e){ chk('il motore si carica da lib/engine.js', false, e.message); }
+if(ENG){
+  const {M,DB,TG}=ENG;
+  const dv=M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1});
+  const mnt=(DB.mounts||[]).find(x=>x.id==='cem70g')||DB.mounts[0];
+  const site={lat:46.0167,lon:10.3333,sqm:20.8,seeing:1.6,horizonMin:20,
+              rms:(dv.scale<0.8?mnt.rms_long_fl_arcsec:mnt.rms_typ_arcsec)||0.8};
+  site.fwhm=M.effFWHM(site.seeing,site.rms);
+  const posa=(tg,akey,band,hours)=>M.subExposure(dv,site,band,
+    {tg,arch:TG.archetypes[akey],archetype:akey,
+     stellar:!!(TG.archetypes[akey]||{}).stellar,hours});
+
+  /* A · soggetto di magnitudine ignota, budget minuscolo. objectSatTime non ha
+     con cui lavorare e restituisce Infinity: il vincolo vero e' il numero
+     minimo di fotogrammi, e non c'e' nessuna saturazione da dichiarare. */
+  const ignoto={id:'__g_ignoto',names:['__g_ignoto'],ra_deg:300,dec_deg:38,
+                size_arcmin:[20,10],archetype:'hii_classic',budget:{},mag:null};
+  const a=posa(ignoto,'hii_classic','R',0.15);
+  chk('con soggetto di magnitudine ignota il tetto del soggetto non esiste',
+      a.tObj===Infinity, 'tObj=∞');
+  chk('la posa finisce sotto il pavimento operativo', a.underFloor===true,
+      a.sec+' s contro un pavimento di '+a.minSub+' s');
+  chk('e il vincolo NON e il soggetto che satura',
+      a.binding!=='il soggetto satura', 'dichiarato: '+a.binding);
+  chk('e nominato il numero minimo di pose', a.binding==='numero minimo di pose');
+
+  /* B · la controprova. Un oggetto minuscolo e brillantissimo — la geometria e
+     la magnitudine di NGC 7027 — satura davvero, e li' l'accusa e' fondata. */
+  const compatto={id:'__g_compatto',names:['__g_compatto'],ra_deg:316,dec_deg:42,
+                  size_arcmin:[0.23,0.23],archetype:'pn_bright',budget:{},mag:8.5};
+  const b=posa(compatto,'pn_bright','OIII',3);
+  chk('su un soggetto compatto e brillante il tetto del soggetto e finito',
+      isFinite(b.tObj), 'tObj='+Math.round(b.tObj)+' s');
+  chk('ed e il piu stretto dei tre', b.tObj<Math.min(b.tRisk,b.tFrames), true);
+  chk('quindi il vincolo resta il soggetto che satura',
+      b.binding==='il soggetto satura', 'dichiarato: '+b.binding);
+}
+
 console.log(`\n${pass} verifiche superate, ${fail} fallite\n`);
 process.exit(fail?1:0);

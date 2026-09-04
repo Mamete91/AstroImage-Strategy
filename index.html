@@ -2934,9 +2934,20 @@ function subExposure(dv,site,band,opts){
     const tMax = Math.min(tSat,risk,tFrames);
     const s=sky*t, eff=Math.sqrt(s/(s+rn*rn));
     const duty=Math.sqrt(t/(t+dl+settle/every));
+    /* Sotto il pavimento operativo si finisce per tre motivi diversi, e finora
+       l'app ne accusava sempre uno solo. Su M27 in R, con un budget di 0,18 h
+       sul canale, il vincolo vero era il numero minimo di pose — tFrames 43 s —
+       ma la diagnosi diceva «il soggetto satura» mentre tObj era infinito, cioe'
+       mentre il soggetto non saturava affatto. In un programma il cui pregio e'
+       dichiarare il perche', una diagnosi falsa costa piu' di un numero storto.
+       Il colpevole e' il piu' basso dei tre tetti: si guarda quale, e si nomina. */
+    const lowCap=Math.min(tObj,risk,tFrames);
     const rec={gm:m,rn,tStar,tObj,tSat,tMax,sec:t,eff,duty,merit:eff*duty,
-      underFloor:t<floorSub-1e-9,   // il soggetto chiede meno di quanto convenga
-      binding: t<floorSub-1e-9 ? 'il soggetto satura'
+      underFloor:t<floorSub-1e-9,   // la posa scende sotto quanto converrebbe
+      binding: t<floorSub-1e-9
+               ? (lowCap===tObj    ? 'il soggetto satura'
+                : lowCap===tFrames ? 'numero minimo di pose'
+                :                    'tetto di posa')
              : t>tMaxStar+1e-9 ? 'pavimento operativo'
              : tMaxStar===tStar ? 'saturazione stellare'
              : tMaxStar===tFrames ? 'numero minimo di pose'
