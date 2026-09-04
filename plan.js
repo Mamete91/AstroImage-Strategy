@@ -16,6 +16,9 @@ const DB=JSON.parse(fs.readFileSync(path.join(D,'data/setups.json'),'utf8'));
 const TG=JSON.parse(fs.readFileSync(path.join(D,'data/targets.json'),'utf8'));
 const CATJ=JSON.parse(fs.readFileSync(path.join(D,'data/catalog.json'),'utf8'));
 const CITJ=JSON.parse(fs.readFileSync(path.join(D,'data/cities.json'),'utf8'));
+/* Stessi input del browser: magnitudine e angolo di posizione innestati da
+   OpenNGC sulle schede e sul catalogo curato. Vedi tools/lib/enrich.js. */
+require(path.join(D,'tools/lib/enrich.js')).enrich(TG,CATJ.objects,D);
 const OWNED=DB.default_filters.slice();
 const ctx={DB,TG,CAT:CATJ.objects,CITIES:CITJ.cities,OWNED,console,Math,Date,Object,JSON,
            isFinite,parseFloat,Number,Array,String,window:{}};

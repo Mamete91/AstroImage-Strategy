@@ -142,5 +142,27 @@ chk('nessun «2.8» introdotto (lo cerca gate-v16)', !/2\.8|×2,8|x2\.8/.test(sc
 chk('nessun «0.8 … 23» introdotto (lo cerca test.js)',
     !/0\.8.{0,20}23|23.{0,20}0\.8x/.test(script));
 
+/* ═══ F · gli stessi input per tutti ═══
+   Il motore deve ricevere le stesse schede da qualunque parte lo si chiami.
+   Senza l'innesto OpenNGC gli strumenti da riga di comando vedono schede senza
+   magnitudine — e objectSatTime restituisce Infinity, cioe' «il soggetto non
+   satura mai» — e senza angolo di posizione, e mosaicPanels ripiega su
+   maggiore x minore, che equivale ad assumere l'oggetto allineato al sensore.
+   Su M31 la differenza vale 2x1 pannelli contro 2x3: il triplo delle ore. */
+console.log('\n--- F · innesto OpenNGC negli strumenti ---');
+const ENRICHED=['plan.js','diag.js','tools/lib/engine.js'];
+const senza=ENRICHED.filter(f=>{
+  const p=path.join(ROOT,f);
+  return !fs.existsSync(p) || !/enrich\.js/.test(fs.readFileSync(p,'utf8'));
+});
+chk('ogni strumento che risolve schede innesta i dati OpenNGC', senza.length===0,
+    senza.length?('SENZA INNESTO: '+senza.join(' ')):ENRICHED.join(' '));
+chk('l helper condiviso esiste', fs.existsSync(path.join(ROOT,'tools/lib/enrich.js')));
+/* L'innesto deve restare a runtime: scrivere i valori dentro catalog.json o
+   targets.json li renderebbe opere derivate di un database CC-BY-SA-4.0. */
+const enrichSrc=fs.existsSync(path.join(ROOT,'tools/lib/enrich.js'))
+  ? fs.readFileSync(path.join(ROOT,'tools/lib/enrich.js'),'utf8') : '';
+chk('e non scrive niente su disco', !/writeFileSync|createWriteStream/.test(enrichSrc));
+
 console.log(`\n${pass} verifiche superate, ${fail} fallite\n`);
 process.exit(fail?1:0);

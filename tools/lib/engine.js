@@ -13,6 +13,10 @@ const pure=html.split('<script>')[1].split('</script>')[0]
   .split('/* =====================================================================\n   UI')[0];
 const J=n=>JSON.parse(fs.readFileSync(path.join(R,'data',n),'utf8'));
 const DB=J('setups.json'), TG=J('targets.json'), CAT=J('catalog.json'), CIT=J('cities.json');
+/* Gli stessi input che riceve il browser: senza magnitudine objectSatTime non
+   vede il tetto del soggetto, senza angolo di posizione mosaicPanels assume
+   l'oggetto allineato al sensore. Vedi tools/lib/enrich.js. */
+require('./enrich.js').enrich(TG,CAT.objects,R);
 const ctx={DB,TG,CAT:CAT.objects,CITIES:CIT.cities,OWNED:DB.default_filters.slice(),
   console,Math,Date,Object,JSON,isFinite,parseFloat,parseInt,Number,window:{}};
 const M=new Function(...Object.keys(ctx),pure+`return {derive,refCfg,timeFactor,rates,varRate,

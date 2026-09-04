@@ -33,6 +33,9 @@ if(ONGC){
       mag:a[9],aliases:a[10]||[],why:a[11],tier:'openngc'});
   }
 }
+/* Il merge qui sopra AGGIUNGE gli oggetti OpenNGC che mancano, ma non innesta
+   magnitudine e angolo su quelli curati che ne sono privi: quello lo fa questo. */
+require(__dirname+'/tools/lib/enrich.js').enrich(TG,CAT.objects,__dirname);
 const OWNED=DB.default_filters.slice();
 const ctx={DB,TG,CAT:CAT.objects,CITIES:CIT.cities,OWNED,console,Math,Date,Object,JSON,
   isFinite,parseFloat,parseInt,Number,window:{}};
