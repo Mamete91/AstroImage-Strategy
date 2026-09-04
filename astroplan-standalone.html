@@ -1061,7 +1061,7 @@ td.archcell{max-width:120px}
           <circle cx="12" cy="12" r="9"/><path d="M12 3v18M3.4 9h17.2M3.4 15h17.2"/></svg></span>
         <div class="ch-txt">
           <h2>Filtri</h2>
-          <div class="ch-sub">Quelli che hai davvero. Decidono quali strade sono percorribili
+          <div class="ch-sub">Quelli che hai davvero. Decidono quali tecniche sono possibili
             e quanta Luna passa.</div>
         </div>
       </div>
@@ -1139,9 +1139,12 @@ td.archcell{max-width:120px}
       <div class="card-body">
         <div class="subhead">Il modello</div>
         <p class="small muted" style="max-width:74ch">
-          I budget orari valgono per la configurazione di riferimento dichiarata in <code>setups.json</code> e vengono
-          riscalati con (f<sub>eff</sub>/f<sub>rif</sub>)²·(p<sub>rif</sub>/p)². Il fondo cielo in banda stretta è modellato
-          per banda, non derivato dall'SQM: in narrowband il pavimento è l'airglow, non l'inquinamento luminoso.
+          Le ore scritte nelle schede valgono per un telescopio di riferimento, e vengono riportate alla tua
+          strumentazione tenendo conto di quanta luce raccoglie e di quanto la distribuisce sul sensore: due
+          strumenti con lo stesso rapporto focale non chiedono le stesse ore se i pixel sono diversi.
+          In banda stretta il fondo cielo non si ricava dall'SQM: sotto un filtro da pochi nanometri quello che
+          resta è la luminescenza naturale dell'atmosfera, non le luci della città — ed è il motivo per cui una
+          nebulosa a emissione resta fattibile da un cielo che rende impossibile una galassia.
         </p>
 
         <div class="subhead">Come si naviga</div>
@@ -9917,17 +9920,17 @@ function binAdvice(cfg,fwhm){
     return {best:1,cls:cur===1?'p-warn':'p-bad',k:cur===1?'bin 1':'torna a bin 1',opts:o,
       txt: cur===1
         ? `Sei già sottocampionato a bin 1 (${sc(1)} con FWHM ${fmt(fwhm,2)}″). Binnare peggiora e basta: se il vincolo è il tempo, il problema è la focale corta, non il binning.`
-        : `A bin ${cur} sei a ${sc(cur)} con una FWHM di ${fmt(fwhm,2)}″: stai buttando via risoluzione a piene mani. Qui è già sottocampionato a bin 1 (${sc(1)}), quindi binnare non è un compromesso, è solo perdita. Le ore che risparmi non ti stanno comprando niente.`};
+        : `A bin ${cur} sei a ${sc(cur)} con una FWHM di ${fmt(fwhm,2)}″: stai buttando via risoluzione a piene mani. Qui è già sottocampionato a bin 1 (${sc(1)}), quindi binnare non è un compromesso, è solo perdita. E non stai nemmeno guadagnando tempo: il binning non cambia le ore che servono, cambia solo il dettaglio che porti a casa.`};
   if(cur===best)
     return {best,cls:'p-ok',k:'bin '+best,opts:o,
       txt: best===1
-        ? `Bin 1 è la scelta giusta con questa FWHM: ${sc(1)} è dentro l'intervallo corretto. Bin 2 (${sc(2)}) dividerebbe il tempo per 4 ma butterebbe via risoluzione che stanotte il cielo ti sta dando.`
-        : `Bin ${best} ti tiene in campionamento corretto (${sc(best)}) e divide il tempo per ${gain(1,best)} rispetto a bin 1. ${BIN_REVERSIBLE}`};
+        ? `Bin 1 è la scelta giusta con questa FWHM: ${sc(1)} è dentro l'intervallo corretto. Bin 2 (${sc(2)}) non ti farebbe finire prima — le ore per arrivare alla stessa profondità sono le stesse — e butterebbe via risoluzione che stanotte il cielo ti sta dando.`
+        : `Bin ${best} ti tiene in campionamento corretto (${sc(best)}): rispetto a bin 1 la stessa luce arriva su ${gain(1,best)} volte meno pixel, quindi meno file da scaricare e da calibrare. Le ore per arrivare alla stessa profondità non cambiano. ${BIN_REVERSIBLE}`};
   if(best>cur)
     return {best,cls:'p-warn',k:'valuta bin '+best,opts:o,
-      txt:`A bin ${cur} sei a ${sc(cur)} contro una FWHM di ${fmt(fwhm,2)}″: stai spendendo ore per raccogliere dettaglio che seeing e guida hanno già distrutto. Bin ${best} porta la scala a ${sc(best)} — campionamento ${at(best).samp.k} — e divide il tempo per ${gain(cur,best)}. ${BIN_REVERSIBLE}`};
+      txt:`A bin ${cur} sei a ${sc(cur)} contro una FWHM di ${fmt(fwhm,2)}″: stai spendendo ore per raccogliere dettaglio che seeing e guida hanno già distrutto. Bin ${best} porta la scala a ${sc(best)} — campionamento ${at(best).samp.k} — con ${gain(cur,best)} volte meno pixel per la stessa area di cielo. Non accorcia il progetto: quello che guadagni è dettaglio meglio accoppiato al seeing, file più leggeri e meno tempo di calibrazione. ${BIN_REVERSIBLE}`};
   return {best,cls:'p-warn',k:'torna a bin '+best,opts:o,
-    txt:`Bin ${cur} ti porta a ${sc(cur)}, sotto il campionamento che questa FWHM (${fmt(fwhm,2)}″) permetterebbe: risparmi tempo ma perdi risoluzione che avresti potuto tenere. Bin ${best} (${sc(best)}) è il compromesso corretto stanotte.`};
+    txt:`Bin ${cur} ti porta a ${sc(cur)}, sotto il campionamento che questa FWHM (${fmt(fwhm,2)}″) permetterebbe: non stai risparmiando ore — il binning non le cambia — e stai perdendo risoluzione che avresti potuto tenere. Bin ${best} (${sc(best)}) è il compromesso corretto stanotte.`};
 }
 
 /* Il secondo livello di budget.
@@ -10557,7 +10560,7 @@ function planNights(pr,e,dv,nights,opts){
   const W=bounds.windows;
 
   if(!live.length) return {ok:false,reason:{code:'vuoto',
-    msg:'Con queste ore il canale critico non arriva alla soglia: non c’è un piano da distribuire.'},
+    msg:'Con queste ore il canale che decide l’immagine non arriva al suo minimo: non c’è un piano da distribuire.'},
     bounds,nights:[],windows:W};
   if(bounds.unreachable) return {ok:false,reason:{code:'irraggiungibile',
     msg:`Da qui l’oggetto non offre abbastanza ore: ${fmt(bounds.capacity,1)} h in `+
@@ -12534,8 +12537,8 @@ function openTargetForm(editId,prefillName){
     <h3>${t?'Modifica':'Aggiungi'} un oggetto</h3>
     <p class="small muted">Scrivi il nome: se sta nel catalogo, coordinate, dimensioni
       <b>e archetipo</b> si compilano da sole. L'archetipo è la cosa che conta di più:
-      determina quale canale è critico, quindi tutto il budget. Finché non è determinato
-      non viene proposto nessun budget.</p>
+      determina quale canale decide l'immagine, e con esso tutte le ore. Finché non è scelto
+      non propongo nessuna ripartizione.</p>
     <div class="row">
       <label class="f" style="flex:2;min-width:220px">Nome
         <input id="tf_name" list="dlObjects" autocomplete="off"
@@ -12573,7 +12576,7 @@ function openTargetForm(editId,prefillName){
     if(!a){
       $('tf_arch_note').innerHTML=`<span class="pill p-dim">non determinato</span>
         <span class="muted">Scrivi il nome: se l'oggetto è in catalogo la classe la
-        riconosco io. Altrimenti scegliela tu — senza, non propongo nessun budget,
+        riconosco io. Altrimenti scegliela tu — senza, non propongo nessuna ripartizione delle ore,
         perché sarebbe inventato.</span>`;
       return;
     }
@@ -12645,7 +12648,7 @@ function saveTarget(editId){
   const a=parseFloat(g('a')), b=parseFloat(g('b'))||parseFloat(g('a'));
   if(!(a>0)) return bad('Dimensione non valida.');
   const key=$('tf_arch').value, ar=TG.archetypes[key];
-  if(!ar) return bad('Scegli un archetipo: senza, il budget sarebbe inventato. Se non sai quale, scrivi il nome — se l\'oggetto è in catalogo la classe la riconosco io.');
+  if(!ar) return bad('Scegli una classe: senza, le ore sarebbero inventate. Se non sai quale, scrivi il nome — se l\'oggetto è in catalogo la classe la riconosco io.');
   const cat=findInCatalog(name);
   /* Stessa composizione usata per gli oggetti di catalogo: un unico punto in cui
      archetipo e dati catalografici diventano una scheda, invece di due che divergono. */
@@ -12787,8 +12790,8 @@ function filtGroups(){
 }
 function openFilters(){
   $('filtBody').innerHTML=`<h3>I tuoi filtri</h3>
-    <p class="small muted">Spunta quelli che hai. Servono a decidere quali strade sono
-      percorribili — senza un SII non esiste un SHO — e a calcolare quanta Luna e quanto
+    <p class="small muted">Spunta quelli che hai. Servono a decidere quali tecniche sono
+      possibili — senza un SII non esiste un SHO — e a calcolare quanta Luna e quanto
       inquinamento luminoso passano davvero, che dipende dalla larghezza di banda.</p>
     ${filtGroups().map(([t,d,list])=>`
       <div class="block"><h4>${t}</h4>
@@ -12845,7 +12848,7 @@ function filtSummary(){
     ? `<b>${own.length}</b> filtri · righe disponibili: <b>${bands.join(' ')||'nessuna'}</b> · ${rgb}`+
       (du.length?` · <span data-tip="Con un sensore a colori un dual-band raccoglie Ha e OIII nella stessa posa: la strada HOO costa il tempo del canale più difficile, non la somma dei due.">dual-band ${du[0].fwhm_nm} nm</span>`:'')+
       (nb.length?` · più stretto ${Math.min(...nb.map(f=>f.fwhm_nm))} nm`:'')
-    : '<span class="p-bad pill">nessun filtro selezionato</span> Senza filtri il motore non sa quali strade sono percorribili.';
+    : '<span class="p-bad pill">nessun filtro selezionato</span> Senza filtri il motore non sa quali tecniche siano possibili.';
 }
 
 /* ---------- tooltip ----------
@@ -12897,13 +12900,13 @@ const G={
  lp:'L\'inquinamento luminoso è quasi tutto luce continua. Un filtro da 3 nm ne lascia passare circa l\'1%, una luminanza a banda larga lo prende tutto: per questo da una città le nebulose a emissione restano fattibili e le galassie no.',
  moon:'Conta più la distanza angolare dalla Luna che la sua fase. Una Luna piena a 100 gradi dal soggetto disturba meno di una Luna a metà a 20 gradi.',
  window:'Ore in cui l\'oggetto sta abbastanza alto perché il canale critico valga la pena. La freccia mostra quanto restano dopo Luna e inquinamento luminoso.',
- weeks:'Ore necessarie divise per le ore utili a notte, divise per la frazione di notti serene. È il numero che dice se ha senso aprire il progetto adesso.',
+ weeks:'Quanto calendario serve, tenendo conto delle ore utili per notte da questo sito e di quante notti sono mediamente serene. È il numero che dice se ha senso aprire il progetto adesso o rimandarlo alla stagione giusta.',
  noscheda:'Oggetto aggiunto da te. Visibilità, inquadratura, Luna e inquinamento luminoso sono calcolati davvero; le ore invece sono una stima per somiglianza di classe.',
  seeing:'Larghezza media delle stelle dovuta alla turbolenza atmosferica, in secondi d\'arco. Non è una costante del posto: cambia da notte a notte e anche nel corso della stessa notte. Mettici quello che misuri sui tuoi sub, non un valore da catalogo.',
  rms:'Errore di inseguimento della montatura, in secondi d\'arco. Dipende da bilanciamento, focale, vento e taratura della guida, quindi il dato del costruttore serve a poco. Si somma in quadratura al seeing e allarga le stelle: quello che scrivi resta legato a questa montatura.',
  arch:'La famiglia fisica a cui appartiene l\'oggetto. È la cosa che conta di più: determina quali righe emette e quindi quale canale è critico.',
  bin:'Quanti pixel sommi in uno in ripresa. Sui CMOS è somma digitale dopo la lettura, non somma di pozzetti prima come sui CCD: il rumore di lettura del pixel binnato cresce come il lato mentre il cielo cresce come il quadrato, quindi il rapporto non si muove e il binning è neutro sul tempo necessario a una data profondità per unità di cielo. Non crea fotoni. Quello che cambia è il campionamento — la scala del pixel, e con essa la risoluzione che porti davvero a casa — il duty cycle, perché meno dati da scaricare vuol dire più pose per ora di orologio, e lo spazio su disco. Puoi riprendere a bin 1 e decidere a nottata finita: binnare in elaborazione dà lo stesso risultato.',
- accessible:'Il progetto in circa metà tempo. Non è una divisione per due: è metà del tempo utile ma mai sotto la soglia, con il canale critico tagliato meno degli altri, perché è quello che decide se l\'immagine si riconosce. Se le soglie mangiano già quasi tutto il budget la versione ridotta non viene mostrata, perché non esiste.'
+ accessible:'Il progetto in circa metà tempo. Non è una divisione per due: è metà del tempo utile ma mai sotto la soglia, con il canale critico tagliato meno degli altri, perché è quello che decide se l\'immagine si riconosce. Se i minimi si mangiano già quasi tutto il tempo, la versione ridotta non viene mostrata: non esiste.'
 };
 const tip=(txt,key)=>`<span data-tip="${esc(G[key]||key)}">${txt}</span>`;
 // "1 settimane" e' il genere di dettaglio che fa sembrare tutto il resto approssimativo
@@ -13046,8 +13049,8 @@ function refresh(){
   const ba=binAdvice(CFG,fwhm);
   set('d_bin_k',tip('Binning','bin'));
   set('d_bin_n',`<span class="pill ${ba.cls}" data-tip="${esc(ba.txt)}">${ba.k}</span> `+
-      `<span data-tip="Il tempo cambia con il quadrato del lato del pixel: bin 2 raccoglie quattro volte più in fretta, sulla stessa scala di un pixel quattro volte più grande.">`+
-      (CFG.bin>1?`tempo ÷${CFG.bin*CFG.bin}`:'tempo di riferimento')+`</span>`);
+      `<span data-tip="Il binning non accorcia il progetto: su un sensore CMOS somma i pixel dopo la lettura, e il rapporto fra segnale e rumore per la stessa porzione di cielo resta quello. Cambia la scala del pixel — quindi il dettaglio che porti a casa — il peso dei file e il tempo di calibrazione.">`+
+      (CFG.bin>1?`${CFG.bin*CFG.bin}× meno pixel`:'scala nativa')+`</span>`);
 
   const d=new Date($('date').value+'T12:00:00');
   const np=nightProfile(d,SITE.lat,SITE.lon);
@@ -13296,7 +13299,7 @@ function showAvail(t,rn,n,pr){
     (corto
       ? ` &middot; il progetto intero ne chiede <b>${fmt(ideal,1)}</b>`+
         (min?`: servono <b>${min}</b> nott${min===1?'e':'i'}`:'')
-      : ` &middot; bastano per la strada intera`);
+      : ` &middot; bastano per il progetto intero`);
 }
 
 /* Penalizzazione lunare per la banda di un gruppo, con la larghezza del filtro
@@ -13400,7 +13403,7 @@ function renderRx(np){
   // filtri mancanti: prima di ogni altra cosa
   if(e.missing.length){
     out.innerHTML=`<div class="rx bad"><h3>${esc(t.names[0])} — ti manca il filtro</h3>
-      <p class="small">La strada consigliata richiede <b>${e.missing.join(', ')}</b> e nella tua
+      <p class="small">La tecnica consigliata richiede <b>${e.missing.join(', ')}</b> e nella tua
       ruota non c'è. Non è una questione di ore: senza quel filtro l'immagine non esiste.
       Se ce l'hai e non l'ho registrato, aggiungilo da <b>Filtri…</b> qui sotto.</p></div>`;
     return;
@@ -13417,7 +13420,7 @@ function renderRx(np){
     const starsOnly = g.id==='RGB' && !g.critical && (g.share||0)===0;
     const note = g.dropped
       ? `soglia ${fmt(g.floor,1)} h — sotto quella non va iniziato`
-      : (g.critical?'canale critico · ':'')+
+      : (g.critical?'è il canale che decide l\'immagine · ':'')+
         (starsOnly?'solo stelle: falle con la Luna, non le tocca'
           : mp.p>0.92?'la Luna non lo tocca'
           : mp.p>0.75?`Luna −${Math.round((1-mp.p)*100)}%`
@@ -13439,7 +13442,7 @@ function renderRx(np){
       (<b>${pr.critGroup}</b>) non arriva alla sua soglia: ne servono <b>${fmt(pr.needed,1)} h</b>
       solo per farlo esistere. Spendere queste ore comunque non ti dà una versione
       più piccola dell'immagine: ti dà rumore da spegnere in elaborazione.</p>
-      <p class="small">Le strade possibili costano <b>${fmt(pr.roadTotals.floor,1)} h</b> al minimo
+      <p class="small">Le tecniche possibili per questo oggetto costano <b>${fmt(pr.roadTotals.floor,1)} h</b> al minimo
       e ${fmt(pr.roadTotals.ideal,1)} h per intero, su questa configurazione.</p>
       ${alts.length?`<h4 style="margin:14px 0 4px;font-size:13px">Con questa strumentazione invece ci sta</h4>
         ${alts.map(a=>`<div class="altrow">
@@ -13478,15 +13481,15 @@ function renderRx(np){
       ${rxPlanHtml(pr,e,dv,t)}`;
   }
 
-  const roadNote=pr.alt.length?`<span class="muted"> · le altre strade in scheda
-    (${pr.alt.map(x=>esc(x.r.name)).join(', ')}) non hanno un budget distinto: stesso costo.</span>`:'';
+  const roadNote=pr.alt.length?`<span class="muted"> · le altre tecniche possibili
+    (${pr.alt.map(x=>esc(x.r.name)).join(', ')}) costano le stesse ore.</span>`:'';
   /* Le ore citate nei testi editoriali («sotto le 12h…») sono scritte per la
      configurazione di riferimento. Su un'ottica più lenta valgono tutt'altro, e
      lasciarle lì senza dirlo è il modo più facile per far sbagliare i conti. */
   const tf=timeFactor(dv,e.critBand,(e.tsub||{})[e.critBand]);
   const tfNote=Math.abs(tf-1)>0.25
     ? ` <span class="muted" data-tip="${esc(G.tfactor)}">Le ore citate qui sopra sono quelle
-       della configurazione di riferimento: sulla tua vanno moltiplicate per ×${fmt(tf,2)}.</span>`:'';
+       del telescopio con cui la scheda è stata scritta; con la tua strumentazione vanno moltiplicate per ×${fmt(tf,2)}.</span>`:'';
   const arch0=TG.archetypes[t.archetype]||{label:'classe non determinata'};
   const head = pr.level==='insufficiente'
     ? `${esc(t.names[0])} — non ci sta in ${fmt(hours,1)} h`
@@ -13878,7 +13881,7 @@ function rxPlanHtml(pr,e,dv,t){
     </div>`;
   const modeNote = PLANMODE==='sessione'
     ? `Ogni notte è una <b>sessione autonoma</b>: tutti i canali previsti, nelle proporzioni
-       della prescrizione, inclinate dove la Luna conviene. Se domani piove, stanotte è già
+       della prescrizione, spostate verso le notti in cui la Luna disturba meno. Se domani piove, stanotte è già
        un'immagine.`
     : `I canali si <b>distribuiscono fra le notti</b> secondo la Luna. Rende di più sul progetto
        intero, ma una singola notte da sola non fa un'immagine.`;
@@ -14259,14 +14262,14 @@ function renderRows(np){
     const rxPill = rx ? `<div class="tsub"><span class="pill ${
         rx.level==='insufficiente'?'p-bad':rx.level==='pieno'||rx.level==='ridotto'?'p-ok':'p-warn'}"
         data-tip="${esc(rx.level==='insufficiente'
-          ? 'Con le ore che hai dichiarato il canale critico non raggiunge la soglia. Non è una versione più piccola: è rumore.'
-          : 'Strada che ci sta nelle ore che hai dichiarato, e a che livello.')}">in ${fmt(RXH,0)} h: ${
+          ? 'Con le ore disponibili il canale che decide l’immagine non arriva al suo minimo. Quello che ne uscirebbe non è una versione più piccola: è rumore.'
+          : 'La tecnica che sta dentro le ore disponibili, e fino a che livello arriva.')}">in ${fmt(RXH,0)} h: ${
         rx.level==='insufficiente'?'non ci sta':esc(rx.road.name.split(/[ ,(]/)[0])+' '+RXLVL[rx.level].k}</span></div>` : '';
     const wk = !isFinite(e.weeks) ? '<span class="muted">—</span>'
       : `${fmt(e.roadH,0)} h`+
-        (e.accReal?` <span class="pill p-dim" data-tip="${esc(G.accessible)}">${fmt(e.roadAccH,0)} h rid.</span>`:'')+
+        (e.accReal?` <span class="pill p-dim" data-tip="${esc(G.accessible)}">${fmt(e.roadAccH,0)} h ridotto</span>`:'')+
         `<div class="tsub"><span data-tip="${esc(G.weeks)}">≈ ${wkTxt(e.weeks)}</span>`+
-        (e.accReal&&isFinite(e.weeksAcc)?` · <span data-tip="${esc(G.accessible)} Tempo di calendario della versione ridotta.">rid. ${wkTxt(e.weeksAcc)}</span>`:'')+
+        (e.accReal&&isFinite(e.weeksAcc)?` · <span data-tip="${esc(G.accessible)} Tempo di calendario della versione ridotta.">ridotto ${wkTxt(e.weeksAcc)}</span>`:'')+
         `</div>`;
     return `<tr class="tgt" onclick="openSheet(${i})">
       <td><div class="tname">${esc(e.tg.names[0])}
@@ -14701,7 +14704,7 @@ function renderSummary(){
   h+=sumBlock('Filtri selezionati',
     own.length?`<div class="sumchips">${bands.map(fchip).join('')}</div>`:SUM_DASH,
     own.length?`${own.length} filtri in ruota`
-              :'Senza filtri il motore non sa quali strade sono percorribili.');
+              :'Senza filtri il motore non sa quali tecniche siano possibili.');
 
   /* --- il cielo --- */
   if(SITE){

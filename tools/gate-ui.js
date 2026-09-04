@@ -46,6 +46,19 @@ const DOMISH=['document.','innerHTML','querySelector','getElementById',
               'addEventListener','localStorage','classList'];
 DOMISH.forEach(k=>chk(`il motore non usa ${k}`, pure.indexOf(k)<0));
 
+/* ═══ A-bis · il blocco script compila ═══
+   Questa mancava, e la sua assenza si e' fatta sentire: test.js valuta la sola
+   fetta MOTORE, quindi un errore di sintassi nello strato UI passa con 483/483
+   verdi e l'applicazione bianca. Basta un apostrofo non sfuggito dentro una
+   stringa. `new Function` compila senza eseguire: e' esattamente il controllo
+   che serve, e costa niente. */
+const compila=(src,dove)=>{ try{ new Function(src); return null; }catch(e){ return e.message; } };
+const errScript=compila(script);
+chk('il blocco script compila senza errori di sintassi', errScript===null,
+    errScript||`${script.length} caratteri`);
+const errPure=compila(pure);
+chk('e la sola fetta motore compila da sola', errPure===null, errPure||'ok');
+
 /* ═══ B · nessuno script prima ═══ */
 console.log('\n--- B · posizione del blocco script ---');
 chk('un solo <script> senza attributi in tutto il file',
