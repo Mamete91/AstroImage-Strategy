@@ -483,26 +483,27 @@
     },
     "dark_molecular": {
       "label": "Nebulosa oscura / molecolare",
-      "logic": "Assorbimento, non emissione. Serve un fondo luminoso da oscurare. Banda larga profonda, oppure Ha come fondo se è immersa in una HII.",
+      "logic": "Assorbimento, non emissione: line_fraction e zero, la nube non emette nulla. Il soggetto e il contrasto contro il fondo, quindi decide la banda larga profonda. L'Ha serve SOLO quando la nube si staglia contro una regione HII, e quello e un fatto del singolo oggetto, non della classe: si dichiara nella scheda, come per B33 davanti a IC 434. Mettere l'Ha nel budget di classe faceva prescrivere ore di banda stretta su oggetti che per definizione non emettono righe.",
       "default_budget": {
         "Ha": {
-          "floor": 1,
-          "useful": 2.5,
-          "saturates": 5,
-          "share": 0.35,
-          "critical": true
+          "floor": 0,
+          "useful": 0,
+          "saturates": 0,
+          "share": 0,
+          "note": "Fuori dal budget di classe: una nube oscura non emette righe (line_fraction 0). Dove esiste un fondo di emissione la cosa appartiene al singolo oggetto e va nella sua scheda con l'evidenza — il caso di riferimento e B33, che infatti sta in catalogo come hii_classic e non qui."
         },
         "L": {
-          "floor": 2,
-          "useful": 5,
-          "saturates": 10,
-          "share": 0.4
+          "floor": 3,
+          "useful": 7.5,
+          "saturates": 15,
+          "share": 0.62,
+          "critical": true
         },
         "RGB": {
-          "floor": 1.5,
-          "useful": 3,
-          "saturates": 6,
-          "share": 0.25
+          "floor": 2.5,
+          "useful": 4.5,
+          "saturates": 9,
+          "share": 0.38
         },
         "OIII": {
           "floor": 0,
@@ -520,7 +521,7 @@
         }
       },
       "default_confidence": "bassa",
-      "order": "Serve il fondo, non l'oggetto: si riprende cio' che la nube oscura. Cielo buio, Luna assente, oggetto alto. Se e' immersa in una HII, l'Ha diventa il fondo migliore e allora la Luna perdona.",
+      "order": "Serve il fondo, non l'oggetto: si riprende cio' che la nube oscura. Luminanza prima, e piu' a lungo di quanto sembri necessario: e il contrasto a costruire la sagoma, non il segnale della nube. Poi il colore, che qui racconta la polvere. Cielo buio e Luna assente non sono preferenze: senza fondo pulito non c'e' contrasto da stirare. Se questa nube in particolare si staglia contro una regione HII, l'Ha diventa il fondo migliore e la Luna perdona — ma va dichiarato nella scheda dell'oggetto, non dedotto dalla classe.",
       "expect": {
         "3h": "La sagoma si distingue ma i bordi sono impastati.",
         "6h": "Il contrasto fra nube e fondo regge lo stretch e la struttura filamentosa emerge.",
@@ -528,6 +529,7 @@
       },
       "traps": [
         "E' l'unico archetipo dove il soggetto e' l'ASSENZA di segnale: ogni gradiente residuo si legge come struttura della nube.",
+        "Il modello fotometrico del motore integra il flusso PROPRIO dell'oggetto, mentre qui il rapporto segnale-rumore vive sul contrasto col fondo. Le ore qui sotto sono quindi una convenzione calibrata sulla scala di 'cosa aspettarti' di questo stesso archetipo, non una derivazione dalla fisica dell'assorbimento: valgono per decidere se vale la nottata, non per pianificare al minuto.",
         "La riduzione rumore aggressiva sul fondo cancella proprio il contrasto che rende visibile la nube.",
         "Una calibrazione del colore sbagliata rende la nube grigia invece che bruna: e' il colore che la racconta."
       ],

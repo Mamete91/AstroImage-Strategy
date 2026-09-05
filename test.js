@@ -1106,11 +1106,36 @@ chk('ruotando di 90 gradi si scambiano',e90.x,16,0.01);
 chk('a 45 gradi il rettangolo che lo contiene e quadrato',Math.abs(e45.x-e45.y)<0.01,true);
 chk('la rotazione e periodica di 180 gradi',
   Math.abs(M.objectExtent(needle,200).x-M.objectExtent(needle,20).x)<1e-9,true);
-/* Senza angolo di posizione non si puo' fare meglio dell'ipotesi peggiore: asse
-   maggiore attraverso il lato corto. E' il comportamento che l'app aveva sempre. */
+/* CAMBIATO 2026-09 — la convenzione sull'angolo ignoto.
+
+   Prima si assumeva l'ipotesi peggiore: asse maggiore attraverso il lato corto,
+   cioe' il quadrato di lato pari all'asse maggiore. Era il caso peggiore su OGNI
+   rotazione simultaneamente — una situazione che nessun oggetto puo' assumere —
+   e comunque non era la convenzione che il motore usava davvero: `mosaicPanels`
+   la scartava e tassellava sugli assi grezzi, `framing` faceva ancora altro. Tre
+   ipotesi diverse sullo stesso ignoto, e in copertura completa la copertura
+   scendeva sotto uno su undici oggetti del catalogo.
+
+   Adesso la convenzione e' una sola e si deriva: se l'angolo e' ignoto non esiste
+   direzione privilegiata, quindi la rappresentazione deve essere ISOTROPA. Il
+   quadrato di lato 2·sqrt((A^2+B^2)/2) e' proprio l'ingombro che l'oggetto assume
+   a 45 gradi — l'orientamento in cui il riquadro che lo contiene e' quadrato, che
+   il test qui sopra verifica gia'. Non e' un numero scelto: e' l'estensione reale
+   a una rotazione reale, ed e' l'unica isotropa. */
 const noPA={names:['x'],size_arcmin:[16,2]};
-chk('senza PA si assume l orientamento peggiore',M.objectExtent(noPA,0).x,16,0.01);
-chk('e la mancanza e dichiarata',M.objectExtent(noPA,0).known,false);
+const exU=M.objectExtent(noPA,0);
+chk('senza PA l ingombro e isotropo',Math.abs(exU.x-exU.y)<1e-12,true);
+chk('e coincide con l ingombro reale a 45 gradi',exU.x,e45.x,1e-9);
+chk('sta sopra il minimo sulle rotazioni: l ignoranza costa',exU.x>2+1e-9,true);
+chk('e sotto il massimo: ma non costa tutto',exU.x<16-1e-9,true);
+chk('la mancanza resta dichiarata',exU.known,false);
+chk('e la base della stima e nel dato',exU.basis,'isotropo');
+chk('con angolo noto la base e il catalogo',M.objectExtent(needle,0).basis,'catalogo');
+/* Su un oggetto circolare la convenzione non deve inventare niente. */
+const tondo={names:['o'],size_arcmin:[10,10]};
+chk('su un oggetto circolare si riduce al cerchio',M.objectExtent(tondo,0).x,10,1e-12);
+/* E l'ingombro grezzo resta leggibile per chi deve dirlo all'utente. */
+chk('gli assi di catalogo restano accessibili',exU.major+'x'+exU.minor,'16x2');
 
 const dvTec=M.derive({tel:'tecnosky115',red:0.80,cam:'asi2600mm',bin:1});
 /* Il caso che giustifica la funzione: M31 sul Tecnosky ridotto passa da sei

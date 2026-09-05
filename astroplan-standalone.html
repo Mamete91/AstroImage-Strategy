@@ -3889,26 +3889,27 @@ window.__TARGETS__={
     },
     "dark_molecular": {
       "label": "Nebulosa oscura / molecolare",
-      "logic": "Assorbimento, non emissione. Serve un fondo luminoso da oscurare. Banda larga profonda, oppure Ha come fondo se è immersa in una HII.",
+      "logic": "Assorbimento, non emissione: line_fraction e zero, la nube non emette nulla. Il soggetto e il contrasto contro il fondo, quindi decide la banda larga profonda. L'Ha serve SOLO quando la nube si staglia contro una regione HII, e quello e un fatto del singolo oggetto, non della classe: si dichiara nella scheda, come per B33 davanti a IC 434. Mettere l'Ha nel budget di classe faceva prescrivere ore di banda stretta su oggetti che per definizione non emettono righe.",
       "default_budget": {
         "Ha": {
-          "floor": 1,
-          "useful": 2.5,
-          "saturates": 5,
-          "share": 0.35,
-          "critical": true
+          "floor": 0,
+          "useful": 0,
+          "saturates": 0,
+          "share": 0,
+          "note": "Fuori dal budget di classe: una nube oscura non emette righe (line_fraction 0). Dove esiste un fondo di emissione la cosa appartiene al singolo oggetto e va nella sua scheda con l'evidenza — il caso di riferimento e B33, che infatti sta in catalogo come hii_classic e non qui."
         },
         "L": {
-          "floor": 2,
-          "useful": 5,
-          "saturates": 10,
-          "share": 0.4
+          "floor": 3,
+          "useful": 7.5,
+          "saturates": 15,
+          "share": 0.62,
+          "critical": true
         },
         "RGB": {
-          "floor": 1.5,
-          "useful": 3,
-          "saturates": 6,
-          "share": 0.25
+          "floor": 2.5,
+          "useful": 4.5,
+          "saturates": 9,
+          "share": 0.38
         },
         "OIII": {
           "floor": 0,
@@ -3926,7 +3927,7 @@ window.__TARGETS__={
         }
       },
       "default_confidence": "bassa",
-      "order": "Serve il fondo, non l'oggetto: si riprende cio' che la nube oscura. Cielo buio, Luna assente, oggetto alto. Se e' immersa in una HII, l'Ha diventa il fondo migliore e allora la Luna perdona.",
+      "order": "Serve il fondo, non l'oggetto: si riprende cio' che la nube oscura. Luminanza prima, e piu' a lungo di quanto sembri necessario: e il contrasto a costruire la sagoma, non il segnale della nube. Poi il colore, che qui racconta la polvere. Cielo buio e Luna assente non sono preferenze: senza fondo pulito non c'e' contrasto da stirare. Se questa nube in particolare si staglia contro una regione HII, l'Ha diventa il fondo migliore e la Luna perdona — ma va dichiarato nella scheda dell'oggetto, non dedotto dalla classe.",
       "expect": {
         "3h": "La sagoma si distingue ma i bordi sono impastati.",
         "6h": "Il contrasto fra nube e fondo regge lo stretch e la struttura filamentosa emerge.",
@@ -3934,6 +3935,7 @@ window.__TARGETS__={
       },
       "traps": [
         "E' l'unico archetipo dove il soggetto e' l'ASSENZA di segnale: ogni gradiente residuo si legge come struttura della nube.",
+        "Il modello fotometrico del motore integra il flusso PROPRIO dell'oggetto, mentre qui il rapporto segnale-rumore vive sul contrasto col fondo. Le ore qui sotto sono quindi una convenzione calibrata sulla scala di 'cosa aspettarti' di questo stesso archetipo, non una derivazione dalla fisica dell'assorbimento: valgono per decidere se vale la nottata, non per pianificare al minuto.",
         "La riduzione rumore aggressiva sul fondo cancella proprio il contrasto che rende visibile la nube.",
         "Una calibrazione del colore sbagliata rende la nube grigia invece che bruna: e' il colore che la racconta."
       ],
@@ -9909,13 +9911,13 @@ function samplingVerdict(scale,fwhm){
 function mosaicPanels(tg,dv,overlap,rot){
   const ov=overlap==null?0.15:overlap;
   const stepX=(dv.fovX/60)*(1-ov), stepY=(dv.fovY/60)*(1-ov);
+  /* L'ingombro viene da objectExtent() SEMPRE, angolo noto o no. Prima questo
+     ramo lo scartava nel caso ignoto e tassellava sugli assi grezzi, cioe'
+     sull'orientamento piu' fortunato: due ipotesi diverse sullo stesso ignoto
+     dentro lo stesso calcolo, e i pannelli non coprivano piu' l'ingombro che la
+     copertura misurava. Una sola funzione risponde, tutte le altre consumano. */
   const ex=objectExtent(tg,rot);
-  /* Un oggetto con una dimensione sola non deve produrre NaN: `Math.max(1,NaN)` è
-     NaN, e da lì in poi pannelli, riempimento e costo del mosaico diventavano tutti
-     NaN in silenzio. `objectExtent` la difesa ce l'aveva già, questi due rami no. */
-  const A=tg.size_arcmin[0], B=tg.size_arcmin[1]||A;
-  // con l'angolo di posizione noto si copre l'ingombro reale, non il quadrato peggiore
-  const w=(ex.known?ex.x:A)/60, h=(ex.known?ex.y:B)/60;
+  const w=ex.x/60, h=ex.y/60;
   return {cols:Math.max(1,Math.ceil(w/stepX)),rows:Math.max(1,Math.ceil(h/stepY)),
           stepX,stepY,overlap:ov,rot:rot||0,extent:ex};
 }
@@ -10026,9 +10028,11 @@ function coveredSpan(tg,dv,cov,rot){
      n volte il passo, che dimenticherebbe la sovrapposizione all'ultimo bordo. */
   const spanX=(cols-1)*t.stepX*60+dv.fovX;
   const spanY=(rows-1)*t.stepY*60+dv.fovY;
+  /* Lo stesso ingombro che ha contato i pannelli, sempre: se la copertura si
+     misurasse contro un'estensione diversa da quella tassellata, in copertura
+     completa non tornerebbe uno — ed e' esattamente il difetto che c'era. */
   const ex=t.extent;
-  const W=ex.known?ex.x:Math.max(tg.size_arcmin[0],tg.size_arcmin[1]||tg.size_arcmin[0]);
-  const H=ex.known?ex.y:W;
+  const W=ex.x, H=ex.y;
   const cx=Math.min(1,spanX/Math.max(W,1e-6)), cy=Math.min(1,spanY/Math.max(H,1e-6));
   return {pp,spanX,spanY,W,H,cx,cy,c:cx*cy};
 }
@@ -11655,16 +11659,57 @@ function ninaCheck(root){
      lungo la larghezza            hx = √( (A·sinθ)² + (B·cosθ)² )
 
    A θ=0 l'asse maggiore è verticale e hy=A, hx=B. A θ=90° si scambiano.
-   Senza angolo di posizione noto non si può fare meglio dell'ipotesi peggiore:
-   l'asse maggiore attraverso il lato corto, che è quello che l'app assumeva
-   sempre — quindi il comportamento senza PA resta identico a prima. */
+
+   QUANDO L'ANGOLO NON SI CONOSCE — e in catalogo manca su 118 oggetti su 169 —
+   servono due cose che prima non c'erano: una convenzione SOLA e una convenzione
+   DICHIARATA. Ne convivevano tre. Questa funzione restituiva il quadrato di lato
+   pari all'asse maggiore; `mosaicPanels` scartava quel risultato e tassellava
+   sugli assi grezzi, cioe' sull'orientamento piu' fortunato possibile; `framing`
+   usava il maggiore sul lato corto. Tre ipotesi diverse sullo stesso ignoto,
+   nello stesso calcolo, e la copertura in modalita' completa finiva sotto uno su
+   undici oggetti del catalogo — un'invariante rotta in silenzio.
+
+   La convenzione scelta e' l'INGOMBRO ISOTROPO EQUIVALENTE: il quadrato di lato
+   2·√((A²+B²)/2), cioe' la media quadratica dei semiassi. Si deriva, non si
+   sceglie. Se l'angolo e' ignoto la distribuzione a priori e' uniforme, e non
+   esiste nessuna direzione privilegiata: l'unica rappresentazione che rispetta
+   quella simmetria e' isotropa. Il valore e' proprio l'estensione proiettata a
+   θ=45°, dove le due semi-estensioni si eguagliano, ed e' quindi un ingombro che
+   l'oggetto assume davvero a qualche rotazione — non un caso limite immaginario.
+
+   E' anche, e si dimostra, l'orientamento PIU' COSTOSO che l'oggetto possa
+   davvero assumere. L'area del riquadro che lo contiene vale
+
+       x·y = 4·√( (A²sin²θ + B²cos²θ)(A²cos²θ + B²sin²θ) )
+           = 4·√( A²B² + (A²−B²)²·u(1−u) ),   con u = sin²θ
+
+   e u(1−u) e' massimo per u = 1/2, cioe' θ = 45°. Quindi la convenzione e' un
+   massimino onesto: nessun regalo — e' il caso peggiore fra quelli possibili —
+   ma nemmeno il pessimismo del quadrato 2A × 2A, che sarebbe il caso peggiore su
+   OGNI asse simultaneamente, una situazione che nessuna rotazione produce.
+
+   Le altre due proprieta' che servivano:
+     · su un oggetto circolare (A=B) si riduce esattamente al cerchio;
+     · e' isotropa, che e' la simmetria giusta per un angolo ignoto — e infatti
+       ruotare la camera non muove l'ingombro stimato, il che e' corretto:
+       senza sapere l'orientamento dell'oggetto, girare il sensore non
+       aggiunge informazione.
+
+   `basis` dice sempre su cosa poggia il numero, perche' una stima e un dato di
+   catalogo non devono essere indistinguibili a valle. */
 function objectExtent(tg,rot){
   const A=tg.size_arcmin[0]/2, B=(tg.size_arcmin[1]||tg.size_arcmin[0])/2;
   const pa=tg.pa_deg;
-  if(pa==null||!isFinite(pa)) return {x:2*A,y:2*A,known:false};
+  if(pa==null||!isFinite(pa)){
+    const R=Math.sqrt((A*A+B*B)/2);
+    return {x:2*R,y:2*R,known:false,basis:'isotropo',
+            /* gli assi come li dichiara il catalogo, per chi deve dirlo all'utente */
+            major:2*A,minor:2*B};
+  }
   const th=(pa-(rot||0))*Math.PI/180, c=Math.cos(th), sn=Math.sin(th);
   return {x:2*Math.sqrt(Math.pow(A*sn,2)+Math.pow(B*c,2)),
-          y:2*Math.sqrt(Math.pow(A*c,2)+Math.pow(B*sn,2)), known:true};
+          y:2*Math.sqrt(Math.pow(A*c,2)+Math.pow(B*sn,2)), known:true,
+          basis:'catalogo',major:2*A,minor:2*B};
 }
 
 /* IL CENTRO DELL'INQUADRATURA — non sempre è il centro dell'oggetto.
@@ -11689,10 +11734,9 @@ function framingCenter(tg,rot,off){
 function framing(tg,dv,rot){
   const ex=objectExtent(tg,rot);
   /* Il rapporto di riempimento è il peggiore fra i due assi: è quello che decide
-     se ci sta. Senza PA resta il vecchio maggiore-su-lato-corto. */
-  const r=ex.known ? Math.max(ex.x/dv.fovX, ex.y/dv.fovY)
-                   : Math.max(tg.size_arcmin[0],tg.size_arcmin[1]||tg.size_arcmin[0])
-                     /Math.min(dv.fovX,dv.fovY);
+     se ci sta. Anche senza angolo noto si legge lo stesso ingombro che contano i
+     pannelli e misura la copertura — prima qui c'era la terza convenzione. */
+  const r=Math.max(ex.x/dv.fovX, ex.y/dv.fovY);
   if(r>1.15) return {r,k:'mosaico',   cls:'p-warn', score:.35, ex};
   if(r>0.85) return {r,k:'al limite', cls:'p-warn', score:.7,  ex};
   if(r>0.30) return {r,k:'ideale',    cls:'p-ok',   score:1.0, ex};
@@ -14104,7 +14148,10 @@ function rotLines(t,dv,rot){
   $('fitLine').innerHTML=`Inquadratura: <span class="pill ${f.cls}">${f.k}</span>
     — l'oggetto occupa il <b>${Math.round(f.r*100)}%</b> del campo nella direzione peggiore${
       f.ex.known?` (ingombro ${fmt(f.ex.x,1)}′ × ${fmt(f.ex.y,1)}′ sugli assi del sensore)`
-                : `, assumendo l'orientamento peggiore — l'angolo di posizione non è in catalogo`}.
+                : `. L'angolo di posizione non è in catalogo, quindi l'ingombro è una
+                   <b>stima</b>: ${fmt(f.ex.x,1)}′ per lato, che è l'orientamento più
+                   costoso fra quelli che l'oggetto può davvero avere — i suoi assi
+                   misurano ${fmt(f.ex.major,1)}′ × ${fmt(f.ex.minor,1)}′`}.
     Campionamento <span class="pill ${samp.cls}">${samp.k}</span>, ${samp.n}.`;
   /* Quanti campi vuole il SOGGETTO intero: e' una misura della geometria e va
      detta sempre. Se poi quei campi si paghino dipende da cosa hai scelto di
@@ -14134,7 +14181,10 @@ function rotLines(t,dv,rot){
        <button class="chip fn fn-frame" style="margin-left:8px" onclick="setRot(${bb.rot})">applica</button>`
     : (t.pa_deg==null||!isFinite(t.pa_deg))
       ? `<span class="muted">L'angolo di posizione di questo oggetto non è in catalogo:
-         posso disegnare la rotazione, non consigliarla. Provala e guarda il campo.</span>`
+         l'ingombro qui sopra è una stima isotropa, e ruotare la camera non la cambia —
+         senza sapere come è orientato l'oggetto, girare il sensore non aggiunge
+         informazione. Posso disegnare la rotazione, non consigliarla: provala sull'immagine
+         e scegli tu la composizione.</span>`
       : covIsFraming()
         ? `<span class="muted">In <b>inquadratura libera</b> il progetto è un campo solo:
            ruotare non cambia quante ore costa, cambia che cosa ci entra dentro. È una
