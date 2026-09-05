@@ -5772,7 +5772,11 @@ function rotLines(t,dv,rot){
             costo del mosaico — non l'allineamento, che è la parte facile.`}</p>`
     : '';
   const bb=bestRotation(t,dv,5);
-  $('rotAdvice').innerHTML = bb
+  /* Il consiglio di rotazione ha senso perche' promette pannelli risparmiati.
+     In inquadratura libera i pannelli sono uno per definizione, quindi quella
+     promessa sarebbe falsa: li' ruotare torna a essere composizione, che e'
+     esattamente cio' che il ramo senza risparmio dice gia'. */
+  $('rotAdvice').innerHTML = (bb && !covIsFraming())
     ? `<span class="pill p-ok">ruota a ${bb.rot}°</span>
        <span class="muted">— o a ${(bb.rot+180)%360}°, che per i pannelli è identico e cambia solo
        quale lato ti ritrovi in alto.
@@ -5783,7 +5787,11 @@ function rotLines(t,dv,rot){
     : (t.pa_deg==null||!isFinite(t.pa_deg))
       ? `<span class="muted">L'angolo di posizione di questo oggetto non è in catalogo:
          posso disegnare la rotazione, non consigliarla. Provala e guarda il campo.</span>`
-      : `<span class="muted">Con questa configurazione ruotare non cambia il numero di
+      : covIsFraming()
+        ? `<span class="muted">In <b>inquadratura libera</b> il progetto è un campo solo:
+           ruotare non cambia quante ore costa, cambia che cosa ci entra dentro. È una
+           scelta di composizione, e quella è tua.</span>`
+        : `<span class="muted">Con questa configurazione ruotare non cambia il numero di
          pannelli: l'inquadratura è una scelta di composizione, e quella è tua.</span>`;
 }
 /* L'angolo gira su 360°, non su 180.
