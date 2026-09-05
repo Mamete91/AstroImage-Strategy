@@ -2648,6 +2648,49 @@ function resolveNight(tg,site,wanted,opts){
      comunque. Il massimo è quindi ore/sessione_minima.
    Fuori dall'intervallo il piano NON si costruisce e NON si corregge in
    silenzio: si dice perché e si propone il valore valido più vicino. */
+/* LA CAPACITA' DI UNA NOTTE NON E' UN NUMERO: E' UN VETTORE SUI CANALI.
+
+   Con la Luna piena una notte di sei ore offre sei ore all'Ha da 3 nm e quasi
+   niente alla luminanza. Prima qui si sommavano le ore di orologio e basta: la
+   Luna entrava soltanto a decidere QUALE canale mettere in QUALE notte — sta
+   scritto nel commento delle quote, «decide COSA, non QUANTO» — e il fabbisogno
+   veniva confrontato con ore che in quelle notti non esistevano.
+
+   L'unita' di conto e' l'ora di progetto: un'ora di orologio spesa sul canale c
+   nella notte j ne deposita `pen(c,j)`, perche' il fondo cielo alzato dalla Luna
+   moltiplica per 1/pen il tempo che serve alla stessa profondita'.
+
+   Un mix di canali sulla stessa notte deposita la MEDIA ARMONICA delle penalita',
+   pesata sulle ore che a ogni canale ancora mancano: se si spartiscono le ore
+   vere in proporzione a quelle che ciascuno chiede — left_c/pen_c — il totale
+   depositato per ora vera vale Σleft / Σ(left/pen): e' l'identita' esatta di
+   QUELLA spartizione.
+
+   Il pianificatore pero' non spartisce cosi': inclina, e manda il canale fragile
+   dove la Luna non c'e'. Fa quindi sempre meglio di questa stima, che resta un
+   LIMITE INFERIORE sulla capacita'. Il verso e' quello giusto: si puo' chiedere
+   una notte in piu' del necessario, non promettere una profondita' che non arriva.
+
+   Senza Luna ogni pen vale 1, la media armonica vale 1 e tutto si riduce esatta-
+   mente alla somma di prima. */
+function mixPenalty(live,dv,tg,site,night){
+  const stellar=!!(TG.archetypes[tg.archetype]||{}).stellar;
+  /* Senza configurazione si assume un monocromatico con i filtri posseduti, e lo
+     si dichiara: cambia quale filtro rappresenta la banda larga, non il fatto che
+     la Luna vada contata. Tornare qui alla somma delle ore di orologio sarebbe un
+     fallback silenzioso verso il conto sbagliato — quello che questa revisione
+     esiste per togliere. */
+  const cam=dv?dv.c:{cfa_penalty:false};
+  let num=0,den=0;
+  for(const g of live){
+    const f=filterFor(g.bands[0],cam), fw=f?f.fwhm_nm:BB_NM;
+    const xLP=lpExcessFlux(site.sqm,fw);
+    const p=Math.max(1e-3,moonPenalty(g.bands[0],night.dMagV,fw,stellar,xLP));
+    num+=g.hours; den+=g.hours/p;
+  }
+  return den>0?num/den:1;
+}
+
 function nightsBounds(pr,tg,site,start,opts){
   const o=opts||{};
   const minSession=o.minSession!=null?o.minSession:1.0;
@@ -2655,15 +2698,20 @@ function nightsBounds(pr,tg,site,start,opts){
   const need=pr.spent*panels;
   const cap=Math.max(1,Math.min(60,o.maxNights||60));
   const w=nightWindows(tg,site,start,cap,o);
+  const live=pr.alloc.filter(g=>!g.dropped&&g.hours>0);
+  const dv=o.dv;
   let cum=0,min=null;
-  const cumul=[];
+  const cumul=[], capH=[];
   for(let i=0;i<w.nights.length;i++){
-    cum+=w.nights[i].availH; cumul.push(cum);
+    const pm=live.length?mixPenalty(live,dv,tg,site,w.nights[i]):1;
+    const c=w.nights[i].availH*pm;
+    capH.push(c); cum+=c; cumul.push(cum);
     if(min===null && cum>=need-1e-9) min=i+1;
   }
   const max=Math.max(1,Math.floor(need/minSession+1e-9));
   return {min, max:Math.min(max,w.nights.length||1), rawMax:max,
-          capacity:cum, cumul, need, minSession, panels, windows:w,
+          capacity:cum, cumul, capH, need, minSession, panels, windows:w,
+          mixBasis:dv?'configurazione':'monocromatico assunto',
           unreachable:min===null};
 }
 
@@ -2684,7 +2732,7 @@ function bestStart(tg,dv,site,from,N,opts){
     if(w.nights.length<N) return null;
     let num=0,den=0;
     for(const x of w.nights){
-      num+=moonPenalty(critBand,x.dMagV,fw,stellar)*x.availH; den+=x.availH;
+      num+=moonPenalty(critBand,x.dMagV,fw,stellar,lpExcessFlux(site.sqm,fw))*x.availH; den+=x.availH;
     }
     return den?{q:num/den,h:den,first:w.nights[0].date}:null;
   };
@@ -2730,7 +2778,19 @@ function balanceSessions(items,nights,opts){
   const o=opts||{}, tilt=o.tilt!=null?o.tilt:1;
   const R=items.length, C=nights.length;
   if(!R||!C) return items.map(()=>nights.map(()=>0));
-  const rowT=items.map(x=>x.total);
+  /* Le righe sono la prescrizione, e la prescrizione e' in ORE DI PROGETTO; le
+     colonne sono notti, e una notte si misura in ore di orologio. Il trasporto
+     distribuisce ore di orologio, quindi la riga va convertita: quante ore vere
+     servono a quel canale, date le notti su cui finira'. La penalita' media
+     pesata sulle quote e' la conversione, e non e' circolare — le quote sono
+     gia' note quando si arriva qui. */
+  const rowT=items.map(x=>{
+    let num=0,den=0;
+    nights.forEach((nt,c)=>{ num+=nt.quota*x.pen[c]; den+=nt.quota; });
+    const pAvg=den>0?Math.max(1e-3,num/den):1;
+    x.penAvg=pAvg;
+    return x.total/pAvg;
+  });
   const colT=nights.map(x=>x.quota);
   const on=items.map(()=>nights.map(()=>true));
   let X=items.map((it,r)=>nights.map((nt,c)=>
@@ -2744,10 +2804,16 @@ function balanceSessions(items,nights,opts){
         for(let r=0;r<R;r++) s2+=X[r][c];
         if(s2>0) for(let r=0;r<R;r++) X[r][c]*=colT[c]/s2; }
     }
-    // ultima passata sulle righe: la prescrizione è l'invariante, la quota è un obiettivo
+    /* Ultima passata sulle righe: la prescrizione è l'invariante, la quota è un
+       obiettivo. E la prescrizione è in ore di PROGETTO, quindi la riga si chiude
+       sulla profondità depositata — Σ X·pen — non sulle ore di orologio. È
+       l'unico modo perché il piano consegni davvero le ore prescritte quando le
+       notti hanno Lune diverse: la conversione riga per riga con una penalità
+       media sarebbe esatta solo se la distribuzione fosse quella con cui la media
+       è stata pesata, e non lo è, perché il trasporto la inclina. */
     for(let r=0;r<R;r++){ let s2=0;
-      for(let c=0;c<C;c++) s2+=X[r][c];
-      if(s2>0) for(let c=0;c<C;c++) X[r][c]*=rowT[r]/s2; }
+      for(let c=0;c<C;c++) s2+=X[r][c]*Math.max(1e-3,items[r].pen[c]);
+      if(s2>0) for(let c=0;c<C;c++) X[r][c]*=items[r].total/s2; }
   };
   norm();
   for(let pass=0;pass<C+2;pass++){
@@ -2794,7 +2860,7 @@ function planNights(pr,e,dv,nights,opts){
   const stellar=!!(TG.archetypes[e.tg.archetype]||{}).stellar;
 
   const live=pr.alloc.filter(g=>!g.dropped&&g.hours>0);
-  const bounds=nightsBounds(pr,e.tg,site,start,{...o,panels});
+  const bounds=nightsBounds(pr,e.tg,site,start,{...o,panels,dv});
   const W=bounds.windows;
 
   if(!live.length) return {ok:false,reason:{code:'vuoto',
@@ -2822,20 +2888,39 @@ function planNights(pr,e,dv,nights,opts){
   /* Le quote. Chiedere cinque notti e riceverne tre piene e due vuote non e' un
      piano su cinque notti: e' un piano su tre con due righe di decorazione. Ogni
      notte riceve una quota proporzionale alle ore che offre davvero, e la somma
-     delle quote e' esattamente il fabbisogno — quindi tutte le notti vengono usate
-     e nessuna viene caricata oltre quello che puo' dare. La Luna decide COSA
-     mettere in quale notte, non QUANTO: quello lo decide la lunghezza della notte. */
-  const tot=W.nights.slice(0,N).reduce((a,x)=>a+x.availH,0);
-  const nn=W.nights.slice(0,N).map(x=>({...x,
-    quota:tot>0?x.availH*bounds.need/tot:0, room:tot>0?x.availH*bounds.need/tot:0,
-    blocks:[]}));
+     delle quote deposita esattamente il fabbisogno.
+
+     «Che offre davvero» adesso include la Luna. Prima la quota era proporzionale
+     alle sole ore di orologio e la Luna decideva COSA mettere in quale notte, non
+     QUANTO — cosi' una notte di plenilunio riceveva la stessa quota di una notte
+     buia e il piano si dichiarava chiuso avendo depositato meta' del fabbisogno.
+     Ora la quota e' proporzionale alla CAPACITA' — ore di orologio per la media
+     armonica delle penalita' sui canali vivi — e il fattore k che la scala e'
+     `fabbisogno / capacita' totale`: sopra 1 significa che quelle notti non
+     bastano, e la notte viene tagliata alle proprie ore vere invece di fingere.
+
+     Senza Luna ogni penalita' vale 1, la capacita' coincide con le ore e la
+     formula torna identica a prima. */
+  const capN=W.nights.slice(0,N).map((x,i)=>bounds.capH&&bounds.capH[i]!=null
+    ? bounds.capH[i] : x.availH*mixPenalty(live,dv,e.tg,site,x));
+  const totCap=capN.reduce((a,c)=>a+c,0);
+  const k=totCap>0?bounds.need/totCap:0;
+  const nn=W.nights.slice(0,N).map((x,i)=>{
+    const q=Math.min(x.availH, x.availH*k);   // la notte non da' piu' di quel che ha
+    return {...x, capH:capN[i], quota:q, room:q, realH:0, blocks:[]};
+  });
 
   // penalita' lunare di ogni gruppo in ogni notte: e' la matrice su cui si decide
   const items=live.map(g=>{
     const nf=(RGB_SPLIT[g.id]||[g.id]).length;
     const f=filterFor(g.bands[0],dv.c);
     const fw=f?f.fwhm_nm:BB_NM;
-    const pen=nn.map(x=>moonPenalty(g.bands[0],x.dMagV,fw,stellar));
+    /* La Luna si misura sul cielo VERO, non su quello naturale. `moonPenalty`
+       senza `xLP` assume un fondo di riferimento pari a 1 — cielo naturale — e
+       da un sito inquinato sovrastima quanto la Luna toglie: se il fondo e' gia'
+       alto, la Luna ci aggiunge poco in proporzione. Il resto del motore lo fa
+       gia' cosi' (`moonF=(1+xLP)/(1+xLP+xMoon)`); qui non lo faceva. */
+    const pen=nn.map(x=>moonPenalty(g.bands[0],x.dMagV,fw,stellar,lpExcessFlux(site.sqm,fw)));
     const hi=Math.max(...pen), lo=Math.min(...pen);
     /* Il pavimento della singola casella. In modalità sessione si misura in POSE,
        non in ore: cinque scatti da 120 s sono venti minuti e sono un contributo
@@ -2853,11 +2938,18 @@ function planNights(pr,e,dv,nights,opts){
   });
   items.sort((a,b)=>((b.critical?1:0)-(a.critical?1:0))||(b.spread-a.spread)||(b.total-a.total));
 
+  /* IL CONTO. `h` sono ore di OROLOGIO — quelle che si scrivono nel sequenziatore
+     e che la notte deve contenere — e ne depositano `pen` di progetto. E' l'unico
+     punto in cui la Luna cambia una QUANTITA' invece di un ordinamento, ed e' il
+     motivo per cui `leftover` puo' restare positivo su un piano che riempie tutte
+     le notti: le ore ci sono, la profondita' no. */
   const put=(it,x,h)=>{
+    const p=Math.max(1e-3,it.pen[x.n-1]);
     const ex=x.blocks.find(b=>b.id===it.id);
-    if(ex) ex.h+=h; else x.blocks.push({id:it.id,bands:it.bands,h,
-      critical:it.critical,pen:it.pen[x.n-1],fw:it.fw});
-    x.room-=h; it.left-=h;
+    if(ex){ ex.h+=h; ex.projH+=h*p; }
+    else x.blocks.push({id:it.id,bands:it.bands,h,projH:h*p,
+      critical:it.critical,pen:p,fw:it.fw});
+    x.room-=h; x.realH+=h; it.left-=h*p;
   };
   if(mode==='sessione'){
     /* SESSIONE COMPLETA — ogni notte contiene tutti i canali che ha senso metterci.
@@ -2881,16 +2973,22 @@ function planNights(pr,e,dv,nights,opts){
       // le notti migliori per QUESTO canale, a parita' di resa la piu' vicina
       const order=nn.map((x,i)=>({x,i,p:it.pen[i]}))
                     .sort((a,b)=>(b.p-a.p)||(a.i-b.i));
-      for(const {x} of order){
+      for(const {x,i} of order){
         if(it.left<=1e-6) break;
         if(x.room<=1e-6) continue;
-        let take=Math.min(it.left,x.room);
+        /* `left` sono ore di PROGETTO, `room` ore di OROLOGIO: per confrontarle
+           serve la penalita' di QUESTA notte su QUESTO canale. `wantH` sono le
+           ore di orologio che sotto questa Luna depositerebbero tutto quel che
+           manca — sotto Luna piena e in luminanza sono il doppio. */
+        const p=Math.max(1e-3,it.pen[i]);
+        const wantH=it.left/p;
+        let take=Math.min(wantH,x.room);
         // niente schegge: o il blocco vale la pena di aprirlo, o si aspetta
         // un'altra notte. L'eccezione e' la coda finale di un canale, che non
         // ha altre notti dove andare.
-        if(take<it.minBlock && it.left>it.minBlock+1e-9) continue;
+        if(take<it.minBlock && wantH>it.minBlock+1e-9) continue;
         // e se lasciando indietro meno di un blocco minimo, si porta via tutto
-        if(it.left-take<it.minBlock-1e-9 && x.room>=it.left-1e-9) take=it.left;
+        if(wantH-take<it.minBlock-1e-9 && x.room>=wantH-1e-9) take=wantH;
         put(it,x,take);
       }
     }
@@ -2904,12 +3002,12 @@ function planNights(pr,e,dv,nights,opts){
       if(it.left<=1e-6) continue;
       const order=nn.map((x,i)=>({x,i,has:x.blocks.some(b=>b.id===it.id)?1:0,p:it.pen[i]}))
                     .sort((a,b)=>(b.has-a.has)||(b.p-a.p)||(a.i-b.i));
-      for(const {x} of order){
+      for(const {x,i} of order){
         if(it.left<=1e-6) break;
         const used=x.blocks.reduce((a,b)=>a+b.h,0);
         const free=x.availH-used;
         if(free<=1e-6) continue;
-        const take=Math.min(it.left,free);
+        const take=Math.min(it.left/Math.max(1e-3,it.pen[i]),free);
         x.room=free;               // il tetto qui sono le ore vere, non la quota
         put(it,x,take);
         const b=x.blocks.find(y=>y.id===it.id); if(b) b.tail=true;
@@ -3218,15 +3316,33 @@ function subExposure(dv,site,band,opts){
     const rn=m.read_noise_e*dv.bin;
     const tStar = star>0 ? m.full_well_e/star : Infinity;
     const tObj  = objectSatTime(dv,band,o.tg,arch,m,spec,o);
-    const tSat  = Math.min(tStar,tObj);
+    /* IL TETTO CHE MANCAVA — il fondo cielo.
+
+       La posa era limitata dalle stelle di campo e dal soggetto, mai da cio' che
+       riempie il pozzetto per primo quando il cielo e' cattivo: il cielo stesso.
+       Sotto un SQM di 18 il fondo in luminanza vale circa diciotto elettroni al
+       secondo per pixel, e riempie il pozzetto in poco piu' di quattro minuti:
+       una posa da dieci era saturazione pura, e il motore la consigliava lo
+       stesso perche' guardava solo le stelle.
+
+       E' un limite fisico, non una convenzione: e' il tempo in cui il solo fondo
+       satura, senza margine di comodo. Un margine — «il cielo non deve superare
+       un terzo del pozzetto» — sarebbe una scelta di pratica legittima, ma
+       andrebbe dichiarata come tale, e qui non se ne inventa nessuna. */
+    const tSky  = sky>0 ? m.full_well_e/sky : Infinity;
+    const tSat  = Math.min(tStar,tObj,tSky);
     /* Il pavimento vale contro le STELLE DI CAMPO, non contro il soggetto.
        Un nucleo stellare bruciato si cura in elaborazione — maschera, o una serie
        corta a parte — ed è quello che la comunità fa: «sono contento con un paio di
        centinaia di pixel saturi». Un SOGGETTO bruciato non si cura: quello che hai
        perso non c'è più. Quindi il pavimento operativo può stare sopra il tetto
        stellare, mai sopra il tetto del soggetto. */
-    const tMaxStar = Math.min(tStar,risk,tFrames);
-    const t = Math.min(snapExp(Math.min(tObj,risk,tFrames))||EXP_GRID[0],
+    /* Il cielo entra in ENTRAMBI i tetti. Il pavimento operativo puo' stare sopra
+       la saturazione stellare — una manciata di stelle bruciate si accetta — ma
+       non sopra quella del cielo: li' non si brucia una stella, si brucia il
+       fotogramma intero, e non c'e' elaborazione che lo recuperi. */
+    const tMaxStar = Math.min(tStar,tSky,risk,tFrames);
+    const t = Math.min(snapExp(Math.min(tObj,tSky,risk,tFrames))||EXP_GRID[0],
                        Math.max(floorSub, snapExp(tMaxStar)||EXP_GRID[0]));
     const tMax = Math.min(tSat,risk,tFrames);
     const s=sky*t, eff=Math.sqrt(s/(s+rn*rn));
@@ -3238,14 +3354,16 @@ function subExposure(dv,site,band,opts){
        mentre il soggetto non saturava affatto. In un programma il cui pregio e'
        dichiarare il perche', una diagnosi falsa costa piu' di un numero storto.
        Il colpevole e' il piu' basso dei tre tetti: si guarda quale, e si nomina. */
-    const lowCap=Math.min(tObj,risk,tFrames);
-    const rec={gm:m,rn,tStar,tObj,tSat,tMax,sec:t,eff,duty,merit:eff*duty,
+    const lowCap=Math.min(tObj,tSky,risk,tFrames);
+    const rec={gm:m,rn,tStar,tObj,tSky,tSat,tMax,sec:t,eff,duty,merit:eff*duty,
       underFloor:t<floorSub-1e-9,   // la posa scende sotto quanto converrebbe
       binding: t<floorSub-1e-9
-               ? (lowCap===tObj    ? 'il soggetto satura'
+               ? (lowCap===tSky    ? 'il fondo cielo satura'
+                : lowCap===tObj    ? 'il soggetto satura'
                 : lowCap===tFrames ? 'numero minimo di pose'
                 :                    'tetto di posa')
              : t>tMaxStar+1e-9 ? 'pavimento operativo'
+             : tMaxStar===tSky ? 'il fondo cielo satura'
              : tMaxStar===tStar ? 'saturazione stellare'
              : tMaxStar===tFrames ? 'numero minimo di pose'
              : (arch&&arch.sub_max_s&&risk===arch.sub_max_s) ? 'tetto di classe'
@@ -3937,12 +4055,33 @@ function evaluate(tg,dv,site,np,state,cov){
     }
     return _tsub[b];
   };
-  // budget riscalato
+  /* IL BUDGET RISCALATO — sul TUO tubo e sul TUO cielo.
+
+     `timeFactor` riporta le ore della scheda alla tua ottica, e lo fa da sempre.
+     Il cielo invece non entrava da nessuna parte: da SQM 21,3 a 17,8 le ore di
+     M51 erano identiche, e con venti ore il verdetto restava «pieno» da Milano
+     come dalla montagna. L'inquinamento luminoso finiva solo nel calendario, e
+     per giunta con il fattore di UNA banda applicato a tutta la strada.
+
+     Adesso e' un secondo fattore accanto al primo, sulla stessa riga e con la
+     stessa forma: `timeFactor` converte le ore dell'ottica di riferimento nelle
+     ore della tua, `lpPenalty` converte quelle del cielo di riferimento in
+     quelle del tuo. Ed e' PER BANDA per costruzione, perche' la riga gia' cicla
+     sulle bande: un filtro da 3 nm e una luminanza da 250 non subiscono lo stesso
+     cielo, e a SQM 18,5 la differenza fra i due fattori e' dieci volte e mezzo.
+
+     La Luna NON entra qui. E' transitoria e si media sulle settimane, mentre
+     l'inquinamento c'e' tutte le notti: appartiene alla capacita' della singola
+     notte, non al costo del progetto. Tenerle separate e' anche cio' che impedisce
+     di contarle due volte. */
   const budget={};
   for(const [b,v] of Object.entries(tg.budget)){
     const f=timeFactor(dv,b,tsubFor(b));
-    const useful=v.useful*f, floor=v.floor*f;
-    budget[b]={...v, floor, useful, saturates:v.saturates?v.saturates*f:0, factor:f,
+    const ff=filterFor(b,dv.c);
+    const sf=1/Math.max(1e-6,lpPenalty(site.sqm,ff?ff.fwhm_nm:BB_NM));
+    const useful=v.useful*f*sf, floor=v.floor*f*sf;
+    budget[b]={...v, floor, useful, saturates:v.saturates?v.saturates*f*sf:0,
+               factor:f, skyFactor:sf,
                tsub:tsubFor(b), factorValidated:factorValidated(dv,b),
                accessible:accessibleH({...v,floor,useful})};
   }
@@ -4002,7 +4141,11 @@ function evaluate(tg,dv,site,np,state,cov){
   const mos=cvr.target;
   const panels=cvr.panels;
   const roadHTot=roadH*panels, roadAccHTot=roadAccH*panels;
-  const perNight=Math.min(critH*lpF, np.darkH||np.nautH);
+  /* Il cielo e' gia' dentro il budget: qui non va applicato una seconda volta.
+     Prima `perNight` valeva `critH x lpF` e le ore della strada erano al cielo di
+     riferimento — due unita' diverse divise l'una per l'altra. Adesso entrambe
+     sono ore vere sotto il cielo vero, e la divisione ha senso dimensionale. */
+  const perNight=Math.min(critH, np.darkH||np.nautH);
   const nights = perNight>0.3 ? roadHTot/perNight : Infinity;
   const weeks  = isFinite(nights) ? nights/(7*site.clearFrac) : Infinity;
   const nightsAcc = perNight>0.3 ? roadAccHTot/perNight : Infinity;
@@ -5641,7 +5784,14 @@ const shortArch=key=>ARCH_SHORT[key]||((TG.archetypes[key]||{}).label||'');
    quella risolta. La calcola renderRx() con nightWindows(), che e' la stessa
    funzione da cui passano il piano e la guardia: una sorgente sola. */
 let RXAVAIL=0;
-const rxHours=()=>RXAVAIL>0?RXAVAIL:10;
+/* E accanto alle ore di orologio, la PROFONDITA' che quelle ore depositano.
+   Sono due numeri diversi e vanno tenuti diversi: sotto la Luna piena cinque ore
+   di orologio in luminanza ne depositano due. Confrontare il fabbisogno — che e'
+   in ore di progetto — con RXAVAIL era un confronto fra unita' diverse, e si
+   vedeva a schermo: l'intestazione diceva «bastano per il progetto intero» e il
+   pianificatore, dieci righe sotto, «4 notti non bastano». */
+let RXCAP=0;
+const rxHours=()=>RXCAP>0?RXCAP:(RXAVAIL>0?RXAVAIL:10);
 /* L'intenzione di copertura come la legge la UI. Il motore non conosce il DOM:
    qui si traduce una scelta in un argomento, e da li' in poi e' fisica. */
 const covIntent=()=>{
@@ -5783,11 +5933,20 @@ function renderBest(){ const b=$('bestNight'); if(b) b.innerHTML=bestNightHtml()
    arrivarci. Nessuna formula nuova: si cammina sulle stesse finestre di
    nightWindows() finche' il cumulato copre il fabbisogno, che e' esattamente
    quello che fa nightsBounds() per la sua guardia. */
-function nightsForHours(t,from,need){
+function nightsForHours(t,from,need,pr){
   if(!(need>0)) return null;
   const W=nightWindows(t,SITE,from,60,OPSET);
+  /* Si cammina sulla CAPACITA', come fa nightsBounds(): sommare le ore di
+     orologio direbbe che quattro notti di plenilunio valgono quattro notti buie,
+     e la guardia del piano — che la capacita' la conta — risponderebbe il
+     contrario nella stessa schermata. */
+  const vivi=pr?pr.alloc.filter(g=>!g.dropped&&g.hours>0):[];
+  const dv=derive(CFG);
   let c=0;
-  for(let i=0;i<W.nights.length;i++){ c+=W.nights[i].availH; if(c>=need-1e-9) return i+1; }
+  for(let i=0;i<W.nights.length;i++){
+    c+=W.nights[i].availH*(vivi.length?mixPenalty(vivi,dv,t,SITE,W.nights[i]):1);
+    if(c>=need-1e-9) return i+1;
+  }
   return null;
 }
 function showAvail(t,rn,n,pr){
@@ -5798,16 +5957,24 @@ function showAvail(t,rn,n,pr){
      bugia della barra che restava sulla notte vecchia. */
   if(!t){ v.className='ha-v'; v.innerHTML='&mdash;';
     nt.textContent='scegli un oggetto: le ore utili dipendono da quando sale'; return; }
+  /* A schermo restano le ore di OROLOGIO: sono quelle che si programmano, quelle
+     che si perdono quando arrivano le nuvole. Il confronto col fabbisogno invece
+     si fa sulla capacita', ed e' un numero diverso quando c'e' la Luna: quando lo
+     e' davvero, si dice, invece di lasciare due frasi che si contraddicono. */
   const av=RXAVAIL;
+  const cap=RXCAP>0?RXCAP:av;
   v.innerHTML=`${fmt(av,1)}<span class="u"> h</span>`;
   /* Il fabbisogno da mostrare è quello del SOGGETTO INTERO. Su un mosaico il
      costo di un campo direbbe che quattro ore bastano per una cosa che ne chiede
      centoquindici: roadTotalsProject porta già dentro i riquadri. */
   const ideal=pr&&pr.roadTotalsProject?pr.roadTotalsProject.ideal
             :(pr&&pr.roadTotals?pr.roadTotals.ideal:0);
-  const corto=ideal>av+1e-9;
+  const corto=ideal>cap+1e-9;
   v.className='ha-v'+(corto?' short':'');
-  const min=corto?nightsForHours(t,rn&&rn.date?rn.date:rxDate(),ideal):null;
+  const min=corto?nightsForHours(t,rn&&rn.date?rn.date:rxDate(),ideal,pr):null;
+  // la Luna vale la pena di nominarla solo quando toglie qualcosa di leggibile
+  const luna=av-cap>0.15
+    ? ` &middot; con questa Luna ne depositano <b>${fmt(cap,1)}</b>` : '';
   /* Che il soggetto ecceda il campo va detto in tutti e due i casi: in copertura
      completa perché è la ragione per cui il fabbisogno è quello che è, in
      inquadratura libera perché altrimenti l'informazione andrebbe persa proprio
@@ -5817,6 +5984,7 @@ function showAvail(t,rn,n,pr){
   nt.innerHTML=`su ${n} nott${n===1?'e':'i'} da ${esc(dayLabel(rn&&rn.date?rn.date:rxDate()))}`+
     (framed?` &middot; inquadratura libera: <b>1</b> campo dei <b>${tp}</b> del soggetto intero`
            :(pr&&pr.panels>1?` &middot; mosaico da <b>${pr.panels}</b> riquadri`:''))+
+    luna+
     (corto
       ? ` &middot; ${framed?'l’inquadratura':'il progetto intero'} ne chiede <b>${fmt(ideal,1)}</b>`+
         (min?`: servono <b>${min}</b> nott${min===1?'e':'i'}`:'')
@@ -5828,8 +5996,12 @@ function showAvail(t,rn,n,pr){
    una luminanza non regge. */
 function rxMoon(band,e){
   const f=filterFor(band,derive(CFG).c);
-  const p=moonPenalty(band,e.dMagV,f?f.fwhm_nm:BB_NM,
-    !!(TG.archetypes[e.tg.archetype]||{}).stellar);
+  const fw=f?f.fwhm_nm:BB_NM;
+  /* Con `xLP`, come il pianificatore. Senza, la Luna verrebbe misurata contro un
+     cielo naturale: da un sito inquinato la sovrastima, e la frase mostrata qui
+     direbbe «Luna pesante» su una notte che il piano considera utilizzabile. */
+  const p=moonPenalty(band,e.dMagV,fw,
+    !!(TG.archetypes[e.tg.archetype]||{}).stellar,lpExcessFlux(SITE.sqm,fw));
   return {p,f};
 }
 
@@ -5945,7 +6117,22 @@ function renderRx(np){
      di riprendere. In copertura completa sono lo stesso numero. */
   const ppRx=projectPanels(t,dv,covIntent(),rotFor(t));
   const mosRx=ppRx.target;
-  const pr=prescribe(e,hours,dv,ppRx.panels);
+  /* Due passate, e non una per pigrizia: la capacita' dipende da QUALI canali si
+     riprendono — un Ha da 3 nm non subisce la Luna che subisce una luminanza — e
+     i canali li decide la prescrizione. Quindi si prescrive una prima volta sulle
+     ore di orologio per sapere quale strada e' stata scelta, si misura con quel
+     mix quanta profondita' quelle notti depositano davvero, e si riprescrive su
+     quel numero. La seconda passata e' quella che conta; la prima serve solo a
+     sapere di che cosa si sta parlando. */
+  const pr0=prescribe(e,hours,dv,ppRx.panels);
+  {
+    const vivi=pr0.alloc.filter(g=>!g.dropped&&g.hours>0);
+    RXCAP=vivi.length
+      ? WA.nights.slice(0,NN).reduce((a,x)=>a+x.availH*mixPenalty(vivi,dv,t,SITE,x),0)
+      : RXAVAIL;
+  }
+  const pr=RXCAP>0&&Math.abs(RXCAP-hours)>1e-6
+    ? prescribe(e,RXCAP,dv,ppRx.panels) : pr0;
   RXCOV=ppRx;
   RXPR=pr;
   showAvail(t,RN,NN,pr);                          // idem: il riepilogo la legge da qui

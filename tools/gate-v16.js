@@ -252,7 +252,18 @@ H('6 · INTERACTION TEST — nessun doppio conteggio');
 /* ═══ 7 ═══ */
 H('7 · LE ORE PRESCRITTE — prima e dopo, su un progetto reale');
 {const m31A=A.TG.targets.find(t=>t.names[0]==='M31'), m31B=B.TG.targets.find(t=>t.names[0]==='M31');
+ /* Il confronto si fa al CIELO DI RIFERIMENTO, e non e' un addolcimento.
+    Questo gate misura una cosa sola: che passare da «un filtro come procura per
+    tutti e tre» a «insieme sequenziale» non abbia spostato le ore RGB. Da allora
+    il budget ha imparato a vedere il cielo, e a Borno (SQM 20.8) scala ogni banda
+    di 1/lpPenalty — un effetto reale, voluto, e completamente estraneo a cio' che
+    qui si sta verificando. A SQM 21.3 quel fattore vale esattamente 1 su ogni
+    banda, il confondente sparisce e il modello RGB torna misurabile da solo. */
  const stA=siteOf(A.DB), stB=siteOf(B.DB);
+ const SQM_RIF=B.DB.reference_config.sqm_zenith;
+ stA.sqm=stB.sqm=SQM_RIF;
+ console.log('  confronto al cielo di riferimento, SQM '+SQM_RIF+
+   ': li il fattore di cielo vale 1 su ogni banda e non falsa il paragone');
  stA.fwhm=A.M.effFWHM(stA.seeing,stA.rms); stB.fwhm=B.M.effFWHM(stB.seeing,stB.rms);
  const npA=A.M.nightProfile(new Date(2026,0,15),stA.lat,stA.lon);
  const npB=B.M.nightProfile(new Date(2026,0,15),stB.lat,stB.lon);

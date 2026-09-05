@@ -728,11 +728,28 @@ const critOsc=prOsc.alloc.find(g=>g.critical);
    del canale critico — vale ancora, ma va scritto come invariante e non come una
    soglia numerica: con la revisione del fattore, su OSC la luminanza costa cosi'
    tanto che assorbe tutto il budget, e «>= 90% dell'utile» non e' piu raggiungibile
-   ne' significativo. */
+   ne' significativo.
+
+   E da quando il budget vede il cielo, nemmeno «il critico raggiunge il pavimento»
+   basta piu': su un 71 mm a Borno M31 chiede 41 h di luminanza e in 14.5 non ci sta
+   nessuno, ne' il critico ne' gli additivi. Quel caso NON e' il difetto — e' la
+   prescrizione ridotta in proporzione, che e' esattamente cio' che deve accadere.
+
+   L'invariante giusto ha due meta', e insieme catturano il difetto originale in
+   entrambi i regimi:
+     a) se QUALCUNO raggiunge il proprio pavimento, il critico lo raggiunge;
+     b) il critico non e' mai riempito, rispetto al PROPRIO pavimento, meno di un
+        additivo rispetto al suo.
+   Il difetto di partenza — Ha a 8h su una soglia di 8, luminanza a 3.6 su una ben
+   piu' alta — viola entrambe. La riduzione proporzionale non ne viola nessuna. */
 const addOsc=prOsc.alloc.filter(g=>!g.critical&&g.hours>0);
+const fill=g=>g.floor>0?g.hours/g.floor:Infinity;
 console.log(`      OSC: critico ${critOsc.id} ${critOsc.hours.toFixed(1)}h su ${critOsc.useful.toFixed(1)}h utili · additivi finanziati: ${addOsc.length?addOsc.map(g=>g.id).join(','):'nessuno'}`);
-chk('il canale critico non resta schiacciato da un canale additivo piu costoso',
-  addOsc.every(g=>critOsc.hours>=critOsc.floor-1e-9),true);
+console.log(`      riempimento sul proprio pavimento: ${prOsc.alloc.map(g=>g.id+' '+fill(g).toFixed(2)+(g.critical?'*':'')).join(' · ')}`);
+chk('se un additivo raggiunge il suo pavimento, il critico raggiunge il proprio',
+  addOsc.every(g=>g.hours<g.floor-1e-9||critOsc.hours>=critOsc.floor-1e-9),true);
+chk('e il critico non e mai riempito meno di un additivo, sul proprio pavimento',
+  addOsc.every(g=>fill(critOsc)>=fill(g)-1e-9),true);
 chk('il canale critico ha la precedenza sul budget',critOsc.hours>0,true);
 /* Il ramo OSC in banda larga NON e piu un ramo morto: dalla v1.5 lo copre il
    modello di risposta spettrale della matrice, che sostituisce OSC_BB e toglie
@@ -857,27 +874,65 @@ chk('l overhead di sessione e tolto davvero',
 chk('una Luna sopra l orizzonte alza sempre il fondo di qualcosa',
   win.nights.filter(x=>x.moonUpFrac>0.5).every(x=>x.dMagV>0.01),true);
 
-const pl3=M.planNights(prM31,eM31,dvM31mono,3,POPT);
-const pl5=M.planNights(prM31,eM31,dvM31mono,5,POPT);
+/* DUE UNITA', E VANNO TENUTE DISTINTE.
+
+   `h` di un blocco sono ore di OROLOGIO: quelle che si programmano, quelle che la
+   notte deve contenere. `projH` sono ore di PROGETTO: la profondita' che quelle
+   ore depositano davvero, cioe' h x penalita' lunare. Sotto un cielo buio le due
+   coincidono; sotto la Luna no, ed e' li' che vive tutto il senso di questo blocco.
+
+   Il 1 settembre 2026 la Luna e' al 77% e alza il fondo di 1.5 mag sul campo di
+   M31: quella notte offre 6.3 h di orologio e ne deposita 3.8. Prima il piano le
+   contava tutte e sei e si dichiarava chiuso in tre notti; il minimo vero e'
+   quattro. Per questo il numero di notti non e' piu' scritto a mano qui — lo
+   decide la fisica, e il test chiede il minimo che la fisica concede. */
+const nMin=Math.max(2,prM31&&M.planNights(prM31,eM31,dvM31mono,60,POPT).bounds.min||2);
+const pl3=M.planNights(prM31,eM31,dvM31mono,nMin,POPT);
+const pl5=M.planNights(prM31,eM31,dvM31mono,nMin+2,POPT);
+console.log(`      minimo di notti imposto dalla Luna: ${nMin}`);
 pl3.nights.forEach(n=>console.log(`      notte ${n.n} (${n.date.toLocaleDateString('it-IT')}): `+
-  `${n.blocks.map(s=>s.id+' '+s.h.toFixed(1)+'h').join(' + ').padEnd(30)} su ${n.availH.toFixed(1)} h → ${n.sky}`));
-chk('il piano non inventa ore: somma = prescrizione',
-  pl3.nights.reduce((a,n)=>a+n.usedH,0),prM31.spent,0.01);
-/* Il punto 11 della specifica: il numero di notti NON puo' toccare le ore. */
-chk('cambiare il numero di notti non cambia le ore totali',
-  pl5.nights.reduce((a,n)=>a+n.usedH,0),prM31.spent,0.01);
-const perCh=pl=>{const m={};pl.nights.forEach(n=>n.blocks.forEach(b=>m[b.id]=(m[b.id]||0)+b.h));return m;};
+  `${n.blocks.map(s=>s.id+' '+s.h.toFixed(1)+'h').join(' + ').padEnd(30)} su ${n.availH.toFixed(1)} h `+
+  `→ deposita ${n.blocks.reduce((a,b)=>a+b.projH,0).toFixed(1)} h → ${n.sky}`));
+const proj=pl=>pl.nights.reduce((a,n)=>a+n.blocks.reduce((x,b)=>x+b.projH,0),0);
+chk('il piano non inventa profondita: somma depositata = prescrizione',
+  proj(pl3),prM31.spent,0.02);
+/* Il punto 11 della specifica: il numero di notti NON puo' toccare le ore. Vale
+   sulla PROFONDITA', che e' l'invariante; le ore di orologio invece cambiano, e
+   devono cambiare, perche' notti diverse hanno Lune diverse. */
+chk('cambiare il numero di notti non cambia la profondita totale',
+  proj(pl5),prM31.spent,0.02);
+const perCh=pl=>{const m={};pl.nights.forEach(n=>n.blocks.forEach(b=>m[b.id]=(m[b.id]||0)+b.projH));return m;};
 const c3=perCh(pl3), c5=perCh(pl5);
-chk('e non cambia nemmeno le ore per canale',
-  Object.keys(c3).every(k=>Math.abs(c3[k]-c5[k])<0.01),true);
+chk('e non cambia nemmeno la profondita per canale',
+  Object.keys(c3).every(k=>Math.abs(c3[k]-c5[k])<0.02),true);
+/* E la controprova, che e' il difetto che questa revisione ha chiuso: sotto la
+   Luna servono PIU' ore di orologio della prescrizione per depositarla tutta. */
+const oreOrologio=pl3.nights.reduce((a,n)=>a+n.usedH,0);
+console.log(`      ${prM31.spent.toFixed(1)} h di progetto costano ${oreOrologio.toFixed(1)} h di orologio `+
+  `(${((oreOrologio/prM31.spent-1)*100).toFixed(0)}% in piu, e' la Luna)`);
+chk('sotto la Luna le ore di orologio superano quelle di progetto',
+  oreOrologio>=prM31.spent-1e-6,true);
 chk('nessuna notte supera le ore realmente disponibili di quella data',
   pl3.nights.every(n=>n.usedH<=n.availH+1e-6),true);
-chk('chiedere cinque notti ne usa cinque, non tre piene e due vuote',
+chk('chiedere piu notti le usa tutte, non alcune piene e altre vuote',
   pl5.nights.every(n=>n.blocks.length>0),true);
 chk('i blocchi per notte restano pochi',
   pl3.nights.every(n=>n.blocks.length<=3),true);
 chk('il canale critico entra dalla prima notte',
   pl3.nights[0].blocks.some(s=>s.critical)||pl3.nights[1].blocks.some(s=>s.critical),true);
+/* La capacita' e' PER CANALE: la stessa notte non vale uguale per una luminanza
+   e per un Ha da 3 nm. E' l'affermazione che regge tutto C-2. */
+{
+  const notte=pl3.nights.find(n=>n.dMagV>0.3)||pl3.nights[0];
+  const perBanda=['L','Ha'].map(b=>{
+    const f=M.filterFor(b,dvM31mono.c), fw=f?f.fwhm_nm:250;
+    return {b,p:M.moonPenalty(b,notte.dMagV,fw,false,M.lpExcessFlux(bornoSite.sqm,fw))};
+  });
+  console.log(`      notte del ${notte.date.toLocaleDateString('it-IT')} (dMagV ${notte.dMagV.toFixed(2)}): `+
+    perBanda.map(x=>x.b+' rende '+(x.p*100).toFixed(0)+'%').join(', '));
+  chk('la stessa notte non vale uguale per luminanza e banda stretta',
+    perBanda[1].p>perBanda[0].p+0.05,true);
+}
 
 /* ─── le due modalita': sessione autonoma vs ottimizzazione sul progetto ─── */
 console.log('\n--- sessione completa: ogni notte deve stare in piedi da sola ---');
@@ -897,11 +952,22 @@ chk('mentre ottimizzando sul progetto no',
   plProg.nights.some(x=>x.blocks.length<Object.keys(target).length),true);
 /* L'invariante che non si negozia: qualunque modalita', le ore per canale sono
    quelle della prescrizione. Il bilanciamento chiude sulle righe apposta. */
-const perCanale=pl=>{const m={};pl.nights.forEach(n2=>n2.blocks.forEach(b=>m[b.id]=(m[b.id]||0)+b.h));return m;};
+const perCanale=pl=>{const m={};pl.nights.forEach(n2=>n2.blocks.forEach(b=>m[b.id]=(m[b.id]||0)+b.projH));return m;};
 const cs=perCanale(plSess), cp=perCanale(plProg);
-chk('la modalita non tocca le ore per canale',
+chk('la modalita non tocca la profondita per canale',
   Object.keys(target).every(k=>Math.abs(cs[k]-target[k])<0.02&&Math.abs(cp[k]-target[k])<0.02),true);
-chk('ne il totale',plSess.nights.reduce((a,x)=>a+x.usedH,0),prM31.spent,0.02);
+chk('ne il totale',plSess.nights.reduce((a,x)=>a+x.blocks.reduce((b,y)=>b+y.projH,0),0),prM31.spent,0.02);
+/* Le ORE di orologio invece cambiano fra le due modalita, e devono: la sessione
+   completa mette ogni canale in ogni notte, quindi mette anche la luminanza sotto
+   la Luna dove costa il doppio; il progetto la sposta dove costa meno. E' il
+   prezzo dichiarato di avere un'immagine ogni mattina invece che alla fine. */
+{
+  const oreS=plSess.nights.reduce((a,x)=>a+x.usedH,0);
+  const oreP=plProg.nights.reduce((a,x)=>a+x.usedH,0);
+  console.log(`      stessa profondita, ore di orologio diverse: sessione ${oreS.toFixed(1)} h · progetto ${oreP.toFixed(1)} h`);
+  chk('ottimizzare sul progetto costa meno ore di orologio della sessione completa',
+    oreP<=oreS+1e-6,true);
+}
 chk('nessuna notte supera le ore disponibili',
   plSess.nights.every(x=>x.usedH<=x.availH+1e-6),true);
 /* Il canale critico per primo: se le nuvole arrivano a meta' sessione, quello che
@@ -912,16 +978,45 @@ const rgbPerNotte=plSess.nights.map(x=>{const b=x.blocks.find(y=>y.id==='RGB');r
 console.log(`      RGB per notte: ${rgbPerNotte.map(h=>h.toFixed(2)).join('  ')} h  (la Luna cresce)`);
 chk('le quantita non sono identiche notte per notte',
   Math.max(...rgbPerNotte)-Math.min(...rgbPerNotte)>0.005,true);
-/* Il bilanciamento a trasporto: righe esatte, colonne vicine alle quote. */
+/* Il bilanciamento a trasporto. Le celle sono ore di OROLOGIO e le righe chiudono
+   sulla PROFONDITA' — Σ ore x penalita' — perche' e' la prescrizione a essere
+   l'invariante. Il secondo canale rende il 20% nella prima notte e il 100% nella
+   terza: per depositare le sue 6 h di progetto gli servono piu' di 6 h di orologio,
+   e il test deve chiedere quello, non le ore. Le quote seguono la stessa regola —
+   sono ore di orologio dimensionate sulla capacita, non sul fabbisogno grezzo. */
 const itemsT=[{total:10,pen:[1,1,1],minCell:0},{total:6,pen:[.2,.5,1],minCell:0}];
-const nightsT=[{quota:6},{quota:5},{quota:5}];
+const capT=[1,1,1].map((_,c)=>{     // media armonica pesata sulle profondita' richieste
+  let num=0,den=0;
+  for(const it of itemsT){ num+=it.total; den+=it.total/it.pen[c]; }
+  return den>0?num/den:1;
+});
+const oreT=[6,5,5];                                     // ore di orologio offerte
+const kT=16/oreT.reduce((a,h,c)=>a+h*capT[c],0);        // 16 h di progetto da depositare
+const nightsT=oreT.map((h,c)=>({quota:h*kT}));
 const X=M.balanceSessions(itemsT,nightsT,{});
-const rs=X.map(r=>r.reduce((a,b)=>a+b,0));
+const rs=X.map((r,i)=>r.reduce((a,b,c)=>a+b*itemsT[i].pen[c],0));
+const rsOre=X.map(r=>r.reduce((a,b)=>a+b,0));
 const csum=nightsT.map((_,c)=>X.reduce((a,r)=>a+r[c],0));
-console.log(`      righe ${rs.map(v=>v.toFixed(2)).join(' ')} (attese 10 6) · colonne ${csum.map(v=>v.toFixed(2)).join(' ')} (attese 6 5 5)`);
-chk('le righe tornano esatte',rs[0],10,0.001);
+console.log(`      profondita per riga ${rs.map(v=>v.toFixed(2)).join(' ')} (attese 10 6) · `+
+  `ore di orologio ${rsOre.map(v=>v.toFixed(2)).join(' ')} · colonne ${csum.map(v=>v.toFixed(2)).join(' ')} `+
+  `(quote ${nightsT.map(x=>x.quota.toFixed(2)).join(' ')})`);
+chk('le righe depositano esattamente la prescrizione',rs[0],10,0.001);
 chk('anche la seconda',rs[1],6,0.001);
-chk('le colonne restano vicine alle quote',csum.every((v,i)=>Math.abs(v-nightsT[i].quota)<0.3),true);
+chk('e per farlo il canale sensibile alla Luna spende piu ore di quante ne deposita',
+  rsOre[1]>6+1e-6,true);
+/* Le colonne stanno SOTTO le quote, e la distanza e' informativa. La media
+   armonica assume che ogni notte si spartisca fra i canali in proporzione a
+   quello che a ciascuno manca; il trasporto invece inclina, e mette il canale
+   fragile dove la Luna non c'e'. Fa quindi meglio della stima, sempre: la quota
+   e' un tetto conservativo, non un obiettivo da centrare. Il verso conta —
+   sbagliare per eccesso di notti e' onesto, promettere una profondita' che non
+   arriva no. */
+console.log(`      il trasporto consuma ${(csum.reduce((a,b)=>a+b,0)/nightsT.reduce((a,x)=>a+x.quota,0)*100).toFixed(0)}% `+
+  `delle quote: inclinare i canali verso le notti buone rende piu della stima armonica`);
+chk('nessuna notte viene caricata oltre la propria quota',
+  csum.every((v,i)=>v<=nightsT[i].quota+1e-6),true);
+chk('e la stima conservativa non e sprecona: resta sopra i due terzi',
+  csum.reduce((a,b)=>a+b,0)>=nightsT.reduce((a,x)=>a+x.quota,0)*0.66,true);
 chk('il canale sensibile alla Luna finisce dove la Luna non c e',X[1][2]>X[1][0],true);
 /* E il canale indifferente NON resta piatto: deve compensare. Le colonne sono un
    vincolo, quindi dove il canale fragile si ritira qualcuno deve prendere il suo
@@ -929,7 +1024,7 @@ chk('il canale sensibile alla Luna finisce dove la Luna non c e',X[1][2]>X[1][0]
 chk('e quello indifferente compensa dove l altro si ritira',X[0][0]>X[0][2],true);
 
 /* La guardia sulle combinazioni impossibili — punto 3. */
-const b31=M.nightsBounds(prM31,m31,bornoSite,PDATE,{});
+const b31=M.nightsBounds(prM31,m31,bornoSite,PDATE,{dv:dvM31mono});
 console.log(`      notti ammesse per 14.5 h su M31 da Borno: da ${b31.min} a ${b31.max}`);
 const tooFew=M.planNights(prM31,eM31,dvM31mono,1,POPT);
 const tooMany=M.planNights(prM31,eM31,dvM31mono,40,POPT);

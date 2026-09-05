@@ -160,13 +160,18 @@ H('E · la copertura entra una volta sola');
   const b=M.nightsBounds(pr,velo,site,new Date(2026,8,15,12,0,0),{panels:pr.panels});
   chk('il pianificatore chiede lo stesso totale, non il doppio',
       Math.abs(b.need-pr.spentTotal)<1e-6, `need ${b.need.toFixed(2)} h`);
-  /* timeFactor resta applicato una sola volta: la soglia riscalata e' il prodotto
-     esatto della soglia di scheda per il fattore, e la copertura non ci entra. */
+  /* Che cosa questa verifica difende: i fattori restano applicati UNA volta sola
+     e la copertura non ci entra. I fattori sono due — l'ottica e il cielo — e il
+     secondo e' arrivato dopo: la soglia di scheda vale al cielo di riferimento,
+     e da SQM 20.8 un OIII costa `1/lpPenalty` volte tanto. I pannelli restano
+     fuori da entrambi, ed e' quello il punto del gate. */
   const f=M.timeFactor(d,'OIII',(e.tsub||{}).OIII);
+  const fl=M.filterFor('OIII',d.c);
+  const sf=1/M.lpPenalty(site.sqm,fl?fl.fwhm_nm:250);
   const base=velo.budget.OIII.floor;
-  chk('la soglia riscalata e soglia di scheda x fattore, senza pannelli',
-      Math.abs(e.budget.OIII.floor-base*f)<1e-6,
-      `${base} x ${f.toFixed(3)} = ${e.budget.OIII.floor.toFixed(3)} h`);
+  chk('la soglia riscalata e soglia di scheda x ottica x cielo, senza pannelli',
+      Math.abs(e.budget.OIII.floor-base*f*sf)<1e-6,
+      `${base} x ${f.toFixed(3)} x ${sf.toFixed(3)} = ${e.budget.OIII.floor.toFixed(3)} h`);
 }
 
 /* ═══ F · le alternative si confrontano come sistemi completi ═══ */
