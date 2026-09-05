@@ -523,7 +523,11 @@ details.diag>summary{cursor:pointer;padding:10px 14px;font-size:12.5px;font-weig
 details.diag>summary::-webkit-details-marker{display:none}
 details.diag>summary::before{content:'▸ ';color:var(--acc)}
 details.diag[open]>summary::before{content:'▾ '}
-details.diag .body{padding:0 14px 14px;font-size:12px}
+/* Le tabelle della diagnosi sono piu' larghe di uno schermo di telefono, e
+   `.card` ha overflow:hidden — quindi le ultime colonne finivano tagliate, senza
+   modo di raggiungerle. Qui scorrono dentro la diagnosi invece di sparire: e' lo
+   stesso rimedio di .tablewrap, applicato dove serviva e non c'era. */
+details.diag .body{padding:0 14px 14px;font-size:12px;overflow-x:auto}
 .dg h5{margin:var(--s4) 0 5px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;
   color:var(--acc)}
 .dg p{margin:4px 0;color:var(--dim);line-height:1.55}
@@ -671,6 +675,9 @@ td.archcell{max-width:120px}
   .hero-input input{font-size:18px;padding:14px 0}
   .hero-go{min-height:48px;width:100%}
   .hero-num{max-width:none;flex:1 1 130px}
+  /* Su un telefono si preme col pollice: 32px sono pochi, e il tasto principale
+     qui accanto ne usa gia' 48. Stessa misura, stessa mano. */
+  .hc-seg span{min-height:44px;font-size:13px}
 }
 
 /* =====================================================================
