@@ -9963,6 +9963,95 @@ function projectPanels(tg,dv,cov,rot){
           limited:intent===COV_FRAMING&&targetPanels>1};
 }
 
+/* -------------------------------------------------------------------------
+   LA RESA — che fotografia esce davvero da un sistema su un dato soggetto.
+
+   PERCHE' SERVE. In copertura completa il confronto fra due sistemi era gia'
+   onesto: la copertura e' tenuta FISSA per costruzione — tutti coprono il
+   soggetto intero — e a variare resta il costo. In inquadratura libera quel
+   vincolo cade, `panels` vale uno per tutti, e un campo vale l'altro: ma un
+   campo dell'Askar e' venti volte il campo dell'RC8. Il confronto teneva fisso
+   il costo e lasciava variare la copertura senza guardarla. Non e' che
+   l'inquadratura libera sia sbagliata: e' che la grandezza libera era cambiata
+   e il metro no.
+
+   LE TRE GRANDEZZE SONO ORTOGONALI, E SI PUO' DIMOSTRARE. Nel motore:
+     - la PROFONDITA' non dipende dalla scala. `varRate()` e' bit-identica a
+       bin 1, 2 e 3: su CMOS il binning e' somma digitale, e l'SNR per arcsec2
+       non cambia. Dipende da apertura, throughput, filtro, matrice, cielo, ore.
+     - la RISOLUZIONE non dipende dal tempo. Posare il doppio non stringe la PSF.
+     - la COPERTURA non dipende ne' dal tempo ne' dalla scala: e' campo contro
+       ingombro del bersaglio.
+   Tre assi indipendenti: il loro prodotto non conta niente due volte, ed e'
+   questa la ragione formale per cui la resa e' un prodotto e non una cascata.
+
+   E DA' LA LEGGE GIUSTA DA SOLA. A tempo totale T fissato, coprire N pannelli
+   significa T/N ore ciascuno; l'SNR va come la radice del tempo, quindi
+   profondita' e copertura si scambiano esattamente:
+
+       copertura x profondita'  =  costante, quando il tempo e' il vincolo
+
+   Infatti con d = T/(N x ideale) e c = 1 in copertura completa, e con d = T/ideale
+   e c = 1/N in inquadratura, il prodotto c x d e' lo stesso. Le due modalita'
+   danno la STESSA resa quando le ore sono poche, e la copertura completa vince
+   solo quando ce ne sono abbastanza da saturare la profondita'. Non e' una
+   regola imposta: esce dal conto, ed e' il comportamento fotografico reale.
+
+   NESSUN PREMIO AL CAMPO LARGO. La copertura satura a uno: inquadrare piu'
+   cielo del soggetto non aggiunge nulla. Su un bersaglio piccolo il termine
+   vale uno per tutti e sparisce dal confronto, che torna a decidersi su
+   profondita' e risoluzione — dove il campo largo perde. Su un bersaglio esteso
+   pesa, perche' li' pesa davvero.                                            */
+
+/* La FWHM equivalente di un pixel quadrato. Un top-hat di lato s ha deviazione
+   standard s/sqrt(12); portarla a FWHM vuol dire moltiplicarla per sqrt(8 ln2).
+   Nessuna costante scelta a mano: e' geometria del campionamento. */
+const PIX_FWHM=Math.sqrt(8*Math.log(2))/Math.sqrt(12);
+
+/* Quanto cielo del bersaglio finisce davvero nell'immagine, asse per asse.
+   Non e' un rapporto di aree: un filamento lungo e sottile puo' avere area
+   minore del campo e sporgerne comunque, ed e' esattamente il caso del Velo. */
+function coveredSpan(tg,dv,cov,rot){
+  const pp=projectPanels(tg,dv,cov,rot);
+  const t=pp.target;
+  const cols=pp.intent===COV_FRAMING?1:t.cols, rows=pp.intent===COV_FRAMING?1:t.rows;
+  /* (n-1) passi piu' un campo intero: e' l'estensione realmente coperta, non
+     n volte il passo, che dimenticherebbe la sovrapposizione all'ultimo bordo. */
+  const spanX=(cols-1)*t.stepX*60+dv.fovX;
+  const spanY=(rows-1)*t.stepY*60+dv.fovY;
+  const ex=t.extent;
+  const W=ex.known?ex.x:Math.max(tg.size_arcmin[0],tg.size_arcmin[1]||tg.size_arcmin[0]);
+  const H=ex.known?ex.y:W;
+  const cx=Math.min(1,spanX/Math.max(W,1e-6)), cy=Math.min(1,spanY/Math.max(H,1e-6));
+  return {pp,spanX,spanY,W,H,cx,cy,c:cx*cy};
+}
+
+/* Quanta della risoluzione che il cielo concede resta nell'immagine. Il pixel
+   si somma in quadratura alla PSF, quindi il rapporto e' sempre <= 1, tende a 1
+   quando si campiona fine e degrada quando si campiona grosso.
+   L'ASIMMETRIA NON E' UNA PREFERENZA: sovracampionare non costa niente — il
+   motore lo dimostra, varRate() non cambia col binning — mentre sottocampionare
+   butta via dettaglio che nessuna posa in piu' restituisce. */
+function resolutionFidelity(scale,fwhmSky){
+  const s=Math.max(1e-6,fwhmSky||0);
+  return s/Math.sqrt(s*s+Math.pow(PIX_FWHM*Math.max(0,scale),2));
+}
+
+/* La resa: la frazione della fotografia ottenibile che questo sistema consegna
+   davvero, con le ore che hai. Uno vuol dire il soggetto intero, alla
+   profondita' piena, campionato come il cielo permette. I tre fattori restano
+   separati e leggibili: si puo' sempre dire QUALE dei tre ha deciso. */
+function imageYield(tg,dv,site,pr,cov,rot){
+  const cv=coveredSpan(tg,dv,cov,rot);
+  const ideal=((pr||{}).roadTotals||{}).ideal||0;
+  const spent=(pr||{}).spent||0;
+  const d=ideal>0?Math.min(1,spent/ideal):(spent>0?1:0);
+  const r=resolutionFidelity(dv.scale, site.fwhm||effFWHM(site.seeing,site.rms));
+  return {c:cv.c,cx:cv.cx,cy:cv.cy,d,r,P:cv.c*d*r,
+          span:{x:cv.spanX,y:cv.spanY},extent:{x:cv.W,y:cv.H},
+          panels:cv.pp.panels,targetPanels:cv.pp.targetPanels,intent:cv.pp.intent};
+}
+
 /* Il rettangolo del sensore sul cielo, con la rotazione della camera.
    Convenzione: a rotazione 0 l'altezza del sensore è lungo Nord e la larghezza
    lungo Est; ruotare di `rot` porta l'asse dell'altezza a puntare all'angolo di
@@ -10294,11 +10383,17 @@ function mountRms(mountId,scale){
    L'ordinamento non cambia — cambia cosa costa ciascun candidato. */
 function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov){
   const out=[];
-  const cur=`${cfg.tel}|${cfg.red}|${cfg.cam}|${cfg.bin||1}`;
+  /* La chiave che esclude la configurazione gia' in uso. Il riduttore arriva
+     come numero dai preset e come stringa da chi legge un campo di modulo, e
+     per un confronto di stringhe 0.80 non e' 0.8: normalizzare qui evita che la
+     configurazione attuale finisca fra le proprie alternative — e adesso che il
+     confronto la mostra come termine di paragone, sarebbe visibilmente sbagliato. */
+  const key=c=>`${c.tel}|${Number(c.red)}|${c.cam}|${Number(c.bin||1)}`;
+  const cur=key(cfg);
   for(const p of presets){
     for(const bin of [1,2]){
       const c={tel:p.telescope,red:p.reducer,cam:p.camera,mnt:p.mount,bin};
-      if(`${c.tel}|${c.red}|${c.cam}|${bin}`===cur) continue;
+      if(key(c)===cur) continue;
       let dv2; try{ dv2=derive(c); }catch(err){ continue; }
       // la montatura del preset porta con sé il suo errore di guida
       const rms2=mountRms(p.mount,dv2.scale0);
@@ -10310,8 +10405,15 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov){
          vedere il sistema intero — profondita' E copertura — non mezzo sistema. */
       const pp2=projectPanels(tg,dv2,cov,rot||0);
       const pr=prescribe(e2,hours,dv2,pp2.panels);
-      if(pr.level==='insufficiente') continue;
+      /* Non si scarta piu' chi resta sotto la soglia. Adesso una prescrizione
+         c'e' comunque, e la resa lo colloca in fondo da sola invece di
+         nasconderlo: quando NIENTE arriva al livello-obiettivo, sapere quale
+         sistema ci va piu' vicino e' proprio l'informazione che serve. */
+      const yl=imageYield(tg,dv2,site2,pr,cov,rot||0);
       out.push({cfg:c,preset:p,bin,dv:dv2,pr,ev:e2,rms:rms2,panels:pr.panels,
+        /* I tre assi restano esposti uno per uno: chi legge deve poter dire
+           quale ha deciso, non fidarsi di un numero solo. */
+        yield:yl,cover:yl.c,depth:yl.d,resol:yl.r,P:yl.P,
         /* Quanti campi chiederebbe il soggetto intero con QUESTA ottica: resta
            visibile anche in inquadratura libera, dove non entra nel costo. */
         targetPanels:pp2.targetPanels,coverage:pp2.intent,framed:pp2.limited,
@@ -10324,14 +10426,25 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov){
         projectH:pr.roadTotalsProject.ideal});
     }
   }
-  /* Ordine: prima chi resta in campionamento corretto, poi chi arriva più in
-     alto. Non il contrario — un "pieno" ottenuto sottocampionando non è
-     un'immagine migliore, è un'immagine più piccola, ed è lo stesso baratto che
-     il punteggio è stato corretto per non premiare. */
-  const rank={pieno:4,ridotto:3,parziale:2,minimo:1};
-  out.sort((a,b)=>((b.ok?1:0)-(a.ok?1:0))
-    || (rank[b.pr.level]-rank[a.pr.level])
-    || (a.projectH-b.projectH));   // il soggetto intero, pannelli inclusi
+  /* ORDINE: la resa, che e' copertura x profondita' x risoluzione.
+
+     Prima era una cascata lessicografica: campionamento corretto si/no, poi
+     livello, poi ore. Tre discretizzazioni di grandezze continue, e ognuna
+     produceva il proprio difetto. Il primo gradino era un dirupo booleano —
+     un candidato appena fuori dal campionamento corretto perdeva contro
+     QUALUNQUE candidato dentro, quale che fosse il divario sul resto. Oltre
+     quel bordo l'informazione spariva: 1.58 e 3.17 arcsec/px finivano a pari
+     merito, con l'ordine deciso dall'inserimento. E su soggetti piccoli il
+     secondo gradino era degenere, perche' arrivavano tutti a «pieno».
+
+     Il prodotto non ha nessuno dei tre difetti: e' continuo, non perde
+     informazione oltre una soglia, e non degenera — quando un fattore satura
+     per tutti sparisce dal confronto e decidono gli altri due, che e'
+     esattamente quello che si vuole.
+
+     Le ore di progetto restano come spareggio: a parita' di fotografia
+     ottenuta, si preferisce quella che costa meno. */
+  out.sort((a,b)=>(b.P-a.P) || (a.projectH-b.projectH));
   return out.slice(0,maxN||3);
 }
 
@@ -11920,7 +12033,28 @@ function evaluate(tg,dv,site,np,state,cov){
 
   // punteggio 0-100 — "resa attesa stanotte"
   const sWin  = clamp(critHeff/5,0,1);        // la Luna e' gia' dentro
-  const sFit  = fit.score;
+  /* IL TERMINE DI INQUADRATURA, E PERCHE' DIPENDE DALLA MODALITA'.
+
+     `framing()` da' un giudizio estetico: il soggetto rende quando riempie fra
+     un terzo e cinque sesti del campo, e chi sborda prende «mosaico» a 0.35.
+     In copertura completa e' giusto — quello sbordare si paga davvero, in
+     pannelli. In inquadratura libera no: l'utente ha DETTO che una porzione gli
+     sta bene, e continuare a penalizzarlo per essere grande significherebbe
+     rimettere il vincolo che ha appena tolto.
+
+     Li' la grandezza onesta e' la frazione di soggetto che entra nel campo. Si
+     prende il migliore dei due letture, cosi' dichiarare che accetti un ritaglio
+     non puo' MAI peggiorare il giudizio su un bersaglio — sarebbe un assurdo.
+     Il ramo «troppo piccolo» resta intatto in entrambe le modalita': un oggetto
+     di due primi in un campo di tre gradi e' una scelta discutibile comunque, e
+     l'inquadratura libera non c'entra niente.
+
+     La risoluzione NON entra qui: a configurazione fissa e' la stessa per ogni
+     bersaglio, quindi non ne ordina nessuno. Vive in fitAlternatives(), dove la
+     configurazione e' proprio cio' che varia. */
+  const sFit  = (cvr.intent===COV_FRAMING && fit.r>1)
+    ? Math.max(fit.score, coveredSpan(tg,dv,cvr.intent,0).c)
+    : fit.score;
   /* Quanta della risoluzione che il cielo concede stai davvero raccogliendo.
      Sovracampionare costa ore ma non risoluzione; sottocampionare la butta via, e
      ora che il binning divide le ore per il quadrato del lato va pesato per quello
@@ -11944,6 +12078,11 @@ function evaluate(tg,dv,site,np,state,cov){
              del soggetto intero, che resta consultabile anche quando il
              progetto non la paga. */
           targetPanels:cvr.targetPanels,coverage:cvr.intent,framed:cvr.limited,
+          /* Copertura e risoluzione consegnate da QUESTA configurazione su
+             QUESTO bersaglio: la terza gamba, la profondita', dipende dalle ore
+             e la aggiunge prescribe(). */
+          covered:coveredSpan(tg,dv,cvr.intent,0),
+          resol:resolutionFidelity(dv.scale,seeing),
           accReal,defRoad,nights,weeks,nightsAcc,weeksAcc,
           fit,samp,progress,progressAcc,score,perNight,
           feas,feasAcc,missing,critFilter,dual,dualUsed,clearFrac:site.clearFrac};
@@ -13680,18 +13819,47 @@ function renderRx(np){
       configurazione fra le tue porta questo oggetto al livello-obiettivo in
       ${fmt(hours,1)} h. Puoi comunque riprenderlo con quella che hai: la prescrizione
       qui sopra e' la piu' sensata con queste ore.</p>`;
-    return `<h4 style="margin:16px 0 4px;font-size:13px">Con questa strumentazione invece
-      arrivi al livello-obiettivo</h4>
-      ${alts.map(x=>`<div class="altrow">
+    /* I tre assi in chiaro accanto a ogni riga. La classifica e' il loro
+       prodotto, e chi legge deve poter vedere QUALE ha deciso invece di fidarsi
+       di un numero solo: su una planetaria decide la risoluzione, su M31 la
+       copertura, sotto un cielo cattivo la profondita'. */
+    const asse=(v,lab,tip)=>`<span class="muted" data-tip="${esc(tip)}">${lab} <b>${Math.round(v*100)}%</b></span>`;
+    /* IL TERMINE DI PARAGONE. Un elenco di alternative senza la resa di cio' che
+       gia' possiedi non dice la cosa che conta — se cambiare convenga. Capita
+       spesso che non convenga: sul Velo intero il campo largo che hai gia' rende
+       piu' di ogni alternativa, ed e' esattamente la risposta utile. */
+    const mio=imageYield(t,dv,SITE,pr,covIntent(),rotFor(t));
+    const meglio=alts.filter(x=>x.P>mio.P+1e-9);
+    const rigaMia=`<div class="altrow" style="opacity:.85">
+      <span class="pill p-dim">quella che hai</span>
+      <span class="n"><b>${esc((DB.presets.find(q=>q.telescope===CFG.tel&&String(q.reducer)===String(CFG.red)&&q.camera===CFG.cam)||{}).label||'la tua configurazione')}</b>${(CFG.bin||1)>1?` a <b>bin ${CFG.bin}</b>`:''}
+        <span class="muted">— ${fmt(dv.scale,2)}″/px, campo ${fmt(dv.fovX,0)}′×${fmt(dv.fovY,0)}′</span>
+        <div class="small" style="margin-top:2px">
+          ${asse(mio.c,'soggetto','Quanta parte del bersaglio entra nell\'immagine.')} &middot;
+          ${asse(mio.d,'profondità','Quanto della profondità prevista raggiungi con le ore che hai.')} &middot;
+          ${asse(mio.r,'dettaglio','Quanta della risoluzione che il cielo concede resta nell\'immagine.')} &middot;
+          <b>resa ${Math.round(mio.P*100)}%</b></div></span></div>`;
+    return `<h4 style="margin:16px 0 4px;font-size:13px">${
+      meglio.length?'Con quale strumento viene meglio':'Quella che hai è già la scelta migliore'}</h4>
+      ${!meglio.length?`<p class="small">Nessuna delle tue altre configurazioni rende di più su
+        questo soggetto con queste ore. Le ore mancano, lo strumento no: la prescrizione qui
+        sopra è la migliore che puoi fare stasera.</p>`:''}
+      ${rigaMia}
+      ${(meglio.length?meglio:alts).map(x=>`<div class="altrow">
         <span class="pill ${x.pr.level==='pieno'||x.pr.level==='ridotto'?'p-ok':'p-warn'}">${RXLVL[x.pr.level].k}</span>
         <span class="n"><b>${esc(x.preset.label)}</b>${x.bin>1?` a <b>bin ${x.bin}</b>`:''}
-          <span class="muted">— ${fmt(x.dv.scale,2)}″/px, campionamento ${x.samp}${
-            x.ok?'':' <span class="p-warn">(perdi risoluzione)</span>'}</span></span>
+          <span class="muted">— ${fmt(x.dv.scale,2)}″/px, campo ${fmt(x.dv.fovX,0)}′×${fmt(x.dv.fovY,0)}′</span>
+          <div class="small" style="margin-top:2px">
+            ${asse(x.cover,'soggetto','Quanta parte del bersaglio entra nell\'immagine. Satura al 100%: inquadrare più cielo del soggetto non aggiunge niente.')} &middot;
+            ${asse(x.depth,'profondità','Quanto della profondità prevista dalla scheda raggiungi con le ore che hai, su ciascun campo.')} &middot;
+            ${asse(x.resol,'dettaglio','Quanta della risoluzione che il cielo concede resta nell\'immagine, dato il campionamento. Sovracampionare non costa nulla; sottocampionare butta via dettaglio che non torna.')} &middot;
+            <b data-tip="Il prodotto dei tre: la frazione della fotografia ottenibile che questo sistema consegna davvero. Con questo ordino.">resa ${Math.round(x.P*100)}%</b></div></span>
         <button class="chip fn fn-cfg" onclick="rxApply('${x.preset.id}',${x.bin})">usa questa</button>
       </div>`).join('')}
-      <p class="small muted" style="margin-top:8px">È il vantaggio di avere più di un tubo:
-      la domanda giusta spesso non è «quante ore mi servono» ma «con quale strumento».
-      Non è un obbligo di cambiare: è l'alternativa, se ce l'hai.</p>`;
+      <p class="small muted" style="margin-top:8px">Ordinati sulla <b>resa</b>: quanto del
+      soggetto entra, per quanta profondità, a quale dettaglio. Sono tre cose distinte e
+      restano scritte una per una — su una planetaria decide il dettaglio, su una nebulosa
+      estesa quanto ne inquadri. Non è un obbligo di cambiare: è l'alternativa, se ce l'hai.</p>`;
   })();
 
   const costoNote = `<p class="small" style="margin:10px 0 0"><b>Il costo per intero.</b>

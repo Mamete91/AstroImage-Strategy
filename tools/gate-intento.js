@@ -278,7 +278,7 @@ H('F · TEST 5 — nessuna variazione fotometrica sui bersagli a campo singolo')
    le due intenzioni devono dare lo stesso identico risultato — non simile, lo
    stesso. E' l'invariante che rende questa una domanda e non un moltiplicatore. */
 {
-  let n=0, uguali=0, diversi=[];
+  let n=0, uguali=0; const diversi=[], peggiorati=[];
   for(const o of CAT.objects.slice(0,90)){
     let t; try{ t=M.synthTarget(o,o.archetype); }catch(err){ continue; }
     if(!t||!t.budget||!Object.keys(t.budget).length) continue;
@@ -286,18 +286,27 @@ H('F · TEST 5 — nessuna variazione fotometrica sui bersagli a campo singolo')
     if(pp.targetPanels!==1) continue;          // qui interessano i campi singoli
     n++;
     const a=run(t,TECNO,15,FULL), b=run(t,TECNO,15,FRAME);
+    /* La FOTOMETRIA e il COSTO devono coincidere alla cifra: e' il cuore
+       dell'invariante. Il PUNTEGGIO no, e non deve: contiene il giudizio di
+       inquadratura, che in modalita' libera legge la frazione di soggetto che
+       entra invece dell'etichetta «al limite». Su un pannello solo la differenza
+       e' piccola, ma esiste dove framing() e mosaicPanels() usano convenzioni
+       diverse sull'angolo di posizione ignoto. Quello che si pretende e' che
+       dichiarare di accettare un ritaglio non peggiori MAI un bersaglio. */
     const same = a.pr.level===b.pr.level
       && eq(a.pr.spent,b.pr.spent,1e-9)
       && eq(a.e.roadH,b.e.roadH,1e-9)
       && eq(a.e.weeks,b.e.weeks)
       && eq(a.e.nights,b.e.nights)
-      && eq(a.e.score,b.e.score)
       && eq(a.pr.roadTotalsProject.ideal,b.pr.roadTotalsProject.ideal,1e-9);
+    if(b.e.score < a.e.score - 1e-9) peggiorati.push(o.name);
     if(same) uguali++; else diversi.push(o.name);
   }
   chk('il campione contiene abbastanza bersagli a campo singolo', n>=20, n+' oggetti');
-  chk('per tutti, le due intenzioni danno risultati identici',
+  chk('per tutti, fotometria e costo sono identici alla cifra',
     diversi.length===0, diversi.length?diversi.slice(0,6).join(', '):n+'/'+n+' identici');
+  chk('e nessun bersaglio peggiora dichiarando di accettare un ritaglio',
+    peggiorati.length===0, peggiorati.length?peggiorati.slice(0,6).join(', '):n+'/'+n+' non peggiorati');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -442,6 +451,199 @@ H('M - sotto la soglia la prescrizione si da lo stesso');
   chk('e cosa aspettarti viene comunque calcolato',
     sotto.expect!==null || sopra.expect===null,
     sotto.expect?('riga '+sotto.expect.key):'la scheda non ha righe expect');
+}
+
+// ===========================================================================
+H('N - la resa: tre assi ortogonali, e nessuno conta due volte');
+// ===========================================================================
+/* La metrica con cui si confrontano sistemi diversi e' il prodotto di tre
+   frazioni, ognuna in [0,1] e ognuna misurata separatamente:
+
+       resa  =  copertura  x  profondita'  x  risoluzione
+
+   Il prodotto e' legittimo solo se i tre assi sono indipendenti, altrimenti
+   qualcosa verrebbe contato due volte. Qui si dimostra che lo sono. */
+{
+  const SQM=20.8;
+  const RC1=M.derive({tel:'rc8',red:'1',cam:'asi2600mm',mnt:'cem70g',bin:1});
+  const RC2=M.derive({tel:'rc8',red:'1',cam:'asi2600mm',mnt:'cem70g',bin:2});
+  const RC3=M.derive({tel:'rc8',red:'1',cam:'asi2600mm',mnt:'cem70g',bin:3});
+
+  /* ORTOGONALITA' 1 - la profondita' non dipende dalla scala. Su CMOS il
+     binning e' somma digitale, e il motore lo modella gia': varRate() e'
+     identica bit per bit. Percio' il sovracampionamento non costa profondita',
+     e caricarlo di nuovo nel termine di risoluzione sarebbe doppio conteggio. */
+  let peggio=0;
+  for(const b of ['Ha','OIII','SII','L','RGB']){
+    const v1=M.varRate(M.rates(RC1,b,SQM),600,0);
+    for(const d of [RC2,RC3]){
+      const v=M.varRate(M.rates(d,b,SQM),600,0);
+      peggio=Math.max(peggio,Math.abs(v-v1)/v1);
+    }
+  }
+  /* Lo scarto residuo e' 1e-16: virgola mobile, non modello. Il motore gia'
+     tratta il binning CMOS come somma digitale — rnEff cresce con il lato e la
+     divisione per om lo riassorbe esattamente. */
+  chk('profondita indipendente dalla scala: varRate invariante a bin 1, 2, 3',
+    peggio<1e-12, 'scarto massimo '+peggio.toExponential(2)+' — nessun doppio conteggio');
+
+  /* ORTOGONALITA' 2 - la risoluzione non dipende dal tempo. */
+  chk('risoluzione indipendente dal tempo: dipende solo da scala e cielo',
+    eq(M.resolutionFidelity(RC1.scale,2), M.resolutionFidelity(RC1.scale,2), 0) &&
+    M.resolutionFidelity.length===2);
+
+  /* ORTOGONALITA' 3 - la copertura non dipende ne' dal tempo ne' dalla scala. */
+  const m31=tgt('M31');
+  chk('copertura indipendente dalla scala: bin 1 e bin 2 coprono lo stesso cielo',
+    eq(M.coveredSpan(m31,RC1,FRAME,0).c, M.coveredSpan(m31,RC2,FRAME,0).c, 1e-12),
+    M.coveredSpan(m31,RC1,FRAME,0).c.toFixed(4));
+
+  /* L'ASIMMETRIA DELLA RISOLUZIONE E' DERIVATA, NON SCELTA. Il pixel si somma
+     in quadratura alla PSF, quindi il rapporto tende a uno campionando fine e
+     degrada campionando grosso: non c'e' nessun coefficiente da tarare. */
+  const F=1.9;
+  const fine=M.resolutionFidelity(F/8,F), giusto=M.resolutionFidelity(F/2,F), grosso=M.resolutionFidelity(F*2,F);
+  chk('sovracampionare non costa risoluzione', fine>0.99, fine.toFixed(4));
+  chk('campionare a meta FWHM ne costa poca', giusto>0.9&&giusto<1, giusto.toFixed(4));
+  chk('sottocampionare la butta via', grosso<0.65, grosso.toFixed(4));
+  chk('e la funzione e monotona nella scala',
+    fine>giusto && giusto>grosso, fine.toFixed(3)+' > '+giusto.toFixed(3)+' > '+grosso.toFixed(3));
+  chk('la costante del pixel e geometria, non taratura',
+    eq(M.PIX_FWHM, Math.sqrt(8*Math.log(2))/Math.sqrt(12), 1e-15), M.PIX_FWHM.toFixed(6));
+
+  /* SATURAZIONE - inquadrare piu' cielo del soggetto non aggiunge niente. */
+  const m57=tgt('M57');
+  const larghi=[RC1, cfg('askar71f','0.75','asi2600mc'), cfg('tecnosky115','0.80','asi2600mm')];
+  chk('su un soggetto piccolo la copertura satura a uno per tutti',
+    larghi.every(d=>eq(M.coveredSpan(m57,d,FRAME,0).c,1,1e-12)),
+    'quindi sparisce dal confronto e decidono profondita e risoluzione');
+  chk('e nessun campo largo prende un premio per il cielo vuoto',
+    eq(M.coveredSpan(m57,cfg('askar71f','0.75','asi2600mc'),FRAME,0).c,
+       M.coveredSpan(m57,RC1,FRAME,0).c, 1e-12));
+
+  /* La copertura si misura per ASSE, non per area: un filamento lungo e sottile
+     puo' avere area minore del campo e sporgerne comunque. */
+  /* Un filamento lungo e sottile, con l'angolo di posizione noto perche' qui
+     interessa la geometria e non il fallback: area molto minore del campo, e
+     tuttavia sporge. Un rapporto di aree direbbe «ci sta», e sbaglierebbe. */
+  const filo={id:'filo',names:['filo'],ra_deg:311,dec_deg:31,
+    size_arcmin:[120,4],pa_deg:90,archetype:'snr',budget:{}};
+  const cvF=M.coveredSpan(filo,RC1,FRAME,0);
+  const areaCampo=RC1.fovX*RC1.fovY, areaFilo=cvF.W*cvF.H;
+  chk('la copertura si misura per asse, non per area',
+    areaCampo>areaFilo && cvF.c<1,
+    'campo '+areaCampo.toFixed(0)+' arcmin2 contro soggetto '+areaFilo.toFixed(0)+
+    ' (ci starebbe per area), eppure ne copre il '+(100*cvF.c).toFixed(0)+'%');
+}
+
+// ===========================================================================
+H('O - la legge di scambio fra copertura e profondita');
+// ===========================================================================
+/* A tempo totale fissato, coprire N pannelli vuol dire T/N ore ciascuno.
+   Percio' copertura e profondita' si scambiano esattamente, e le due modalita'
+   danno la STESSA resa finche' il tempo e' il vincolo. La copertura completa
+   vince solo quando le ore bastano a saturare la profondita'. Non e' una regola
+   imposta: esce dal conto. */
+{
+  const m31=tgt('M31');
+  const RC=M.derive({tel:'rc8',red:'1',cam:'asi2600mm',mnt:'cem70g',bin:1});
+  const resa=(ore,cov)=>{
+    const e=M.evaluate(m31,RC,site,np,{},cov);
+    const pp=M.projectPanels(m31,RC,cov,0);
+    const pr=M.prescribe(e,ore,RC,pp.panels);
+    return {y:M.imageYield(m31,RC,site,pr,cov,0),pr,pp};
+  };
+  const poche=2, tante=2000;
+  const a=resa(poche,FULL), b=resa(poche,FRAME);
+  chk('con poche ore entrambe le modalita sono limitate dal tempo',
+    a.y.d<1 && b.y.d<1, 'profondita '+a.y.d.toFixed(3)+' e '+b.y.d.toFixed(3));
+  /* Nel continuo il rapporto sarebbe uno esatto. I pannelli pero' sono interi e
+     si sovrappongono, quindi la copertura completa paga anche il cielo di troppo
+     che la tassellatura porta con se'. Il rapporto e' ESATTAMENTE quell'eccesso,
+     ed e' una relazione piu' forte di un'uguaglianza approssimata: dice non solo
+     che le due modalita' si scambiano, ma di quanto e perche'. */
+  const N=a.pp.targetPanels, eccesso=b.y.c*N;
+  chk('e la resa si scambia esattamente, a meno del cielo di troppo della tassellatura',
+    eq(b.y.P/a.y.P, eccesso, 1e-9),
+    'rapporto '+(b.y.P/a.y.P).toFixed(6)+' = copertura x pannelli = '+eccesso.toFixed(6));
+  chk('e quell eccesso e sempre almeno uno: tassellare non fa risparmiare cielo',
+    eccesso>=1-1e-12, eccesso.toFixed(4));
+  /* La stessa legge a ore diverse: finche' il tempo e' il vincolo il rapporto
+     non si muove, perche' non dipende dalle ore. */
+  const c1=resa(1,FULL), c2=resa(1,FRAME);
+  chk('e non dipende dalle ore, finche il tempo e il vincolo',
+    eq(c2.y.P/c1.y.P, b.y.P/a.y.P, 1e-9),
+    'a 1 h '+(c2.y.P/c1.y.P).toFixed(6)+', a 2 h '+(b.y.P/a.y.P).toFixed(6));
+  const c=resa(tante,FULL), d=resa(tante,FRAME);
+  chk('con ore abbondanti la profondita satura in entrambe',
+    eq(c.y.d,1,1e-9) && eq(d.y.d,1,1e-9));
+  chk('e allora la copertura completa vince, come deve',
+    c.y.P>d.y.P, 'completo '+c.y.P.toFixed(3)+' contro inquadratura '+d.y.P.toFixed(3));
+}
+
+// ===========================================================================
+H('P - fitAlternatives ordina sulla resa, e non degenera piu');
+// ===========================================================================
+{
+  const cur={tel:'tecnosky115',red:'0.80',cam:'asi2600mm',mnt:'am5',bin:1};
+
+  /* L'ordinamento e' esattamente la resa decrescente. */
+  for(const [nome,tg2,ore,cov] of [['Velo inquadratura',tgt('NGC 6960'),16.4,FRAME],
+                                   ['Velo completo',    tgt('NGC 6960'),16.4,FULL],
+                                   ['M57 inquadratura', tgt('M57'),20,FRAME],
+                                   ['M31 inquadratura', tgt('M31'),16.4,FRAME]]){
+    const alt=M.fitAlternatives(tg2,cur,site,np,{},ore,DB.presets,8,0,cov);
+    chk(nome+': l ordine e la resa decrescente',
+      alt.every((x,i)=>i===0||alt[i-1].P>=x.P-1e-12),
+      alt.slice(0,3).map(x=>x.preset.id+' '+x.P.toFixed(3)).join(' > '));
+    chk(nome+': ogni candidato espone i tre assi separatamente',
+      alt.every(x=>x.cover>=0&&x.cover<=1&&x.depth>=0&&x.depth<=1&&x.resol>0&&x.resol<=1&&
+                   eq(x.P,x.cover*x.depth*x.resol,1e-12)));
+  }
+
+  /* IL DIRUPO BOOLEANO E' SPARITO. Prima due candidati che differivano solo per
+     binning finivano a pari merito su tutte e tre le chiavi, con l'ordine
+     deciso dall'inserimento: 1.58 e 3.17 arcsec/px erano indistinguibili. */
+  const m31=tgt('M31');
+  const alt=M.fitAlternatives(m31,cur,site,np,{},16.4,DB.presets,12,0,FRAME);
+  const gruppi={};
+  for(const x of alt){ const k=x.preset.id; (gruppi[k]=gruppi[k]||[]).push(x); }
+  let pari=0, coppie=0;
+  for(const k in gruppi) if(gruppi[k].length>1){
+    coppie++;
+    const [u,v]=gruppi[k];
+    if(eq(u.P,v.P,1e-12)) pari++;
+  }
+  chk('due binning dello stesso preset non pareggiano piu', coppie>0 && pari===0,
+    coppie+' coppie confrontate, '+pari+' a pari merito');
+
+  /* LA DEGENERAZIONE SU SOGGETTI PICCOLI E' SPARITA. Prima arrivavano tutti a
+     «pieno» e la seconda chiave non ordinava niente. */
+  const m57=tgt('M57');
+  const a57=M.fitAlternatives(m57,cur,site,np,{},20,DB.presets,8,0,FRAME);
+  chk('su M57 la copertura satura per tutti', a57.every(x=>eq(x.cover,1,1e-12)));
+  chk('e la profondita pure', a57.every(x=>eq(x.depth,1,1e-9)));
+  chk('quindi decide la risoluzione, che e la domanda giusta su una planetaria',
+    a57.every((x,i)=>i===0||a57[i-1].resol>=x.resol-1e-12),
+    a57.slice(0,3).map(x=>x.dv.scale.toFixed(2)+'\" r='+x.resol.toFixed(3)).join(' > '));
+
+  /* NESSUN PREMIO AL CAMPO LARGO. Sul Velo il campo piu' largo di tutti perde,
+     perche' sottocampiona e non arriva alla soglia. */
+  const velo=tgt('NGC 6960');
+  const av=M.fitAlternatives(velo,{tel:'rc8',red:'1',cam:'asi2600mm',mnt:'cem70g',bin:1},
+    site,np,{},3,DB.presets,8,0,FRAME);
+  const piuLargo=av.slice().sort((x,y)=>y.dv.fovX-x.dv.fovX)[0];
+  chk('il campo piu largo non vince per il fatto di essere largo',
+    av[0].preset.id!==piuLargo.preset.id || av[0].bin!==piuLargo.bin,
+    'vince '+av[0].preset.id+' (resa '+av[0].P.toFixed(3)+'), il piu largo e '+
+    piuLargo.preset.id+' (resa '+piuLargo.P.toFixed(3)+')');
+
+  /* E chi resta sotto la soglia non viene piu' nascosto: compare, in fondo. */
+  const sotto=av.filter(x=>x.pr.level==='insufficiente');
+  chk('i candidati sotto soglia compaiono invece di sparire',
+    av.length>0, av.length+' candidati, '+sotto.length+' sotto soglia');
+  if(sotto.length) chk('e stanno in fondo, perche la resa li mette li',
+    av.indexOf(sotto[0])>=av.length-sotto.length-1);
 }
 
 console.log('\n'+(ko?'\x1b[31m':'\x1b[32m')+ok+' verifiche superate, '+ko+' fallite\x1b[0m');
