@@ -1075,13 +1075,36 @@ chk('e quello indifferente compensa dove l altro si ritira',X[0][0]>X[0][2],true
 /* La guardia sulle combinazioni impossibili — punto 3. */
 const b31=M.nightsBounds(prM31,m31,bornoSite,PDATE,{dv:dvM31mono});
 console.log(`      notti ammesse per 14.5 h su M31 da Borno: da ${b31.min} a ${b31.max}`);
+/* IL PIANO SI DA SEMPRE — il veto tolto dalla prescrizione era rientrato qui.
+
+   Prima queste combinazioni restituivano zero notti e una schermata al posto del
+   piano. Ma se decidi di riprendere M31 in una notte sola con quello che quella
+   notte offre, il motore deve dirti che cosa farne: che servano piu' notti e' un
+   CONSIGLIO, e va dato accanto al piano, non al posto del piano.
+
+   L'invariante che resta, ed e' quella che conta davvero: il piano non corregge
+   MAI in silenzio. Se e' ridotto lo dichiara — `advice` porta il codice e il
+   numero di notti consigliate, `leftover` porta le ore che non ci sono state. */
 const tooFew=M.planNights(prM31,eM31,dvM31mono,1,POPT);
 const tooMany=M.planNights(prM31,eM31,dvM31mono,40,POPT);
-chk('una notte sola per 14.5 h viene rifiutata',tooFew.ok,false);
-chk('e il rifiuto dice quante notti servono',tooFew.reason.want>=b31.min,true);
-chk('quaranta notti per 14.5 h vengono rifiutate',tooMany.ok,false);
-chk('e il rifiuto dice il massimo sensato',tooMany.reason.code,'troppe');
-chk('il piano non corregge in silenzio: niente notti se rifiutato',tooMany.nights.length,0);
+console.log(`      1 notte:  piano su ${tooFew.nights.length} notti · consiglio ${
+  (tooFew.advice[0]||{}).code||'nessuno'} · residuo ${tooFew.leftover.toFixed(1)} h`);
+console.log(`      40 notti: piano su ${tooMany.nights.length} notti · consiglio ${
+  (tooMany.advice[0]||{}).code||'nessuno'} · residuo ${tooMany.leftover.toFixed(1)} h`);
+chk('una notte sola per 14.5 h riceve comunque un piano',tooFew.ok&&tooFew.nights.length===1,true);
+chk('e il piano di quella notte contiene canali veri',
+  tooFew.nights[0].blocks.length>0,true);
+chk('ma dichiara che per il progetto intero servono piu notti',
+  (tooFew.advice[0]||{}).code,'poche');
+chk('e dice quante',(tooFew.advice[0]||{}).want>=b31.min,true);
+chk('quaranta notti ricevono un piano, con il consiglio di concentrarlo',
+  tooMany.ok&&(tooMany.advice[0]||{}).code==='troppe',true);
+chk('e il consiglio porta il massimo sensato',(tooMany.advice[0]||{}).want,b31.max);
+/* Non correggere in silenzio significa: cio' che non ci sta si vede. */
+chk('il piano non corregge in silenzio: il residuo e dichiarato',
+  tooFew.leftover>0&&Math.abs((tooFew.need-tooFew.leftover)-
+    tooFew.nights.reduce((a,x)=>a+x.blocks.reduce((b,y)=>b+y.projH,0),0))<0.05,true,
+  'depositate '+(tooFew.need-tooFew.leftover).toFixed(1)+' h su '+tooFew.need.toFixed(1));
 chk('dentro l intervallo il piano si costruisce',
   M.planNights(prM31,eM31,dvM31mono,b31.min,POPT).ok&&
   M.planNights(prM31,eM31,dvM31mono,b31.max,POPT).ok,true);

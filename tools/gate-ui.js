@@ -227,5 +227,48 @@ if(ENG){
       b.binding==='il soggetto satura', 'dichiarato: '+b.binding);
 }
 
+console.log('\n--- L · l RGB per le sole stelle si dichiara ovunque compaia ---');
+if(ENG){
+  const {M,TG}=ENG;
+  const SRC=html;
+  /* La regola, nelle parole di chi riprende: l'RGB e' solo stelle nelle strade a
+     BANDA STRETTA PURA — HOO, SHO. Li' non porta nessuna quota del soggetto e
+     serve al colore delle stelle; in una LRGB+Ha lavora anche sulla nebulosa, e
+     chiamarlo «solo stelle» sarebbe falso. */
+  const BB=['L','R','G','B','RGB'];
+  const solo=(g,pr)=>{ if(!g||g.id!=='RGB'||g.critical) return false;
+    const a=pr.alloc.filter(x=>x.id!==g.id&&!x.dropped&&(x.share||0)>0);
+    return a.length>0&&a.every(x=>(x.bands||[]).every(b=>!BB.includes(b))); };
+  const st={lat:46.0167,lon:10.3333,sqm:20.8,seeing:1.6,rms:0.6,horizonMin:20,clearFrac:0.35};
+  st.fwhm=M.effFWHM(st.seeing,st.rms);
+  const npx=M.nightProfile(new Date(2026,8,6),st.lat,st.lon);
+  const dvm=M.derive({tel:'rc8',red:'1',cam:'asi2600mm',mnt:'cem70g',bin:1});
+  const casi=[];
+  for(const tg of TG.targets){
+    let e,pr; try{ e=M.evaluate(tg,dvm,st,npx,{}); pr=M.prescribe(e,20,dvm,1); }catch(err){ continue; }
+    const g=pr.alloc.find(x=>x.id==='RGB'); if(!g||g.dropped) continue;
+    casi.push({nome:tg.names[0],road:pr.road.id,solo:solo(g,pr),share:g.share||0});
+  }
+  const stretta=casi.filter(x=>/^(sho|hoo)/.test(x.road));
+  /* «Con banda larga» significa che una L o un RGB portano davvero il soggetto —
+     lrgb, lrgb_ha, hargb — non che la stringa contenga «rgb»: `hoo_rgbstars` la
+     contiene ed e' l'esempio opposto. */
+  const larga=casi.filter(x=>/^(lrgb|hargb)/.test(x.road));
+  chk('nelle strade a banda stretta pura l RGB e sempre solo stelle',
+    stretta.length>0&&stretta.every(x=>x.solo),
+    stretta.length+' casi (' + [...new Set(stretta.map(x=>x.road))].join(', ') + ')');
+  chk('e nelle strade con banda larga non lo e mai',
+    larga.length>0&&larga.every(x=>!x.solo),
+    larga.length+' casi (' + [...new Set(larga.map(x=>x.road))].join(', ') + ')');
+  /* E il marcatore deve esistere nel sorgente in tutti i punti in cui un canale
+     viene nominato: prescrizione, piano, tabella della posa, riepilogo. */
+  const marcatori=(SRC.match(/solo stelle<\/span>/g)||[]).length;
+  chk('il marcatore compare in ogni punto in cui il canale viene nominato',
+    marcatori>=3, marcatori+' punti nel sorgente');
+  chk('e la regola e scritta una volta sola',
+    (SRC.match(/const isStarsOnly=/g)||[]).length===1,true);
+}
+
+
 console.log(`\n${pass} verifiche superate, ${fail} fallite\n`);
 process.exit(fail?1:0);

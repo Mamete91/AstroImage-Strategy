@@ -148,20 +148,33 @@ H('D · UNA, DUE, TRE E PIU NOTTI');
     (x.pl.ok?'piano su '+x.pl.nights.length+' notti, '+
       F(x.pl.nights.reduce((a,y)=>a+y.usedH,0))+' h di orologio'
      :'rifiutato — '+x.pl.reason.code)));
-  chk('sotto il minimo il piano viene rifiutato, non accorciato in silenzio',
-    esiti.filter(x=>x.n<b.min).every(x=>!x.pl.ok&&x.pl.nights.length===0),
+  /* Il piano si da' SEMPRE, anche sotto il minimo: quello che cambia e' che sotto
+     il minimo arriva con un consiglio e un residuo dichiarato. «Non accorciato in
+     silenzio» resta l'invariante — la parola che conta e' `in silenzio`. */
+  chk('il piano si costruisce sempre, anche sotto il minimo',
+    esiti.every(x=>x.pl.ok&&x.pl.nights.length===x.n),
+    esiti.map(x=>x.n+':'+x.pl.nights.length).join(' '));
+  chk('e sotto il minimo lo dichiara invece di tacerlo',
+    esiti.filter(x=>x.n<b.min).every(x=>(x.pl.advice[0]||{}).code==='poche'&&x.pl.leftover>0),
     'minimo '+b.min);
-  chk('dal minimo in su il piano si costruisce',
-    esiti.filter(x=>x.n>=b.min&&x.n<=b.max).every(x=>x.pl.ok),true);
-  chk('e il rifiuto dice quante notti servirebbero',
-    esiti.filter(x=>!x.pl.ok&&x.pl.reason.code==='poche').every(x=>x.pl.reason.want>=b.min),true);
+  chk('dichiarando anche quante notti servirebbero',
+    esiti.filter(x=>(x.pl.advice[0]||{}).code==='poche').every(x=>x.pl.advice[0].want>=b.min),true);
+  chk('mentre dal minimo in su non resta residuo',
+    esiti.filter(x=>x.n>=b.min&&x.n<=b.max).every(x=>x.pl.leftover<0.05),
+    esiti.filter(x=>x.n>=b.min&&x.n<=b.max).map(x=>x.n+':'+F(x.pl.leftover,2)).join(' '));
   /* L'invariante che non si negozia: qualunque sia il numero di notti, la
      profondita' depositata e' quella prescritta. */
   const prof=pl=>pl.nights.reduce((a,n)=>a+n.blocks.reduce((x,y)=>x+y.projH,0),0);
-  const buoni=esiti.filter(x=>x.pl.ok);
-  chk('e su tutte le durate la profondita depositata resta la prescrizione',
+  const buoni=esiti.filter(x=>x.pl.ok&&x.n>=b.min);
+  chk('e dal minimo in su la profondita depositata resta la prescrizione',
     buoni.every(x=>Math.abs(prof(x.pl)-pr.spent)<0.03),
     buoni.map(x=>x.n+':'+F(prof(x.pl),1)).join(' '));
+  /* Sotto il minimo deposita meno, e la differenza e' esattamente il residuo:
+     nessuna ora inventata, nessuna ora persa senza dirlo. */
+  const corti=esiti.filter(x=>x.pl.ok&&x.n<b.min);
+  chk('e sotto il minimo deposita meno, per esattamente il residuo dichiarato',
+    corti.every(x=>Math.abs(prof(x.pl)-(pr.spent-x.pl.leftover))<0.05),
+    corti.map(x=>x.n+':'+F(prof(x.pl),1)+'/'+F(pr.spent,1)).join(' '));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -246,11 +259,25 @@ H('G · PROGETTO COMPLETABILE E PROGETTO CHE NON SI CHIUDE');
   const B=piano(m31,citta,D,2,60);
   console.log('       da SQM 18.5 con 60 h chieste su 2 notti: '+
     (B.pl.ok?'piano':'rifiutato — '+B.pl.reason.code+': '+B.pl.reason.msg.slice(0,90)));
-  chk('un progetto fuori portata viene dichiarato tale, non consegnato a meta',
-    !B.pl.ok||B.pl.leftover<0.05,B.pl.ok?'residuo '+F(B.pl.leftover,3):'rifiutato');
-  chk('e il rifiuto porta un codice leggibile',
-    B.pl.ok||['poche','troppe','irraggiungibile','vuoto','nosito'].includes(B.pl.reason.code),
-    B.pl.ok?'—':B.pl.reason.code);
+  /* «Dichiarato tale» non vuol dire «rifiutato». Il piano si da' sempre — anche
+     sessanta ore su due notti da un cielo di citta' — e cio' che non ci sta si
+     vede: il consiglio dice quante notti servirebbero, il residuo dice quante ore
+     restano fuori. Quello che NON deve succedere e' consegnare un piano a meta'
+     senza dirlo. */
+  console.log('       residuo dichiarato '+F(B.pl.leftover,1)+' h su '+F(B.pl.need,1)+
+    ' · consiglio: '+((B.pl.advice[0]||{}).code||'nessuno'));
+  chk('un progetto fuori portata riceve comunque un piano',
+    B.pl.ok&&B.pl.nights.length>0, B.pl.nights.length+' notti pianificate');
+  chk('e viene dichiarato tale: consiglio esplicito e residuo visibile',
+    (B.pl.advice[0]||{}).code==='poche'&&B.pl.leftover>0.05,
+    'restano fuori '+F(B.pl.leftover,1)+' h');
+  chk('i conti tornano: depositate + residuo = fabbisogno',
+    Math.abs(B.pl.nights.reduce((a,x)=>a+x.blocks.reduce((b,y)=>b+y.projH,0),0)
+             +B.pl.leftover-B.pl.need)<0.05,
+    F(B.pl.need-B.pl.leftover,1)+' + '+F(B.pl.leftover,1)+' = '+F(B.pl.need,1)+' h');
+  chk('e nessuna notte viene caricata oltre le proprie ore nemmeno li',
+    B.pl.nights.every(x=>x.usedH<=x.availH+1e-6),
+    B.pl.nights.map(x=>F(x.usedH,1)+'/'+F(x.availH,1)).join(' '));
   /* La prescrizione sotto soglia resta una prescrizione: e' la decisione presa
      quando «non ci sta» e' stato tolto dalla strada. */
   const C=piano(m31,citta,D,4,6);

@@ -372,6 +372,15 @@ label.f > input, label.f > select{text-transform:none;font-size:14px;letter-spac
 .sc-s{margin-top:6px;font-size:10.5px;color:var(--dim2);line-height:1.35}
 @media (max-width:560px){ .sc-n{font-size:18px} .stratcard{padding:9px 11px} }
 
+/* «solo stelle»: un marcatore, non una decorazione. Compare accanto a ogni RGB che
+   in quella scheda non porta segnale del soggetto — nella prescrizione, nel piano
+   delle notti, nella tabella della posa e nel riepilogo — perche' e' l'informazione
+   che dice come riprenderlo: con la Luna, in un'ora, senza allungarlo. */
+.so{display:inline-block;margin-left:5px;padding:1px 6px;border-radius:20px;
+  font-size:9.5px;font-weight:600;letter-spacing:.02em;vertical-align:middle;
+  color:var(--dim);border:1px solid var(--line);background:var(--sunken);
+  white-space:nowrap}
+
 .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;
   border:1px solid currentColor;white-space:nowrap}
 .p-ok{color:var(--ok)} .p-warn{color:var(--warn)} .p-bad{color:var(--bad)} .p-dim{color:var(--dim)}
@@ -11251,20 +11260,36 @@ function planNights(pr,e,dv,nights,opts){
     msg:`Da qui l’oggetto non offre abbastanza ore: ${fmt(bounds.capacity,1)} h in `+
         `${W.nights.length} notti utili contro le ${fmt(bounds.need,1)} h del piano.`},
     bounds,nights:[],windows:W};
-  if(N<bounds.min) return {ok:false,reason:{code:'poche',want:bounds.min,
+  /* IL PIANO SI DA SEMPRE. Sempre.
+
+     Qui c'erano due rifiuti — «poche notti» e «troppe notti» — che restituivano
+     zero notti e una schermata al posto del piano. E' lo stesso veto che era stato
+     tolto dalla prescrizione e che era rientrato dalla finestra: se decidi di
+     riprendere NGC 6888 in una notte sola con cinque ore, il motore deve dirti che
+     cosa fare di quelle cinque ore. Che servano piu' notti e' un CONSIGLIO, e va
+     dato accanto al piano, non al posto del piano.
+
+     Quindi il caso resta identificato e dichiarato — `advice` porta lo stesso
+     codice, lo stesso testo e lo stesso numero di notti consigliate di prima — ma
+     il piano si costruisce lo stesso, con le ore che quelle notti offrono davvero.
+     Il pianificatore sa gia' farlo: le quote sono proporzionali alla capacita' e
+     tagliate alle ore vere, e cio' che non ci sta finisce in `leftover`, che e' il
+     numero onesto da mostrare. */
+  const advice=[];
+  if(N<bounds.min) advice.push({code:'poche',want:bounds.min,
     hours:Math.floor((bounds.cumul[N-1]||0)/panels*2)/2,
-    msg:`${N} nott${N===1?'e non basta':'i non bastano'}. ${N===1?'Nella prima notte utile':'Nelle prime '+N+' notti utili'} `+
+    msg:`${N} nott${N===1?'e non basta':'i non bastano'} per il progetto intero. `+
+        `${N===1?'Nella prima notte utile':'Nelle prime '+N+' notti utili'} `+
         `${W.nights.length?'a partire dal '+W.nights[0].date.toLocaleDateString('it-IT',{day:'numeric',month:'long'}):'da qui'} `+
-        `ci sono ${fmt(bounds.cumul[N-1]||0,1)} h realmente disponibili, e il piano ne chiede `+
-        `${fmt(bounds.need,1)}. Il minimo è ${bounds.min} nott${bounds.min===1?'e':'i'} — oppure scendi a `+
-        `${fmt(Math.floor((bounds.cumul[N-1]||0)/panels*2)/2,1)} h, che in ${N===1?'una notte':N+' notti'} ci stanno.`},
-    bounds,nights:[],windows:W};
-  if(N>bounds.max) return {ok:false,reason:{code:'troppe',want:bounds.max,
+        `ci sono ${fmt(bounds.cumul[N-1]||0,1)} h di profondità realmente depositabili, e il progetto `+
+        `ne chiede ${fmt(bounds.need,1)}. Il piano qui sotto è quello che ci sta davvero: `+
+        `stesse proporzioni fra i canali, meno ore. Per il progetto intero servono `+
+        `${bounds.min} nott${bounds.min===1?'e':'i'}.`});
+  if(N>bounds.max) advice.push({code:'troppe',want:bounds.max,
     msg:`${fmt(bounds.need,1)} h su ${N} notti fanno sessioni da `+
         `${Math.round(bounds.need/N*60)} minuti. Sotto ${fmt(bounds.minSession,1)} h la notte è `+
         `quasi tutta overhead: montare, mettere a fuoco e calibrare la guida costa comunque. `+
-        `Il massimo sensato è ${bounds.max}.`},
-    bounds,nights:[],windows:W};
+        `Il piano c'è lo stesso, ma concentrarlo su ${bounds.max} notti rende molto di più.`});
 
   /* Le quote. Chiedere cinque notti e riceverne tre piene e due vuote non e' un
      piano su cinque notti: e' un piano su tre con due righe di decorazione. Ogni
@@ -11285,6 +11310,9 @@ function planNights(pr,e,dv,nights,opts){
   const capN=W.nights.slice(0,N).map((x,i)=>bounds.capH&&bounds.capH[i]!=null
     ? bounds.capH[i] : x.availH*mixPenalty(live,dv,e.tg,site,x,o.expo));
   const totCap=capN.reduce((a,c)=>a+c,0);
+  /* Quando le notti non bastano, `k` verrebbe sopra 1 e ogni notte verrebbe
+     tagliata alle proprie ore: il risultato e' gia' giusto — si riempiono tutte e
+     si deposita quello che si puo' — ma il residuo va detto, e lo dice `leftover`. */
   const k=totCap>0?bounds.need/totCap:0;
   const nn=W.nights.slice(0,N).map((x,i)=>{
     const q=Math.min(x.availH, x.availH*k);   // la notte non da' piu' di quel che ha
@@ -11360,6 +11388,26 @@ function planNights(pr,e,dv,nights,opts){
        conviene. Nessun canale viene spalmato a fettine su venti notti, e nessuna
        notte diventa un monocanale se la strategia ne prevede quattro. */
     const X=balanceSessions(items,nn,{tilt:o.tilt});
+    /* IL TETTO DELLE ORE VERE, che qui mancava.
+
+       `balanceSessions` chiude sulle RIGHE — la prescrizione e' l'invariante — e le
+       colonne le insegue soltanto. Finche' il fabbisogno stava dentro la capacita'
+       delle notti chieste andava bene, perche' ci arrivava prima la guardia che
+       rifiutava le combinazioni impossibili. Tolto il veto, quella guardia non c'e'
+       piu': chiedendo una notte sola per un progetto da 14.5 h il trasporto
+       piazzava 27.8 h di orologio in una notte che ne offre 6.3.
+
+       Una notte non si allunga. Quindi la colonna si taglia alle proprie ore, in
+       proporzione fra i canali — cosi' le RATIO della prescrizione restano quelle,
+       che e' la parte da salvare quando non ci sta tutto — e quello che non entra
+       resta in `it.left`, cioe' finisce in `leftover` e viene dichiarato. */
+    nn.forEach((x,c)=>{
+      let col=0; items.forEach((it,r)=>{ col+=X[r][c]; });
+      if(col>x.availH+1e-9){
+        const f=x.availH/col;
+        items.forEach((it,r)=>{ X[r][c]*=f; });
+      }
+    });
     items.forEach((it,r)=>nn.forEach((x,c)=>{
       const h=X[r][c];
       if(h>1e-6){ put(it,x,h); }
@@ -11409,8 +11457,12 @@ function planNights(pr,e,dv,nights,opts){
         const used=x.blocks.reduce((a,b)=>a+b.h,0);
         const free=x.availH-used;
         if(free<=1e-6) continue;
-        const take=Math.min(it.left/Math.max(1e-3,it.pen[i]),free);
+        /* Anche qui il tetto sono le ore vere della notte, e `free` le porta gia'.
+           Il `min` non e' ridondante: `it.left/pen` puo' superarle di molto quando
+           le notti chieste non bastano al progetto. */
+        const take=Math.max(0,Math.min(it.left/Math.max(1e-3,it.pen[i]),free));
         x.room=free;               // il tetto qui sono le ore vere, non la quota
+        if(take<=1e-9) continue;
         put(it,x,take);
         const b=x.blocks.find(y=>y.id===it.id); if(b) b.tail=true;
       }
@@ -11428,8 +11480,11 @@ function planNights(pr,e,dv,nights,opts){
          : 'Luna pesante su questa notte'};
   });
   const leftover=items.reduce((a,x)=>a+Math.max(0,x.left),0);
-  return {ok:true,reason:null,mode,nights:out,windows:W,bounds,requested:N,
+  /* `reason` resta per chi legge il campo, ma non e' piu' un veto: e' il primo
+     consiglio, se ce n'e' uno. `advice` li porta tutti. */
+  return {ok:true,reason:advice[0]||null,advice,mode,nights:out,windows:W,bounds,requested:N,
           items,panels,leftover,need:bounds.need,
+          depositata:bounds.need-Math.max(0,leftover),
           assigned:out.reduce((a,x)=>a+x.usedH,0)};
 }
 
@@ -13081,10 +13136,28 @@ function start(){
     +`<option value="__custom">Configurazione personalizzata</option>`;
   renderGearSelects();
 
-  /* Il binning e' una scelta di ripresa, non parte del preset: resta quello che
-     hai lasciato l'ultima volta, esattamente come l'RMS resta legato alla montatura. */
+  /* LA CONFIGURAZIONE SI RICORDA, e non solo il binning.
+
+     `localStorage` conservava `ap_bin` e l'attrezzatura aggiunta a mano, ma non il
+     tubo, la camera, la montatura e il riduttore che avevi scelto: a ogni ricarica
+     tornava `DB.presets[0]`. Chi lasciava l'app con l'Askar 71F la ritrovava con
+     un altro telescopio, e tutti i numeri cambiavano sotto i piedi senza che
+     niente lo dicesse. Stesso difetto del sito, stessa cura.
+
+     Si salva la combinazione, non il preset: se e' una configurazione tua non ha
+     un id da salvare, e i quattro campi bastano a ricostruirla. Se un pezzo non
+     esiste piu' — attrezzatura cancellata, catalogo cambiato — si torna al primo
+     preset, che e' il comportamento di prima e resta un fallback valido. */
   try{ const b=localStorage.getItem('ap_bin'); if(b) $('bin').value=b; }catch(e){}
-  applyPreset(DB.presets[0]);
+  const salvata=(()=>{ try{ return JSON.parse(localStorage.getItem('ap_cfg')||'null'); }
+                       catch(e){ return null; } })();
+  const esiste=(sel,v)=>!!v&&!![...$(sel).options].some(o=>o.value===String(v));
+  if(salvata&&esiste('tel',salvata.tel)&&esiste('cam',salvata.cam)&&esiste('mnt',salvata.mnt)){
+    $('tel').value=salvata.tel; fillReducers(salvata.tel);
+    if(esiste('red',salvata.red)) $('red').value=String(salvata.red);
+    $('cam').value=salvata.cam; $('mnt').value=salvata.mnt;
+    readCfg(); syncRms();
+  } else applyPreset(DB.presets[0]);
   readSite();                       // ora #rms e' popolato: SITE va riletto
   $('bin').addEventListener('change',()=>{
     readCfg(); try{localStorage.setItem('ap_bin',String(CFG.bin))}catch(e){}
@@ -14013,6 +14086,11 @@ function applyPreset(p){
 function readCfg(){
   CFG={tel:$('tel').value,red:parseFloat($('red').value),cam:$('cam').value,mnt:$('mnt').value,
        bin:parseInt($('bin').value,10)||1};
+  /* Ogni lettura e' anche una scrittura: la configurazione corrente e' cio' che si
+     ritrovera' alla prossima apertura. Un solo punto, perche' ogni percorso che
+     cambia la strumentazione — preset, tendine, riduttore, form dell'attrezzatura —
+     passa comunque da qui. */
+  try{ localStorage.setItem('ap_cfg',JSON.stringify(CFG)); }catch(e){}
   syncPreset();
 }
 /* Riporta l'RMS al valore di questa montatura: il tuo se l'hai scritto, altrimenti
@@ -14679,6 +14757,40 @@ const setStrat=id=>{ RXSTRAT=id; try{localStorage.setItem('ap_strat',id)}catch(e
 const syncStrat=()=>{ const m={resa:'rxStratResa',equilibrio:'rxStratEq',dinamica:'rxStratDin'};
   const el=document.getElementById(m[RXSTRAT]); if(el) el.checked=true; };
 
+/* L'RGB PER LE SOLE STELLE, e va detto ovunque compaia.
+
+   In molte schede a banda stretta l'RGB non porta nessuna quota del soggetto:
+   esiste per dare colore alle stelle, e basta. E' una informazione che cambia
+   completamente come lo riprendi — si fa con la Luna, si fa in un'ora, non si
+   allunga per «migliorare la nebulosa» perche' della nebulosa non prende niente —
+   e finora stava scritta in un punto solo, nella nota della riga. Nel piano delle
+   notti, nella tabella della posa e nel riepilogo compariva un «RGB» muto,
+   indistinguibile da un RGB che porta segnale.
+
+   Una definizione sola, e chi la mostra la chiede a questa. */
+const isStarsOnly=(g,pr)=>{
+  if(!g||g.id!=='RGB'||g.critical) return false;
+  /* LA REGOLA: l'RGB e' solo stelle nelle strade a BANDA STRETTA PURA — HOO, SHO.
+     Li' il soggetto viene ripreso interamente nelle righe, e il colore serve alle
+     stelle. In una LRGB o in una HaRGB il colore lavora anche sulla nebulosa, e
+     chiamarlo «solo stelle» sarebbe falso.
+
+     La condizione e' quindi «nessun ALTRO canale a banda larga porta il soggetto»,
+     non «l'RGB ha quota zero». La differenza si vede su Abell 61, strada
+     `hoo_rgbstars`: la scheda le assegna il 5% — un residuo, non un ruolo — mentre
+     OIII e Ha portano il 95% del soggetto. Con la quota come criterio quell'RGB
+     restava muto proprio dove il nome della strada dichiara che serve alle stelle. */
+  const altri=((pr&&pr.alloc)||[]).filter(x=>x.id!==g.id&&!x.dropped&&(x.share||0)>0);
+  return altri.length>0 && altri.every(x=>(x.bands||[]).every(b=>!BB_BANDS.includes(b)));
+};
+const starsTip='In questa scheda l\u2019RGB non porta segnale del soggetto: serve solo a dare '+
+  'colore alle stelle. Falle pure con la Luna e a bassa altezza \u2014 le stelle sono sorgenti '+
+  'puntiformi e il fondo cielo quasi non le riguarda \u2014 e non allungarlo sperando di '+
+  'migliorare la nebulosa: da quella non prende niente.';
+const starsTag=(g,cls)=>isStarsOnly(g)
+  ? `<span class="pill p-dim ${cls||''}" style="font-size:9.5px" data-tip="${esc(starsTip)}">solo stelle</span>`
+  : '';
+
 let RXCOV=null;                   // l'ultima copertura risolta: soggetto e progetto
 let RXNIGHT=null;                 // la notte risolta: la usano barra, scheda e piano
 let RXPR=null, RXDV=null;         // ultima prescrizione e ultima catena derivata.
@@ -14800,9 +14912,24 @@ function renderRx(np){
      sapere di che cosa si sta parlando. */
   const pr0=prescribe(e,hours,dv,ppRx.panels);
   {
+    /* LA SCALA CHE NON FINIVA MAI — chiedi due notti, te ne chiede tre; gliene dai
+       tre, te ne chiede quattro, all'infinito.
+
+       `RXCAP` misurava la capacita' con la sola Luna, mentre `nightsBounds` la
+       misura con la Luna E con l'efficienza della posa scelta dalla strategia. La
+       prescrizione veniva quindi dimensionata su 10.7 h mentre il piano ne poteva
+       depositare 10.1: mancava sempre esattamente il costo della strategia, cioe'
+       sempre una notte, e aggiungerla riproponeva lo stesso scarto piu' grande.
+
+       I due conti devono essere lo stesso conto. Quindi si costruisce la posa gia'
+       sulla prima passata e la si passa a `mixPenalty`, che e' la stessa funzione
+       che il piano usera' dopo. */
     const vivi=pr0.alloc.filter(g=>!g.dropped&&g.hours>0);
+    let expo0=null;
+    try{ expo0=exposurePlan(pr0,dv,SITE,Object.assign({},OPSET,
+      {panels:ppRx.panels,archetype:t.archetype,tg:t,strategy:RXSTRAT})); }catch(err){}
     RXCAP=vivi.length
-      ? WA.nights.slice(0,NN).reduce((a,x)=>a+x.availH*mixPenalty(vivi,dv,t,SITE,x),0)
+      ? WA.nights.slice(0,NN).reduce((a,x)=>a+x.availH*mixPenalty(vivi,dv,t,SITE,x,expo0),0)
       : RXAVAIL;
   }
   const pr=RXCAP>0&&Math.abs(RXCAP-hours)>1e-6
@@ -14830,7 +14957,7 @@ function renderRx(np){
        è un rapporto fra fondo cielo e brillanza superficiale, semplicemente non
        le riguarda. Applicargliela contraddiceva l'ordine consigliato nella stessa
        scheda — «RGB con la Luna piena, un'ora e hai finito». */
-    const starsOnly = g.id==='RGB' && !g.critical && (g.share||0)===0;
+    const starsOnly = isStarsOnly(g,pr);
     const note = g.dropped
       ? `soglia ${fmt(g.floor,1)} h — sotto quella non va iniziato`
       : (g.critical?'è il canale che decide l\'immagine · ':'')+
@@ -14847,7 +14974,8 @@ function renderRx(np){
        diventava un divieto. */
     const sotto=g.belowFloor?`<span class="p-warn">sotto la soglia di ${fmt(g.floor,1)} h</span> · `:'';
     return `<div class="rxrow${g.dropped?' out':''}">
-      <div class="b" style="color:${RXCOL[g.id]||'var(--fg)'}">${g.id}</div>
+      <div class="b" style="color:${RXCOL[g.id]||'var(--fg)'}">${g.id}${
+        starsOnly?' <span class="so">solo stelle</span>':''}</div>
       <div class="h">${g.dropped?'fuori':fmt(g.hours,1)+' h'}</div>
       <div class="m">${sotto}${note}</div></div>`;
   }).join('');
@@ -15414,7 +15542,9 @@ function rxPlanHtml(pr,e,dv,t){
       const hd=us0.filter(u=>u.hdr), us=us0.filter(u=>!u.hdr);
       if(hd.length) us.unshift({...hd[0],hdr:true,band:hd.map(u=>u.band).join('·')});
       return `<div class="pnb">
-        <div class="pnk" style="color:${RXCOL[b.id]||'var(--fg)'}">${esc(b.id)}</div>
+        <div class="pnk" style="color:${RXCOL[b.id]||'var(--fg)'}">${esc(b.id)}${
+          isStarsOnly(pr.alloc.find(g=>g.id===b.id),pr)
+            ? ' <span class="so">solo stelle</span>':''}</div>
         <div class="pnh">${hm(b.h)}</div>
         <div class="pns">${us.map(u=>`${u.hdr?'<span class="pill p-warn" style="font-size:10px" data-tip="'+esc('Serie corta per il nucleo, da fondere in HDR: a fondo scala l\'informazione non c\'è più e non si recupera in elaborazione. '+((u.ex.arch||{}).hdr_why||''))+'">nucleo</span> ':''}${u.sec} s × <b>${u.n}</b>${us.length>1?` <span class="muted">${esc(u.band)}</span>`:''}`).join(' &nbsp;·&nbsp; ')}</div>
         <div class="pnd">${tot>0?`= ${hm(tot)}`:''}</div>
@@ -15551,7 +15681,9 @@ function rxExpoHtml(expo,dv,pr){
         'sistema, prima il fondo copre la lettura: a f/8 servirebbe di piu\', non di meno. '+
         'Dipende dalla larghezza del filtro sotto questo cielo. Accorciare e\' legittimo, ma si '+
         'paga: dimezzare la posa qui costa circa il doppio delle ore.'}[e.binding]||'';
-    return `<tr><td><b style="color:${RXCOL[x.group]||'var(--fg)'}">${esc(b)}</b></td>
+    const gStar=pr&&pr.alloc?pr.alloc.find(g=>g.id===x.group):null;
+    return `<tr><td><b style="color:${RXCOL[x.group]||'var(--fg)'}">${esc(b)}</b>${
+      isStarsOnly(gStar,pr)?' <span class="so">solo stelle</span>':''}</td>
       <td><b>${e.sec} s</b></td>
       <td>${e.gm.gain!=null?'gain '+e.gm.gain+' <span class="muted">'+esc(e.gm.name)+'</span>':'<span class="muted">'+esc(e.gm.name)+'</span>'}${
         e.gm.assumed?' <span class="pill p-warn" style="font-size:9px" data-tip="'+esc(
@@ -16350,9 +16482,12 @@ function renderSummary(){
   /* --- i canali decisi dal motore --- */
   if(pr&&pr.alloc&&pr.alloc.length){
     const keep=pr.alloc.filter(g=>!g.dropped), out=pr.alloc.filter(g=>g.dropped);
+    const soli=keep.filter(g=>isStarsOnly(g,pr)).map(g=>g.id);
     h+=sumBlock('Canali previsti',
       `<div class="sumchips">${keep.map(g=>fchip(g.id)).join('')||SUM_DASH}</div>`,
-      out.length?`Sotto soglia, esclusi: ${out.map(g=>esc(g.id)).join(', ')}`:'');
+      [soli.length?`${soli.join(', ')}: solo per il colore delle stelle, non per il soggetto`:'',
+       out.length?`Sotto soglia, esclusi: ${out.map(g=>esc(g.id)).join(', ')}`:'']
+        .filter(Boolean).join(' · '));
   }else{
     h+=sumBlock('Canali previsti',SUM_DASH);
   }
