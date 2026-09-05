@@ -619,10 +619,33 @@ H('P - fitAlternatives ordina sulla resa, e non degenera piu');
 
   /* LA DEGENERAZIONE SU SOGGETTI PICCOLI E' SPARITA. Prima arrivavano tutti a
      «pieno» e la seconda chiave non ordinava niente. */
+  /* Il budget qui e' volutamente ABBONDANTE, e va detto perche'. Questo blocco
+     verifica una cosa sola: che quando copertura e profondita' sono sature per
+     tutti, a ordinare resti la risoluzione. Serve quindi un caso in cui nessuno
+     sia in difficolta' sulle ore.
+
+     Con venti ore non e' piu' cosi'. Da quando `timeFactor` valuta il riferimento
+     alla PROPRIA posa invece che alla tua, un setup che riprende a una posa
+     diversa dalla sua ottimale paga davvero il rumore di lettura — prima il costo
+     si cancellava fra numeratore e denominatore — e l'Askar a 1.58"/px su M57 si
+     ferma al 71% della profondita'. E' il comportamento giusto, ma rende venti ore
+     un caso in cui la profondita' DISCRIMINA, cioe' l'opposto di quello che qui
+     si vuole isolare. A sessanta ore saturano tutti e otto. */
   const m57=tgt('M57');
-  const a57=M.fitAlternatives(m57,cur,site,np,{},20,DB.presets,8,0,FRAME);
+  const a57=M.fitAlternatives(m57,cur,site,np,{},60,DB.presets,8,0,FRAME);
   chk('su M57 la copertura satura per tutti', a57.every(x=>eq(x.cover,1,1e-12)));
   chk('e la profondita pure', a57.every(x=>eq(x.depth,1,1e-9)));
+  /* E la controprova, che e' il difetto appena chiuso: con un budget stretto la
+     profondita' NON satura per tutti, e i candidati sottocampionati restano
+     indietro. Se tornasse a saturare per tutti a venti ore, vorrebbe dire che il
+     denominatore di timeFactor e' tornato mobile. */
+  {
+    const stretto=M.fitAlternatives(m57,cur,site,np,{},20,DB.presets,8,0,FRAME);
+    const sotto=stretto.filter(x=>x.depth<1-1e-9);
+    chk('mentre con venti ore i setup sottocampionati non ci arrivano',
+      sotto.length>0, sotto.length+'/'+stretto.length+' sotto la saturazione, minima '+
+      Math.min(...stretto.map(x=>x.depth)).toFixed(3));
+  }
   chk('quindi decide la risoluzione, che e la domanda giusta su una planetaria',
     a57.every((x,i)=>i===0||a57[i-1].resol>=x.resol-1e-12),
     a57.slice(0,3).map(x=>x.dv.scale.toFixed(2)+'\" r='+x.resol.toFixed(3)).join(' > '));

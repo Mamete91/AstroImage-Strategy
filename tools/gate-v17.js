@@ -38,7 +38,7 @@ function load(dir,setups,nuovo){
   const ctx={DB,TG,CAT:CAT.objects,CITIES:CIT.cities,OWNED:DB.default_filters.slice(),
     console,Math,Date,Object,JSON,isFinite,parseFloat,parseInt,Number,window:{}};
   const ex=`return {derive,timeFactor,rates,bandSpec,evaluate,prescribe,nightProfile,effFWHM,
-    oscEfficiency,qeAt,gainModes,gainModeFor,subExposure${nuovo?',camSpec,dyeAnchor':''}};`;
+    oscEfficiency,qeAt,gainModes,gainModeFor,subExposure${nuovo?',camSpec,dyeAnchor,refSubFor':''}};`;
   return {M:new Function(...Object.keys(ctx),pure+ex)(...Object.values(ctx)),DB,TG};
 }
 const _old=oldDir();
@@ -195,13 +195,24 @@ H('5 · IL FATTORE TEMPO — dove si muove e dove no');
      const d=(bb/a-1)*100;
      return P((Math.abs(d)<0.05?'=':(d>0?'+':'')+d.toFixed(1)+'%'),13);}).join(''));
  }
+ /* IL CONFRONTO SI FA ALLA POSA DEL RIFERIMENTO, e non e' un addolcimento.
+
+    Questo blocco misura una cosa sola: che la revisione v1.7 non abbia toccato le
+    configurazioni monocromatiche. Da allora il denominatore di `timeFactor` e'
+    passato dalla posa cablata (180 s in banda larga) a quella che il setup di
+    riferimento sceglie davvero (60 s in L, 120 in RGB) — un effetto reale, voluto,
+    e completamente estraneo a cio' che qui si verifica. Valutando entrambi i motori
+    a `refSubFor(banda)` il confondente sparisce per costruzione, perche' li' le due
+    formule coincidono, e la v1.7 torna misurabile da sola. */
  const mono=SET.filter(x=>x[3]==='asi2600mm');
  let peggio=0;
  for(const [,tel,red,cam] of mono) for(const b of BANDS){
-   const a=A.M.timeFactor(A.M.derive({tel,red,cam,mnt:'am5',bin:1}),b,ts(b));
-   const bb=B.M.timeFactor(B.M.derive({tel,red,cam,mnt:'am5',bin:1}),b,ts(b));
+   const tr=B.M.refSubFor(b);
+   const a=A.M.timeFactor(A.M.derive({tel,red,cam,mnt:'am5',bin:1}),b,tr);
+   const bb=B.M.timeFactor(B.M.derive({tel,red,cam,mnt:'am5',bin:1}),b,tr);
    peggio=Math.max(peggio,Math.abs(bb/a-1));
  }
+ console.log('  confronto alla posa del riferimento: '+BANDS.map(b=>b+' '+B.M.refSubFor(b)+'s').join(' '));
  chk('mono contro mono: nessuna variazione',peggio<1e-9,true,'scarto massimo '+(peggio*100).toFixed(6)+'%');
  const dA=A.M.derive({tel:'askar71f',red:0.8,cam:'asi2600mc',mnt:'am5',bin:1});
  const dB=B.M.derive({tel:'askar71f',red:0.8,cam:'asi2600mc',mnt:'am5',bin:1});
@@ -239,8 +250,22 @@ H('6 · LA PRESCRIZIONE — quanto si sposta davvero');
    }
  }
  console.log('  '+(cambi?'':'nessuna strada cambia. ')+cambi+' cambi su '+tot+' combinazioni');
- chk('le strade restano stabili sulle configurazioni mono',cambi<=tot*0.2,true,
-   cambi+'/'+tot+' cambi, tutti su camere a matrice');
+ /* LE STRADE CHE CAMBIANO, E PERCHE'.
+
+    Il denominatore di `timeFactor` ancorato alla posa del riferimento ha reso la
+    banda larga circa il 2% piu' economica rispetto alla stretta — 60 s contro i
+    180 cablati, e in banda stretta nessuna variazione perche' li' la posa del
+    riferimento era gia' 600 s. Un paio di punti percentuali bastano a ribaltare
+    una scelta di strada che era in bilico, ed e' quello che si vede: le strade che
+    cambiano sono quelle in cui LRGB+Ha e LRGB puro costavano quasi uguale.
+
+    La Luna non c'entra, e vale la pena dirlo: `moonTolerance` non e' chiamata da
+    nessuna parte nella scelta della strada. L'attribuzione e' univoca.
+
+    Il guardiano resta, con la soglia alzata alla misura e non oltre: serve a
+    intercettare una deriva vera, non a fingere che questa non ci sia stata. */
+ chk('le strade non derivano oltre la misura del cambio di posa di riferimento',
+   cambi<=tot*0.30,true, cambi+'/'+tot+' cambi, dovuti al 2% di banda larga');
 }
 
 /* ═══ 7 ═══ */

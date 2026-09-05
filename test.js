@@ -232,10 +232,46 @@ chk('il fondo naturale continua a contare anche sotto la Luna piena',
 /* La penalita' e' un fattore TEMPO e ha la stessa forma dell'IL: 1/(1+eccesso di flusso). */
 chk('un fondo raddoppiato costa il doppio delle ore',
   M.moonPenalty('L',M.moonExcessMag(20.8,20.8),250,false),0.5,0.01);
-chk('la banda stretta quasi non se ne accorge',
-  M.moonPenalty('Ha',M.moonExcessMag(20.8,20.8),3,false)>0.98,true);
-chk('l OIII prende piu Luna dell Ha, per Rayleigh',
+/* LA CREDENZA CHE QUESTO TEST DIFENDEVA, ED ERA FALSA.
+
+   Diceva: «la banda stretta quasi non se ne accorge», Ha sopra 0.98 con il fondo
+   raddoppiato. Non era fisica, era una asimmetria dimensionale: l'eccesso lunare
+   veniva diviso per la larghezza relativa del filtro mentre il cielo naturale
+   restava in unita' di banda larga. Con 3 nm significava dividere la Luna per 83
+   e lasciare il fondo intero.
+
+   Luna e cielo naturale sono entrambi continui: il filtro li taglia allo stesso
+   modo e la larghezza si semplifica nel rapporto. Quello che resta e' il colore —
+   Rayleigh per la Luna, la tabella del fondo naturale per il cielo. Un filtro
+   stretto contro la Luna serve eccome, ma per un'altra ragione: abbassa il fondo
+   in ASSOLUTO, quindi il rumore di lettura, e conserva il segnale di riga. */
+const dmRadd=M.moonExcessMag(20.8,20.8);   // fondo raddoppiato
+console.log('      fondo raddoppiato: '+['Ha','OIII','SII','L'].map(b=>
+  b+' '+(M.moonPenalty(b,dmRadd,3,false)*100).toFixed(0)+'%').join('  '));
+chk('la banda stretta ci perde meno della larga, ma non e immune',
+  M.moonPenalty('Ha',dmRadd,3,false)>M.moonPenalty('L',dmRadd,250,false)&&
+  M.moonPenalty('Ha',dmRadd,3,false)<0.90,true);
+/* L'affermazione che conta, e che il vecchio modello non sapeva fare: sotto la
+   Luna l'OIII sta PEGGIO della banda larga. Il fondo naturale a 500.7 nm vale
+   0.70 volte quello in V, mentre lo scattering di Rayleigh vale 1.46: la Luna
+   arriva piu' forte proprio dove il cielo e' piu' scuro. E' la ragione per cui
+   l'OIII si riprende a Luna nuova. */
+chk('e sotto la Luna l OIII sta peggio della luminanza, non meglio',
+  M.moonPenalty('OIII',dmRadd,3,false)<M.moonPenalty('L',dmRadd,250,false),true);
+chk('l OIII prende piu Luna dell Ha, per Rayleigh e per il colore del cielo',
   M.moonPenalty('OIII',1.0,3,false)<M.moonPenalty('Ha',1.0,3,false),true);
+/* Il rapporto fra i due non e' piu' il solo (550/λ)⁴ = 2.95: entra anche quanto
+   fondo naturale c e sotto ciascuna riga. */
+{
+  const q=b=>1/M.moonPenalty(b,1.0,3,false)-1;
+  console.log('      eccesso relativo OIII/Ha: '+(q('OIII')/q('Ha')).toFixed(2)+'x');
+  chk('e il rapporto e quello del colore del cielo, non il solo Rayleigh',
+    q('OIII')/q('Ha')>6,true);
+}
+/* La larghezza del filtro non deve piu entrare nel rapporto: se entrasse,
+   tornerebbe l asimmetria. */
+chk('la larghezza del filtro non cambia la penalizzazione lunare',
+  Math.abs(M.moonPenalty('OIII',1.0,3,false)-M.moonPenalty('OIII',1.0,7,false))<1e-12,true);
 chk('su un soggetto stellare la Luna pesa un quarto',
   (1/M.moonPenalty('L',1.0,250,true)-1)/(1/M.moonPenalty('L',1.0,250,false)-1),0.25,0.001);
 chk('con un fondo gia alto la Luna costa meno al margine',
@@ -478,10 +514,17 @@ chk('estinzione OIII circa doppia di Ha',M.kExt(500.7)/M.kExt(656.3),2.2,0.4);
 
 console.log('\n--- penalizzazione lunare per banda ---');
 const dm=2.0; // la Luna alza il fondo di 2 mag in V
-const pO=M.moonPenalty('OIII',dm,true), pH=M.moonPenalty('Ha',dm,true), pL=M.moonPenalty('L',dm,false);
+/* Il terzo argomento e' la LARGHEZZA, non il flag stellare: qui passava `true`,
+   cioe' un filtro da 1 nm. Non faceva danno perche' la larghezza si semplifica,
+   ma scriverlo giusto costa niente. */
+const pO=M.moonPenalty('OIII',dm,3,false), pH=M.moonPenalty('Ha',dm,3,false), pL=M.moonPenalty('L',dm,250,false);
 console.log(`      con +2 mag di fondo:  OIII ${(100*(1-pO)).toFixed(0)}%  Ha ${(100*(1-pH)).toFixed(0)}%  L ${(100*(1-pL)).toFixed(0)}% di penalizzazione`);
 chk('OIII penalizzato piu di Ha',pO<pH,true);
-chk('banda larga penalizzata molto piu della stretta',pL<pO,true);
+/* Prima questo test chiedeva il contrario — «banda larga penalizzata molto piu
+   della stretta» — e passava solo grazie all'asimmetria. Su cielo naturale l'OIII
+   sta peggio della luminanza: sotto la riga c'e' meno fondo e ci arriva piu' Luna. */
+chk('e su cielo naturale l OIII sta peggio anche della banda larga',pO<pL,true);
+chk('mentre l Ha resta il canale piu tollerante di tutti',pH>pL&&pH>pO,true);
 
 console.log('\n--- soglie riscalate: il caso NGC 6888 di Alessandro ---');
 const t6888=TG.targets.find(t=>t.id==='ngc6888');
@@ -851,8 +894,14 @@ console.log('\n--- piano per notte: distribuzione, non divisione ---');
 const monoCam=DB.cameras.find(c=>c.id==='asi2600mm');
 console.log('      tolleranza lunare (fondo +2 mag): '+
   ['L','RGB','Ha','OIII','SII'].map(b=>b+' '+M.moonTolerance(b,monoCam,false).toFixed(2)).join('  '));
+/* L'ordinamento regge — l'Ha resta il canale delle notti con la Luna — ma il
+   margine assoluto non e' piu' mezzo punto: con il fondo naturale al suo posto
+   nessun canale e' immune, e chiedere +0.5 significherebbe richiedere di nuovo
+   l'immunita' che il modello non ha piu'. Si verifica il rapporto, non il salto. */
+console.log('      Ha rende '+(M.moonTolerance('Ha',monoCam,false)/
+  M.moonTolerance('L',monoCam,false)).toFixed(1)+'x la luminanza sotto +2 mag di Luna');
 chk('l Ha tollera la Luna molto piu della luminanza',
-  M.moonTolerance('Ha',monoCam,false)>M.moonTolerance('L',monoCam,false)+0.5,true);
+  M.moonTolerance('Ha',monoCam,false)>M.moonTolerance('L',monoCam,false)*2,true);
 const eM31=M.evaluate(m31,dvM31mono,bornoSite,npB,{});
 const prM31=M.prescribe(eM31,14.5,dvM31mono,1);   // un campo: vedi gate-copertura.js
 const PDATE=new Date(2026,8,1);

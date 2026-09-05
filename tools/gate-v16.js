@@ -13,7 +13,7 @@ function load(dir,setups){
   const ctx={DB,TG,CAT:CAT.objects,CITIES:CIT.cities,OWNED:DB.default_filters.slice(),
     console,Math,Date,Object,JSON,isFinite,parseFloat,parseInt,Number,window:{}};
   const ex=`return {derive,timeFactor,rates,bandSpec,evaluate,prescribe,nightProfile,
-    effFWHM,oscEfficiency,skyRateFor,qeAt${dir===R?',bandThroughput,camSpec':''}};`;
+    effFWHM,oscEfficiency,skyRateFor,qeAt${dir===R?',bandThroughput,camSpec,refSubFor':''}};`;
   return {M:new Function(...Object.keys(ctx),pure+ex)(...Object.values(ctx)),DB,TG};
 }
 /* Il "prima" non e una cartella temporanea sulla macchina di chi ha scritto il
@@ -128,9 +128,20 @@ H('3 · PRIMA / DOPO — i quattro setup monocromatici richiesti');
  chk('RGB su mono: variazione contenuta (la catena si semplifica)',
    rgb.every(r=>Math.abs(r[3]/r[2]-1)<0.15),true,
    'max '+f(100*Math.max(...rgb.map(r=>Math.abs(r[3]/r[2]-1))),1)+'%');
- chk('il riferimento resta ×1.000 su ogni banda',
-   ['L','RGB','Ha'].every(b=>Math.abs(B.M.timeFactor(
-     B.M.derive({tel:'tecnosky115',red:0.8,cam:'asi2600mm',mnt:'am5',bin:1}),b,b==='Ha'?600:180)-1)<1e-9),true);}
+ /* Il riferimento vale 1.000 SULLA PROPRIA POSA, e quella la calcola `refSubFor`
+    invece di cablarla: sotto il suo cielo il setto di riferimento sceglie 60 s in
+    luminanza e 120 in RGB, non i 180 che la vecchia costante assumeva. Chiedergli
+    1.000 a 180 s significherebbe chiedere che riprendere a una posa che non e' la
+    sua non gli costi niente — e invece costa, ed e' tutto il senso delle tre
+    strategie. L'affermazione cosi' e' piu' forte, non piu' debole: vale 1 al
+    proprio ottimo e sale ovunque altro. */
+ const rifDv=B.M.derive({tel:'tecnosky115',red:0.8,cam:'asi2600mm',mnt:'am5',bin:1});
+ console.log('  posa propria del riferimento: '+['L','RGB','Ha'].map(b=>b+' '+B.M.refSubFor(b)+'s').join('  '));
+ chk('il riferimento resta ×1.000 sulla propria posa',
+   ['L','RGB','Ha'].every(b=>Math.abs(B.M.timeFactor(rifDv,b,B.M.refSubFor(b))-1)<1e-9),true);
+ chk('e sale se riprende a una posa che non e la sua',
+   ['L','RGB'].every(b=>B.M.timeFactor(rifDv,b,B.M.refSubFor(b)/4)>1.02),true,
+   ['L','RGB'].map(b=>b+' x'+f(B.M.timeFactor(rifDv,b,B.M.refSubFor(b)/4),3)).join('  '));}
 
 /* ═══ 4 ═══ */
 H('4 · DOVE LA CORREZIONE ATTERRA DAVVERO: mono contro matrice');

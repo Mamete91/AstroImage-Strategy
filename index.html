@@ -346,6 +346,32 @@ label.f > input, label.f > select{text-transform:none;font-size:14px;letter-spac
   padding:0 0 1px}
 .dcell.edit{background:var(--surface-2)}
 
+/* LE TRE STRATEGIE — schede scelta, non decorazione.
+
+   Griglia auto-fit: tre colonne sul desktop, una sola sotto i 560 px senza bisogno
+   di una media query dedicata. Sono <button>, non <div> con onclick: si raggiungono
+   con il tab, rispondono a Invio e dichiarano aria-pressed. Su telefono l'area
+   toccabile e' l'intera scheda, ben oltre i 44 px raccomandati. */
+.stratbox{margin:16px 0 10px}
+.sc-t{font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:8px}
+.sc-t .muted{font-weight:400;text-transform:none;letter-spacing:0}
+.stratgrid{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.stratcard{display:block;width:100%;text-align:left;cursor:pointer;font:inherit;color:var(--fg);
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+  transition:border-color .15s,background .15s}
+.stratcard:hover{border-color:var(--dim2)}
+.stratcard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stratcard.on{border-color:var(--accent);background:var(--surface-2)}
+.sc-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px}
+.sc-h b{font-size:13px}
+.sc-n{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15;margin:2px 0 6px}
+.sc-r{display:flex;justify-content:space-between;gap:10px;font-size:11px;color:var(--dim);
+  font-variant-numeric:tabular-nums;line-height:1.5}
+.sc-r .cost{color:var(--warn);font-weight:600}
+.sc-s{margin-top:6px;font-size:10.5px;color:var(--dim2);line-height:1.35}
+@media (max-width:560px){ .sc-n{font-size:18px} .stratcard{padding:9px 11px} }
+
 .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;
   border:1px solid currentColor;white-space:nowrap}
 .p-ok{color:var(--ok)} .p-warn{color:var(--warn)} .p-bad{color:var(--bad)} .p-dim{color:var(--dim)}
@@ -1829,15 +1855,47 @@ function cfaFraction(cam,band){
   if(!cam.cfa_penalty) return 1;
   return oscEfficiency(cam,band,bandSpec(band,cam)).eta;
 }
+/* LA POSA DEL SETUP DI RIFERIMENTO — il denominatore giusto di timeFactor.
+
+   Le ore delle schede valgono per una configurazione dichiarata, ripresa alla posa
+   che QUELLA configurazione sceglierebbe. `TSUB_NOMINAL` la cablava a 180 s in
+   banda larga, ma il setup di riferimento sotto il suo cielo ne sceglie 60 in L e
+   120 in RGB: il numero cablato non era il suo.
+
+   Si calcola invece di assumerlo, una volta sola per banda. */
+const _refSub={};
+function refSubFor(band){
+  if(_refSub[band]!=null) return _refSub[band];
+  const r=refCfg();
+  let v;
+  try{
+    const st={sqm:r.sqm,seeing:1.6,rms:0.6,fwhm:effFWHM(1.6,0.6)};
+    v=subExposure(r.dv,st,band,{hours:8,noStrategy:true}).sec;
+  }catch(e){ v=TSUB_NOMINAL(band); }
+  return (_refSub[band]=v||TSUB_NOMINAL(band));
+}
+
+/* Il fattore di conversione fra il setup di riferimento e il tuo.
+
+   Il denominatore va valutato alla posa del RIFERIMENTO, non alla tua. Prima usava
+   la tua per entrambi: numeratore e denominatore si muovevano insieme e il costo di
+   una posa deliberatamente piu' corta si cancellava quasi tutto — a 60 s in OIII
+   il conto dava +43% invece dei +342% veri. Finche' ogni setup riprendeva al
+   proprio ottimo il difetto restava latente, perche' i due ottimi coincidono; si
+   sveglia esattamente quando si introducono strategie che deviano apposta. */
 function timeFactor(dv, band, tsub, sFot){
-  const r=refCfg(), ts=tsub||TSUB_NOMINAL(band), sqm=r.sqm;
+  const r=refCfg(), sqm=r.sqm;
+  /* Il default dei DUE lati e' la stessa posa: quella del riferimento. Lasciando
+     `TSUB_NOMINAL` al numeratore e `refSubFor` al denominatore, il setup di
+     riferimento non valeva piu' 1.000 su se stesso — 180 s contro 60 in luminanza. */
+  const tr=refSubFor(band), ts=tsub||tr;
   const a=rates(dv,band,sqm), b=rates(r.dv,band,sqm);
   /* sFot e' la brillanza superficiale dell'oggetto in fotoni/s/cm²/arcsec². Quando
      lo strato fotometrico per oggetto la fornira', il termine di segnale entra nella
      varianza e la forma diventa esatta; finche' manca vale zero — limite debole —
      e la confidenza si dichiara. */
   return (varRate(a,ts,(sFot||0)*a.collect)/Math.pow(a.collect,2))
-       / (varRate(b,ts,(sFot||0)*b.collect)/Math.pow(b.collect,2));
+       / (varRate(b,tr,(sFot||0)*b.collect)/Math.pow(b.collect,2));
 }
 /* Il fattore e' affidabile per questa banda su questa camera? Serve all'interfaccia
    per non presentare come certo cio' che e' dichiarato non validato. */
@@ -2673,7 +2731,7 @@ function resolveNight(tg,site,wanted,opts){
 
    Senza Luna ogni pen vale 1, la media armonica vale 1 e tutto si riduce esatta-
    mente alla somma di prima. */
-function mixPenalty(live,dv,tg,site,night){
+function mixPenalty(live,dv,tg,site,night,expo){
   const stellar=!!(TG.archetypes[tg.archetype]||{}).stellar;
   /* Senza configurazione si assume un monocromatico con i filtri posseduti, e lo
      si dichiara: cambia quale filtro rappresenta la banda larga, non il fatto che
@@ -2681,11 +2739,24 @@ function mixPenalty(live,dv,tg,site,night){
      fallback silenzioso verso il conto sbagliato — quello che questa revisione
      esiste per togliere. */
   const cam=dv?dv.c:{cfa_penalty:false};
+  /* L'efficienza della posa scelta dalla strategia entra qui accanto alla Luna:
+     sono due fattori sulla stessa conversione da ore di progetto a ore di
+     orologio, e la capacita' della notte deve vederli entrambi. Senza, la guardia
+     direbbe «quattro notti bastano» mentre il piano non riesce a depositare la
+     profondita', che e' esattamente il difetto che C-2 ha chiuso per la Luna. */
+  const effOf=g=>{
+    if(!expo) return 1;
+    const parts=RGB_SPLIT[g.id]||[g.id];
+    let c=0,k=0;
+    for(const b of parts){ const ex=expo[b]&&expo[b].ex;
+      if(ex&&ex.cost!=null){ c+=ex.cost; k++; } }
+    return k?1/(1+c/k):1;
+  };
   let num=0,den=0;
   for(const g of live){
     const f=filterFor(g.bands[0],cam), fw=f?f.fwhm_nm:BB_NM;
-    const xLP=lpExcessFlux(site.sqm,fw);
-    const p=Math.max(1e-3,moonPenalty(g.bands[0],night.dMagV,fw,stellar,xLP));
+    const xLP=lpExcessFlux(site.sqm,BB_NM);   // banda larga: la larghezza si semplifica
+    const p=Math.max(1e-3,moonPenalty(g.bands[0],night.dMagV,fw,stellar,xLP)*effOf(g));  // xLP a banda larga
     num+=g.hours; den+=g.hours/p;
   }
   return den>0?num/den:1;
@@ -2703,7 +2774,7 @@ function nightsBounds(pr,tg,site,start,opts){
   let cum=0,min=null;
   const cumul=[], capH=[];
   for(let i=0;i<w.nights.length;i++){
-    const pm=live.length?mixPenalty(live,dv,tg,site,w.nights[i]):1;
+    const pm=live.length?mixPenalty(live,dv,tg,site,w.nights[i],o.expo):1;
     const c=w.nights[i].availH*pm;
     capH.push(c); cum+=c; cumul.push(cum);
     if(min===null && cum>=need-1e-9) min=i+1;
@@ -2732,7 +2803,7 @@ function bestStart(tg,dv,site,from,N,opts){
     if(w.nights.length<N) return null;
     let num=0,den=0;
     for(const x of w.nights){
-      num+=moonPenalty(critBand,x.dMagV,fw,stellar,lpExcessFlux(site.sqm,fw))*x.availH; den+=x.availH;
+      num+=moonPenalty(critBand,x.dMagV,fw,stellar,lpExcessFlux(site.sqm,BB_NM))*x.availH; den+=x.availH;
     }
     return den?{q:num/den,h:den,first:w.nights[0].date}:null;
   };
@@ -2902,7 +2973,7 @@ function planNights(pr,e,dv,nights,opts){
      Senza Luna ogni penalita' vale 1, la capacita' coincide con le ore e la
      formula torna identica a prima. */
   const capN=W.nights.slice(0,N).map((x,i)=>bounds.capH&&bounds.capH[i]!=null
-    ? bounds.capH[i] : x.availH*mixPenalty(live,dv,e.tg,site,x));
+    ? bounds.capH[i] : x.availH*mixPenalty(live,dv,e.tg,site,x,o.expo));
   const totCap=capN.reduce((a,c)=>a+c,0);
   const k=totCap>0?bounds.need/totCap:0;
   const nn=W.nights.slice(0,N).map((x,i)=>{
@@ -2911,6 +2982,23 @@ function planNights(pr,e,dv,nights,opts){
   });
 
   // penalita' lunare di ogni gruppo in ogni notte: e' la matrice su cui si decide
+  /* IL COSTO DELLA STRATEGIA, in ore di orologio.
+
+     La prescrizione non cambia mai: `g.hours` sono ore di PROGETTO, cioe' la
+     profondita' che il soggetto chiede, e nessuna strategia le tocca. Quello che
+     cambia e' quante ore di orologio servono a depositarle — esattamente come per
+     la Luna in C-2, che e' un secondo fattore sulla stessa riga.
+
+     Il numero viene da `merit`, gia' calcolato: `cost = (merit_resa/merit_x)² − 1`.
+     Un'ora di orologio con la posa scelta deposita `1/(1+cost)` di quello che
+     depositerebbe con la posa di RESA. Nessun moltiplicatore convenzionale. */
+  const costOf=g=>{
+    const parts=RGB_SPLIT[g.id]||[g.id];
+    let c=0,k=0;
+    for(const b of parts){ const ex=o.expo&&o.expo[b]&&o.expo[b].ex;
+      if(ex&&ex.cost!=null){ c+=ex.cost; k++; } }
+    return k?c/k:0;
+  };
   const items=live.map(g=>{
     const nf=(RGB_SPLIT[g.id]||[g.id]).length;
     const f=filterFor(g.bands[0],dv.c);
@@ -2920,7 +3008,7 @@ function planNights(pr,e,dv,nights,opts){
        da un sito inquinato sovrastima quanto la Luna toglie: se il fondo e' gia'
        alto, la Luna ci aggiunge poco in proporzione. Il resto del motore lo fa
        gia' cosi' (`moonF=(1+xLP)/(1+xLP+xMoon)`); qui non lo faceva. */
-    const pen=nn.map(x=>moonPenalty(g.bands[0],x.dMagV,fw,stellar,lpExcessFlux(site.sqm,fw)));
+    const pen=nn.map(x=>moonPenalty(g.bands[0],x.dMagV,fw,stellar,lpExcessFlux(site.sqm,BB_NM)));
     const hi=Math.max(...pen), lo=Math.min(...pen);
     /* Il pavimento della singola casella. In modalità sessione si misura in POSE,
        non in ore: cinque scatti da 120 s sono venti minuti e sono un contributo
@@ -2933,6 +3021,7 @@ function planNights(pr,e,dv,nights,opts){
       cell+= ex ? minSubs*ex.sec/3600 : minFilt;
     }
     return {id:g.id,bands:g.bands,critical:g.critical,filters:nf,minBlock:minFilt*nf,
+            eff:1/(1+costOf(g)),          // quanto rende un'ora di orologio, per la posa scelta
             minCell:Math.min(cell,g.hours*panels/Math.max(1,N)*1.5),
             total:g.hours*panels,left:g.hours*panels,pen,spread:hi-lo,best:hi,worst:lo,fw};
   });
@@ -2944,7 +3033,10 @@ function planNights(pr,e,dv,nights,opts){
      motivo per cui `leftover` puo' restare positivo su un piano che riempie tutte
      le notti: le ore ci sono, la profondita' no. */
   const put=(it,x,h)=>{
-    const p=Math.max(1e-3,it.pen[x.n-1]);
+    /* Due fattori, entrambi misurati: la Luna di QUESTA notte su QUESTO canale, e
+       l'efficienza della posa scelta dalla strategia. Il primo cambia notte per
+       notte, il secondo no — ma agiscono sulla stessa conversione. */
+    const p=Math.max(1e-3,it.pen[x.n-1])*Math.max(1e-3,it.eff!=null?it.eff:1);
     const ex=x.blocks.find(b=>b.id===it.id);
     if(ex){ ex.h+=h; ex.projH+=h*p; }
     else x.blocks.push({id:it.id,bands:it.bands,h,projH:h*p,
@@ -3436,6 +3528,113 @@ function subExposure(dv,site,band,opts){
                'un fattore ~2, e la posa ne risente per la radice.'};
 }
 
+/* ═════════════════════════════════════════════════════════════════════════
+   LE TRE STRATEGIE — un motore solo, tre priorita'.
+
+   600 s non e' un obbligo: e' il punto in cui il motore smette di regalare tempo
+   al rumore di lettura. Ma chi riprende guarda il vento, la guida, le stelle del
+   campo e puo' legittimamente volerne 300. Il compito del motore non e' impedire
+   quella scelta, e' PREZZARLA.
+
+   Il prezzo esiste gia' e non serve inventarlo. Da sigma² = (fondo + lettura)/t il
+   tempo di orologio per arrivare alla stessa profondita' vale
+
+       T ∝ 1 / (eff · duty)²  =  1 / merit²
+
+   dove `eff` e' la frazione di segnale che sopravvive al rumore di lettura e
+   `duty` quella che sopravvive a scarichi e assestamenti. `merit` e' calcolato da
+   sempre — serviva a scegliere il modo di guadagno — e contiene gia' entrambi i
+   costi. Il costo di una posa rispetto a un'altra e' quindi
+
+       (merit_riferimento / merit_scelta)² − 1
+
+   misurato, senza un solo coefficiente convenzionale.
+
+   LE TRE PRIORITA', tutte ancorate a grandezze che il motore calcola gia':
+
+     RESA        la catena dei tetti attuale. Massima efficienza fotometrica.
+                 E' il riferimento per definizione: costo zero.
+
+     EQUILIBRIO  min(RESA, tSwamp₁₀). `tSwamp = 10·rn²/fondo` e' gia' nel codice
+                 con la sua convenzione pubblicata: oltre quel punto il fondo ha
+                 sommerso la lettura e allungare compra meno del 10%. Dove il
+                 fondo non ci arriva — banda stretta, cielo buio — tSwamp sta sopra
+                 il tetto ed EQUILIBRIO COINCIDE con RESA. Va detto, non nascosto.
+
+     DINAMICA    min(EQUILIBRIO, tStar). Nessuna stella di campo alla magnitudine
+                 protetta va a fondo scala: cade l'eccezione con cui RESA supera
+                 `tStar` per restare sopra il pavimento operativo. Non promette
+                 piu' risoluzione — quella la decidono ottica, seeing e guida — ma
+                 alte luci intatte e piu' fotogrammi su cui rigettare.
+
+   L'ordine e' quindi DINAMICA ≤ EQUILIBRIO ≤ RESA per costruzione. Quando due
+   coincidono si dichiara: fingere tre numeri diversi sarebbe falsa precisione.
+
+   E LA PRESCRIZIONE NON CAMBIA MAI. Il budget resta denominato su RESA: le ore di
+   progetto sono quelle che il soggetto chiede, e nessuna strategia le tocca.
+   Cambia solo quante ore di OROLOGIO servono a depositarle — la stessa distinzione
+   che la Luna ha introdotto in C-2, applicata a un secondo fattore. */
+function exposureStrategies(dv,site,band,opts){
+  const o=Object.assign({},opts||{},{noStrategy:true});
+  const resa=subExposure(dv,site,band,o);
+  const grid=EXP_GRID.filter(t=>t<=resa.sec);
+  const val=t=>subExposure(dv,site,band,Object.assign({},o,{maxSub:t,minSub:Math.min(t,resa.minSub||60)}));
+  /* EQUILIBRIO — la posa piu' CORTA che costa al massimo un decimo.
+
+     La prima versione lo ancorava direttamente a `tSwamp₁₀` e sbagliava in banda
+     larga: con la luminanza il fondo somme la lettura gia' a trenta secondi, e la
+     regola accorciava da 60 a 30 pagando il 20% senza comprare niente. Il punto di
+     EQUILIBRIO non e' «accorcia fino a dove il fondo basta», e' «accorcia finche'
+     costa poco» — la robustezza si prende dove e' quasi gratis, non a qualunque
+     prezzo.
+
+     La soglia di un decimo non e' scelta a caso: e' la stessa convenzione di
+     swamp 10 letta nella valuta giusta. Con il fondo che somme la lettura dieci
+     volte, la lettura costa un decimo del tempo; qui si chiede che l'INTERA
+     rinuncia — lettura piu' scarichi — resti sotto quel decimo. Ed e' misurata
+     sul merito, non assunta. */
+  const CEDE=0.10;
+  let tEq=resa.sec;
+  for(const t of grid){
+    const e=t===resa.sec?resa:val(t);
+    if(Math.pow(resa.merit/Math.max(1e-9,e.merit),2)-1<=CEDE+1e-9){ tEq=e.sec; break; }
+  }
+  /* DINAMICA — la saturazione stellare presa sul serio.
+
+     RESA puo' superare `tStar` per non scendere sotto il pavimento operativo: una
+     manciata di stelle bruciate si accetta, si curano in elaborazione. DINAMICA no,
+     ed e' tutta la sua differenza — nessuna stella alla magnitudine protetta va a
+     fondo scala, costi quello che costa.
+
+     Dove `tStar` non lega — banda stretta, dove attraverso 3 nm anche le stelle
+     sono deboli — DINAMICA coincide con EQUILIBRIO, e lo dichiara. Inventare un
+     terzo numero diverso sarebbe la falsa precisione che questo motore esiste per
+     togliere. Per quel caso c'e' la curva: qualunque posa, col suo prezzo. */
+  const tDi=isFinite(resa.tStar)?Math.min(tEq,snapExp(resa.tStar)||tEq):tEq;
+  const mk=(id,sec)=>{
+    const e=sec===resa.sec?resa:val(sec);
+    const cost=Math.pow(resa.merit/Math.max(1e-9,e.merit),2)-1;
+    return Object.assign({},e,{strategy:id,cost,sameAs:sec===resa.sec&&id!=='resa'?'resa':null});
+  };
+  const out={resa:mk('resa',resa.sec),
+             equilibrio:mk('equilibrio',Math.max(EXP_GRID[0],tEq)),
+             dinamica:mk('dinamica',Math.max(EXP_GRID[0],tDi))};
+  out.equilibrio.sameAs=out.equilibrio.sec===out.resa.sec?'resa':null;
+  out.dinamica.sameAs=out.dinamica.sec===out.resa.sec?'resa'
+                     :out.dinamica.sec===out.equilibrio.sec?'equilibrio':null;
+  /* La curva completa: qualunque posa della griglia, col suo prezzo. E' cio' che
+     rende la scelta libera invece che limitata a tre bottoni. */
+  out.curve=grid.map(t=>{ const e=t===resa.sec?resa:val(t);
+    return {sec:e.sec,merit:e.merit,eff:e.eff,duty:e.duty,binding:e.binding,
+            cost:Math.pow(resa.merit/Math.max(1e-9,e.merit),2)-1}; });
+  return out;
+}
+const STRATEGIES=[
+  {id:'resa',       label:'Resa',       tip:'Massima efficienza fotometrica: la posa piu\' lunga che i limiti fisici concedono. Meno ore di orologio per la stessa profondita\'.'},
+  {id:'equilibrio', label:'Equilibrio', tip:'Si ferma dove il fondo cielo ha sommerso il rumore di lettura: oltre quel punto allungare compra meno del dieci per cento. Dove il fondo non ci arriva coincide con Resa, e lo dice.'},
+  {id:'dinamica',   label:'Dinamica',   tip:'Nessuna stella di campo alla magnitudine protetta va a fondo scala, e i fotogrammi sono piu\' numerosi. NON promette piu\' risoluzione: quella la decidono ottica, seeing e guida.'}];
+const strategyOf=id=>STRATEGIES.find(s=>s.id===id)||STRATEGIES[0];
+
 /* Da ore a fotogrammi. Il numero di sub e' INTERO e la differenza fra tempo
    teorico e tempo reale si dichiara, non si nasconde dietro un decimale.
    La posa si decide UNA VOLTA sul totale del progetto, non notte per notte:
@@ -3491,7 +3690,16 @@ function exposurePlan(pr,dv,site,opts){
     const cls=BB_BANDS.includes(x.band)?'bb':'nb';
     map[x.band]={group:x.group,band:x.band,critical:x.critical,totalH:x.h,
       mode:pick[cls],
-      ex:subExposure(dv,site,x.band,Object.assign({},o,{hours:x.h,forceMode:pick[cls].mode}))};
+      /* La strategia sceglie QUALE posa, non quale fisica: `exposureStrategies`
+         gira sullo stesso `subExposure` con lo stesso modo di guadagno gia'
+         deciso, e restituisce anche le altre due con il loro prezzo — la UI le
+         mostra tutte e tre e l'utente sa che cosa sta rinunciando. */
+      ex:(()=>{
+        const S=exposureStrategies(dv,site,x.band,
+          Object.assign({},o,{hours:x.h,forceMode:pick[cls].mode}));
+        const e=S[o.strategy]||S.resa;
+        return Object.assign({},e,{alt:S});
+      })()};
   }
   map.__modes=pick;
   /* LA SERIE CORTA PER IL NUCLEO.
@@ -3885,6 +4093,40 @@ function bestRotation(tg,dv,step){
 const kExt = lambda => interp(DB.extinction,lambda);
 const BAND_LAMBDA={OIII:500.7,Ha:656.3,SII:672.4,L:550,R:630,G:535,B:465,RGB:535,HaOIII:578};
 
+/* IL COLORE DEL CIELO NATURALE — il termine che mancava, ed era quello dominante.
+
+   Il modello assumeva che il fondo naturale fosse un continuo piatto: la sua
+   brillanza in ogni banda si ricavava dall'SQM in V e dalla sola larghezza del
+   filtro. Non e' cosi'. Il cielo notturno e' molto piu' rosso di quanto la V
+   lasci credere — le bande OH di Meinel lo accendono nel rosso — e piu' scuro nel
+   blu-verde. Valori tabulati per un sito buio (Benn & Ellison 1998, La Palma; gli
+   stessi ordini di grandezza nel modello di cielo ESO):
+
+     U 22.0   B 22.7   V 21.9   R 21.0   I 20.0   mag/arcsec²
+
+   Ne segue che a 656 nm il fondo naturale vale 2.26 volte quello che un continuo
+   piatto normalizzato in V direbbe, e a 500.7 nm ne vale 0.70. E' ESATTAMENTE la
+   ragione fisica per cui l'Ha regge la Luna e l'OIII no: non e' che il filtro
+   stretto scherma la Luna — un filtro stretto abbassa il fondo assoluto, non
+   l'effetto RELATIVO della Luna su quel fondo — e' che sotto l'Ha c'e' gia' molto
+   fondo naturale, e sotto l'OIII quasi niente.
+
+   Combinato con lo scattering di Rayleigh (550/λ)⁴, l'eccesso lunare relativo
+   vale 2.07 in OIII e 0.22 in Ha: un rapporto di 9.5, non di 2.95 come dava il
+   solo termine cromatico. */
+const SKY_COLOUR_TAB=[[365,22.0],[445,22.7],[551,21.9],[658,21.0],[806,20.0]];
+function skyColour(lam){
+  const T=SKY_COLOUR_TAB;
+  let m;
+  if(lam<=T[0][0]) m=T[0][1];
+  else if(lam>=T[T.length-1][0]) m=T[T.length-1][1];
+  else { m=T[T.length-1][1];
+    for(let i=1;i<T.length;i++) if(lam<=T[i][0]){
+      const [l0,m0]=T[i-1],[l1,m1]=T[i];
+      m=m0+(m1-m0)*(lam-l0)/(l1-l0); break; } }
+  return Math.pow(10,-0.4*(m-21.9));       // in unita' del cielo naturale in V
+}
+
 /* Eccesso di FLUSSO che la Luna aggiunge al fondo, nella banda che stai riprendendo,
    espresso come frazione del fondo naturale. È la stessa grandezza che `lpSkyRatio`
    calcola per l'inquinamento luminoso, e ora ha la stessa forma: le due sorgenti sono
@@ -3900,7 +4142,21 @@ function moonExcessFlux(band, dMagV, fwhm, stellar){
   if(dMagV==null||dMagV<=0) return 0;
   const lam=BAND_LAMBDA[band]||550;
   const ray=Math.pow(550/lam,4);              // >1 nel blu, <1 nel rosso
-  let excess=(Math.pow(10,0.4*dMagV)-1)*ray*leakOf(fwhm);
+  /* NIENTE `leakOf` QUI, ed e' la correzione che conta.
+
+     Prima l'eccesso lunare veniva diviso per la larghezza relativa del filtro
+     mentre il fondo naturale — il «1» del denominatore di moonPenalty — restava
+     intero, in unita' di banda larga. Con un filtro da 3 nm significava dividere
+     la Luna per 83 e lasciare il cielo naturale com'era: la banda stretta usciva
+     immune alla Luna per una asimmetria dimensionale, non per fisica. A 25° da una
+     Luna piena l'OIII risultava costare il 18% in piu'; la luminanza il 74%.
+
+     Luna e cielo naturale sono entrambi continui: il filtro li taglia allo stesso
+     modo e la larghezza si SEMPLIFICA nel rapporto. Quello che resta e' il colore
+     — dello scattering qui, del fondo naturale in `skyColour`. Il vantaggio della
+     banda stretta contro la Luna e' reale ma sta altrove: abbassa il fondo in
+     assoluto, quindi il rumore di lettura, e conserva il segnale di riga. */
+  let excess=(Math.pow(10,0.4*dMagV)-1)*ray;
   /* Su un soggetto STELLARE — gli ammassi — il modello di superficie non vale. Il fondo
      cielo entra solo attraverso l'area della PSF, non su tutta l'estensione del soggetto:
      una Luna che alza il fondo di due magnitudini distrugge una nebulosa a 22 mag/arcsec2
@@ -3913,8 +4169,23 @@ function moonExcessFlux(band, dMagV, fwhm, stellar){
 }
 /* Il fattore che moltiplica le ORE. Un fondo 1+x volte più alto chiede 1+x volte il
    tempo per lo stesso SNR — lineare nel flusso, non nella sua radice. */
+/* Quanto rende un canale sotto la Luna, fra 0 e 1: e' il rapporto fra il fondo
+   senza Luna e quello con la Luna, nella banda ripresa, ed e' anche il fattore per
+   cui va moltiplicato il tempo per tornare alla stessa profondita'.
+
+   Tutti e tre i termini sono ora in unita' del cielo naturale in V, per banda:
+     skyColour(λ)  il fondo naturale li' dove riprendi
+     xLP           l'inquinamento luminoso — BANDA LARGA, perche' la larghezza si
+                   semplifica come per la Luna. I chiamanti devono passare
+                   `lpExcessFlux(sqm, BB_NM)`, non il valore riscalato al filtro.
+     eccesso Luna  da moonExcessFlux, gia' col suo termine cromatico
+
+   `fwhm` non entra piu' nel rapporto e resta nella firma solo perche' i chiamanti
+   la calcolano comunque per altri usi. Non e' un residuo dimenticato: e' la
+   dichiarazione che la larghezza del filtro NON protegge dalla Luna. */
 function moonPenalty(band, dMagV, fwhm, stellar, xLP){
-  const base=1+(xLP||0);
+  if(dMagV==null||dMagV<=0) return 1;
+  const base=skyColour(BAND_LAMBDA[band]||550)+(xLP||0);
   return base/(base+moonExcessFlux(band,dMagV,fwhm,stellar));
 }
 
@@ -6077,9 +6348,16 @@ function rxMoon(band,e){
      cielo naturale: da un sito inquinato la sovrastima, e la frase mostrata qui
      direbbe «Luna pesante» su una notte che il piano considera utilizzabile. */
   const p=moonPenalty(band,e.dMagV,fw,
-    !!(TG.archetypes[e.tg.archetype]||{}).stellar,lpExcessFlux(SITE.sqm,fw));
+    !!(TG.archetypes[e.tg.archetype]||{}).stellar,lpExcessFlux(SITE.sqm,BB_NM));
   return {p,f};
 }
+
+/* LA STRATEGIA SCELTA. Il default e' EQUILIBRIO: e' la linea di base dichiarata —
+   si prende la robustezza dove costa meno di un decimo e non oltre — e le altre due
+   sono a un clic. Si ricorda, come il sito. */
+let RXSTRAT=(()=>{ try{ const v=localStorage.getItem('ap_strat');
+  return (v&&STRATEGIES.some(x=>x.id===v))?v:'equilibrio'; }catch(e){ return 'equilibrio'; } })();
+const setStrat=id=>{ RXSTRAT=id; try{localStorage.setItem('ap_strat',id)}catch(e){} refresh(); };
 
 let RXCOV=null;                   // l'ultima copertura risolta: soggetto e progetto
 let RXNIGHT=null;                 // la notte risolta: la usano barra, scheda e piano
@@ -6758,8 +7036,9 @@ function rxPlanHtml(pr,e,dv,t){
   /* La posa si calcola PRIMA del piano: dipende dal totale del progetto e dalla
      configurazione, non da come le notti si dividono. Il pianificatore la usa solo
      per sapere quanto vale «tre pose» in ore. Nessuna circolarità. */
-  const expo=exposurePlan(pr,dv,SITE,Object.assign({},OPSET,{panels,archetype:t.archetype,tg:t}));
-  const opts=Object.assign({},OPSET,{site:SITE,date,panels,expo,mode:PLANMODE});
+  const expo=exposurePlan(pr,dv,SITE,Object.assign({},OPSET,
+    {panels,archetype:t.archetype,tg:t,strategy:RXSTRAT}));
+  const opts=Object.assign({},OPSET,{site:SITE,date,panels,expo,mode:PLANMODE,strategy:RXSTRAT});
   const pl=planNights(pr,e,dv,N,opts);
   RXPLAN={pl,expo,pr,e,dv,t,panels,rot:rotFor(t),off:offFor(t),date};
 
@@ -6859,7 +7138,73 @@ function rxPlanHtml(pr,e,dv,t){
       Le ore per canale <b>non cambiano</b> in nessuna delle due, né con il numero di notti:
       cambia solo come si distribuiscono. La posa si decide una volta sul totale del
       progetto — cambiarla a metà strada vuol dire due set di dark.</p>`+
-    rxExpoHtml(expo,dv,pr)+rows+dl;
+    rxStrategyHtml(expo,dv,pr,panels)+rxExpoHtml(expo,dv,pr)+rows+dl;
+}
+
+/* LE TRE STRATEGIE, a schermo.
+
+   Non sono tre motori: sono tre risposte alla stessa domanda «quanto lunga la
+   posa», sulla stessa fisica e sulla stessa prescrizione. Quello che cambia e' il
+   compromesso operativo, e il prezzo di ciascuno e' misurato — non e' una
+   percentuale scritta a mano, e' (merit_resa/merit)²−1, dove `merit` contiene sia
+   il rumore di lettura sia gli scarichi.
+
+   Le ore per canale NON cambiano fra le tre. Cambia quante ore di orologio
+   servono a depositarle, ed e' esattamente cio' che le schede mostrano. */
+function rxStrategyHtml(expo,dv,pr,panels){
+  const bande=Object.keys(expo).filter(k=>k.indexOf('__')!==0);
+  if(!bande.length) return '';
+  const blocchi=pr.alloc.filter(g=>!g.dropped&&g.hours>0)
+    .map(g=>({id:g.id,h:g.hours,critical:g.critical,bands:g.bands}));
+  const card=st=>{
+    /* Ogni scheda ricostruisce il piano di pose CON LA SUA posa: il numero di
+       fotogrammi, l'integrazione e il tempo di orologio escono dal modello, non
+       da una stima. `subPlan` porta gia' dentro scarico e assestamento. */
+    const ex2={}; let costo=0,k=0,comeResa=true,comeEq=true;
+    for(const b of bande){
+      const alt=expo[b].ex.alt; if(!alt) continue;
+      const e=alt[st.id]||alt.resa;
+      ex2[b]={ex:e}; costo+=e.cost||0; k++;
+      if(e.sec!==alt.resa.sec) comeResa=false;
+      if(e.sec!==alt.equilibrio.sec) comeEq=false;
+    }
+    if(!k) return '';
+    const cAvg=costo/k;
+    /* IL COSTO SI APPLICA PRIMA DI CONTARE LE POSE, non dopo.
+
+       `subPlan` ricava i fotogrammi dalle ore della prescrizione, e quelle non
+       cambiano mai fra le tre strategie: contarle cosi' mostrava la stessa
+       integrazione per tutte, con accanto un «+5%» che non si vedeva da nessuna
+       parte. Una posa meno efficiente non chiede piu' pose della stessa durata:
+       chiede piu' INTEGRAZIONE, perche' ogni secondo deposita meno profondita'.
+       Le ore si scalano quindi di (1+costo), e da li' escono pose, integrazione e
+       orologio — che e' esattamente quello che si andra' a fare sul campo. */
+    const bl2=blocchi.map(g=>Object.assign({},g,{h:g.h*(1+cAvg)}));
+    const sp=subPlan(bl2,ex2,Object.assign({},OPSET,{panels}));
+    const pose=sp.subs.reduce((a,x)=>a+x.n,0);
+    const c=cAvg;
+    const pick=RXSTRAT===st.id;
+    const pose_s=bande.map(b=>ex2[b]?ex2[b].ex.sec:0);
+    const lo=Math.min(...pose_s), hi=Math.max(...pose_s);
+    return `<button class="stratcard${pick?' on':''}" onclick="setStrat('${st.id}')"
+       aria-pressed="${pick?'true':'false'}" data-tip="${esc(st.tip)}">
+      <div class="sc-h"><b>${esc(st.label)}</b>${pick?'<span class="pill p-ok">in uso</span>':''}</div>
+      <div class="sc-n">${lo===hi?lo+' s':lo+'–'+hi+' s'}</div>
+      <div class="sc-r"><span>${pose} pose</span><span>${fmt(sp.integH,1)} h di integrazione</span></div>
+      <div class="sc-r"><span>${fmt(sp.clockH,1)} h di orologio</span><span class="${
+        c>0.005?'cost':'muted'}">${c>0.005?'+'+Math.round(c*100)+'% su Resa'
+        :(st.id==='resa'?'riferimento':'stesso costo')}</span></div>
+      ${st.id==='resa'?''
+        : comeResa?'<div class="sc-s">stessa posa di Resa: qui non c\u2019\u00e8 niente da cedere</div>'
+        : (st.id==='dinamica'&&comeEq)?'<div class="sc-s">stessa posa di Equilibrio: attraverso un filtro stretto anche le stelle sono deboli, e la saturazione stellare non lega</div>'
+        : ''}
+    </button>`;
+  };
+  return `<div class="stratbox">
+    <div class="sc-t">Strategia di acquisizione
+      <span class="muted">— stessa prescrizione, stessa fisica: cambia solo la posa e quanto ti costa</span></div>
+    <div class="stratgrid">${STRATEGIES.map(card).join('')}</div>
+  </div>`;
 }
 
 /* La posa, con i tre tetti scoperti. Non basta dire "300 s": serve dire perché
