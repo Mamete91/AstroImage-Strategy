@@ -638,6 +638,55 @@ td.archcell{max-width:120px}
 .hero-input input::placeholder{color:var(--dim2);font-weight:400;font-size:17px}
 .hero-input .clr{position:static;flex:none;margin-left:var(--s2)}
 .hero-row{display:flex;gap:var(--s4);flex-wrap:wrap;align-items:stretch}
+
+/* LA MINIATURA DEL CAMPO — accanto alla ricerca, sopra tutto il resto.
+
+   Non e' una figurina dell'oggetto: e' il ritaglio di cielo che il TUO sensore
+   inquadra, perche' `fov` viene da `dv.fovX` e il rapporto d'aspetto da `fovY/fovX`.
+   Serve a rispondere prima di spendere sei notti alla domanda che nessun numero
+   risponde — «e' questo quello che voglio, e ci sta dentro?».
+
+   Su schermo largo sta a destra del campo; sotto i 720 px la riga va a capo e la
+   miniatura finisce sotto la ricerca, comunque prima di data, copertura e ore.
+   Nel riepilogo a destra sarebbe arrivata dopo la scelta, su telefono in fondo a
+   tutta la pagina: inutile proprio dove serve. */
+.hero-top{display:flex;gap:var(--s5);align-items:flex-end;flex-wrap:wrap}
+.hero-top > .hero-field{flex:1 1 320px;min-width:0}
+.hero-prev{flex:0 0 268px;margin:0;position:relative;border-radius:var(--radius-lg);
+  overflow:hidden;border:1px solid var(--line);background:var(--sunken)}
+.hero-prev img{display:block;width:100%;height:auto;background:var(--bg3)}
+.hero-prev figcaption{position:absolute;left:0;right:0;bottom:0;
+  padding:5px 9px;font-size:10px;line-height:1.35;color:var(--dim);
+  background:linear-gradient(transparent,rgba(0,0,0,.72) 42%)}
+.hero-prev figcaption a{color:inherit}
+.hero-prev .pv-off{display:flex;align-items:center;justify-content:center;text-align:center;
+  min-height:120px;padding:16px;font-size:11.5px;line-height:1.5;color:var(--dim2)}
+@media (max-width:720px){ .hero-prev{flex:1 1 100%} }
+
+/* I TRE RIQUADRI DEL «COME RIPRENDERE».
+
+   Un segmentato basta per due opzioni che si spiegano da sole; qui ognuna porta un
+   compromesso che va letto prima di sceglierlo, e la descrizione sotto il nome e'
+   il motivo per cui i riquadri esistono. Sono <label> con un radio dentro: si
+   raggiungono col tab, rispondono a Invio e alle frecce come un radiogroup vero. */
+.goalbox{border:0;padding:0;margin:0;min-width:0}
+.goalbox > legend{padding:0;margin-bottom:8px}
+.goalgrid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.goalcard{margin:0;border-bottom:none;display:block;cursor:pointer}
+.goalcard input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.goalcard .gc{display:flex;flex-direction:column;gap:5px;height:100%;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;transition:border-color .15s,background .15s}
+.goalcard:hover .gc{border-color:var(--dim2)}
+.goalcard input:checked + .gc{border-color:var(--acc);background:rgba(var(--acc-rgb),.09)}
+.goalcard input:focus-visible + .gc{outline:2px solid var(--acc);outline-offset:2px}
+.gc-h{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--fg)}
+.gc-h svg{width:19px;height:19px;flex:none;color:var(--dim)}
+.goalcard input:checked + .gc .gc-h svg{color:var(--acc)}
+.gc-tick{margin-left:auto;font-size:13px;color:var(--acc);opacity:0;transition:opacity .15s}
+.goalcard input:checked + .gc .gc-tick{opacity:1}
+.gc-d{font-size:11.5px;line-height:1.5;color:var(--dim)}
+@media (max-width:560px){ .gc{padding:10px 12px} .gc-d{font-size:11px} }
 .hero-num{justify-content:center;max-width:150px}
 /* La copertura decide se il progetto e' il soggetto intero o una sua
    inquadratura: cambia il costo di tutto quello che si legge sotto, quindi sta
@@ -923,6 +972,15 @@ td.archcell{max-width:120px}
       </div>
       <div class="card-body">
         <div class="hero">
+          <!-- LA MINIATURA STA QUI, NON NEL RIEPILOGO.
+
+               Nel riepilogo sarebbe una conferma; qui e' uno strumento. E su
+               telefono la differenza e' tutta: la barra laterale finisce in fondo
+               alla pagina, quindi una miniatura li' la vedresti DOPO aver scelto,
+               quando non serve piu'. Attaccata al campo di ricerca compare invece
+               nel momento in cui scegli, e su schermo largo occupa spazio che il
+               campo lasciava vuoto. -->
+          <div class="hero-top">
           <div class="hero-field">
             <label class="hero-lab" for="rxTarget"
               data-tip="Scrivi un oggetto e le ore che hai, e ti dico con quale tecnica riprenderlo, quante ore per canale, in che ordine e cosa aspettarti. Se le ore non bastano te lo dico, invece di darti una ripartizione che non sta in piedi. Lascialo vuoto e ti dico cosa conviene riprendere stanotte con questa configurazione.">
@@ -939,7 +997,55 @@ td.archcell{max-width:120px}
               <button type="button" id="rxClear" class="fn fn-cfg clr" hidden
                 data-tip="Svuota il campo e torna all'elenco di cosa conviene riprendere stanotte. Anche con Esc.">Pulisci</button>
             </div>
+            </div>
+            <figure class="hero-prev" id="rxPrev" hidden></figure>
           </div>
+          <!-- COME RIPRENDERE — tre riquadri, non un segmentato.
+
+               Non e' la stessa cosa scritta piu' grande: un segmentato va bene per
+               due opzioni che si spiegano da sole (soggetto intero / inquadratura
+               libera), qui invece ognuna porta un compromesso che va letto prima di
+               sceglierlo. La descrizione sotto il nome e' il motivo per cui i
+               riquadri esistono.
+
+               E il nome non e' piu' «Strategia di acquisizione»: quella e' gia' la
+               sezione che li contiene, e avere due cose con lo stesso nome a dodici
+               righe di distanza era un errore mio. -->
+          <fieldset class="goalbox">
+            <legend class="hc-k">Come riprendere</legend>
+            <div class="goalgrid" role="radiogroup" aria-label="Come riprendere">
+              <label class="goalcard">
+                <input type="radio" name="rxStrat" id="rxStratResa" value="resa">
+                <span class="gc">
+                  <span class="gc-h">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M4 19h16"/><path d="M6 16V9"/><path d="M11 16V5"/><path d="M16 16v-4"/></svg>
+                    <b>Resa</b><span class="gc-tick" aria-hidden="true">&check;</span></span>
+                  <span class="gc-d">La posa più lunga che i limiti fisici concedono:
+                    meno ore di orologio per la stessa profondità.</span></span></label>
+              <label class="goalcard">
+                <input type="radio" name="rxStrat" id="rxStratEq" value="equilibrio" checked>
+                <span class="gc">
+                  <span class="gc-h">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 4v16"/><path d="M5 8h14"/><path d="M5 8 2 15h6Z"/><path d="M19 8l-3 7h6Z"/></svg>
+                    <b>Equilibrio</b><span class="gc-tick" aria-hidden="true">&check;</span></span>
+                  <span class="gc-d">Si ferma dove il fondo cielo ha coperto il rumore di
+                    lettura: oltre quel punto allungare compra meno del dieci per cento.</span></span></label>
+              <label class="goalcard">
+                <input type="radio" name="rxStrat" id="rxStratDin" value="dinamica">
+                <span class="gc">
+                  <span class="gc-h">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/></svg>
+                    <b>Dinamica</b><span class="gc-tick" aria-hidden="true">&check;</span></span>
+                  <span class="gc-d">Nessuna stella di campo va a fondo scala, e i fotogrammi
+                    sono più numerosi. Non promette più risoluzione.</span></span></label>
+            </div>
+          </fieldset>
           <div class="hero-row">
             <div id="rxCtx"></div>
             <div class="hero-cov">
@@ -951,25 +1057,6 @@ td.archcell{max-width:120px}
                 <label data-tip="Il target può essere più grande del campo del telescopio. Il motore non presume che tu voglia fotografarlo interamente: l'integrazione viene riferita alla porzione scelta nell'inquadratura.">
                   <input type="radio" name="rxCov" id="rxCovFrame" value="framing">
                   <span>Inquadratura libera</span></label>
-              </div>
-            </div>
-            <!-- LA STRATEGIA DI ACQUISIZIONE, dove si decide.
-                 Sta qui accanto alla copertura perche' e' una scelta dello stesso
-                 tipo: non cambia che cosa serve al soggetto, cambia come lo si
-                 riprende. I numeri — posa, pose, integrazione, orologio, costo —
-                 stanno in Risultati, dove esiste una prescrizione da misurare. -->
-            <div class="hero-cov">
-              <div class="hc-k">Strategia di acquisizione</div>
-              <div class="hc-seg" role="radiogroup" aria-label="Strategia di acquisizione">
-                <label data-tip="Massima efficienza fotometrica: la posa più lunga che i limiti fisici concedono. È il riferimento — meno ore di orologio per la stessa profondità.">
-                  <input type="radio" name="rxStrat" id="rxStratResa" value="resa">
-                  <span>Resa</span></label>
-                <label data-tip="Si ferma dove il fondo cielo ha sommerso il rumore di lettura: oltre quel punto allungare la posa compra meno del dieci per cento, e pose più corte sono più robuste. Dove il fondo non ci arriva coincide con Resa, e lo dice.">
-                  <input type="radio" name="rxStrat" id="rxStratEq" value="equilibrio" checked>
-                  <span>Equilibrio</span></label>
-                <label data-tip="Nessuna stella di campo alla magnitudine protetta va a fondo scala, e i fotogrammi sono più numerosi. NON promette più risoluzione: quella la decidono ottica, seeing e guida.">
-                  <input type="radio" name="rxStrat" id="rxStratDin" value="dinamica">
-                  <span>Dinamica</span></label>
               </div>
             </div>
             <label class="f hero-num">In quante notti
@@ -14842,6 +14929,61 @@ const starsTag=(g,cls)=>isStarsOnly(g)
   ? `<span class="pill p-dim ${cls||''}" style="font-size:9.5px" data-tip="${esc(starsTip)}">solo stelle</span>`
   : '';
 
+/* ---------- LA MINIATURA DEL CAMPO ----------
+
+   Un solo `<img>`, nessuna libreria: `hips2fits` del CDS restituisce un JPEG da un
+   URL. Misurato: 268x180 pesa dodici kilobyte e arriva in otto decimi di secondo.
+   Aladin Lite — che l'app carica gia', ma solo per la vista dell'inquadratura —
+   compila WebAssembly e per una miniatura sarebbe sproporzionato.
+
+   IL RITAGLIO E' IL TUO. `fov` viene da `dv.fovX` (primi d'arco, quindi diviso 60)
+   e l'altezza dal rapporto `fovY/fovX`: quello che vedi non e' una figurina
+   dell'oggetto, e' il fotogramma che quella configurazione produce. Sulla stessa
+   riga in cui scegli il soggetto, e prima di «Copertura del soggetto», che e' poi
+   la stessa domanda posta a parole.
+
+   OFFLINE SI DICHIARA. L'app funziona con un doppio clic e senza rete, ed e' un
+   vincolo che non si incrina in silenzio: se l'immagine non arriva compare un
+   riquadro che dice perche', non uno spazio vuoto.
+
+   E UNA COSA VA DETTA: ogni miniatura fa sapere al CDS quale oggetto stai
+   guardando. E' poco, ma finora l'app non parlava con nessuno se non glielo
+   chiedevi, e la differenza si dichiara invece di scoprirla. */
+const HIPS='https://alasky.cds.unistra.fr/hips-image-services/hips2fits';
+let _pvKey=null;
+function renderPreview(t,dv){
+  const box=$('rxPrev'); if(!box) return;
+  if(!t||t.ra_deg==null||t.dec_deg==null){ box.hidden=true; box.innerHTML=''; _pvKey=null; return; }
+  /* Il campo inquadrato, con un margine perche' l'oggetto non tocchi il bordo:
+     un decimo per lato, che e' inquadratura, non fisica. */
+  const fovDeg=Math.min(20,Math.max(0.05,(dv.fovX/60)*1.1));
+  const W=268, H=Math.round(W*Math.min(2,Math.max(.5,dv.fovY/dv.fovX)));
+  const key=[t.ra_deg,t.dec_deg,fovDeg.toFixed(4),W,H].join('|');
+  if(key===_pvKey) return;                 // stessa richiesta: il browser ha gia' l'immagine
+  _pvKey=key;
+  const u=`${HIPS}?hips=${encodeURIComponent('CDS/P/DSS2/color')}`+
+    `&width=${W}&height=${H}&fov=${fovDeg.toFixed(4)}&projection=TAN&coordsys=icrs`+
+    `&ra=${t.ra_deg}&dec=${t.dec_deg}&format=jpg`;
+  box.hidden=false;
+  box.innerHTML=`<img alt="${esc('Campo di '+t.names[0]+' come lo inquadra questa configurazione')}"
+      width="${W}" height="${H}" loading="lazy" decoding="async" src="${esc(u)}">
+    <figcaption>${fmt(dv.fovX/60,2)}° × ${fmt(dv.fovY/60,2)}° — il tuo campo &middot;
+      DSS2 via <a href="https://cds.unistra.fr" target="_blank" rel="noopener">CDS</a></figcaption>`;
+  /* `onerror` da solo non basta, e il banco di prova l'ha mostrato: una richiesta
+     che non risponde — rete filtrata, host irraggiungibile, proxy che ingoia — non
+     fallisce mai, resta appesa. Con il solo gestore d'errore il riquadro sarebbe
+     rimasto vuoto per sempre, che e' proprio la cosa che si voleva evitare.
+     Quindi un tetto di tempo, come per Aladin: passato quello si dichiara. */
+  const img=box.querySelector('img');
+  const spento=()=>{ box.innerHTML=`<div class="pv-off"><span><b>Anteprima non disponibile.</b><br>
+    Arriva dal CDS e richiede la rete: ${location.protocol==='file:'
+      ? 'stai usando la versione offline.' : 'sembra che non ci sia connessione.'}<br>
+    Tutto il resto funziona lo stesso.</span></div>`; };
+  const to=setTimeout(()=>{ if(!img.complete||!img.naturalWidth) spento(); },8000);
+  img.onload=()=>clearTimeout(to);
+  img.onerror=()=>{ clearTimeout(to); spento(); };
+}
+
 let RXCOV=null;                   // l'ultima copertura risolta: soggetto e progetto
 let RXNIGHT=null;                 // la notte risolta: la usano barra, scheda e piano
 let RXPR=null, RXDV=null;         // ultima prescrizione e ultima catena derivata.
@@ -14859,7 +15001,7 @@ function renderRx(np){
      mancante — e legarla alla risoluzione lasciava la barra della richiesta
      precedente. Quando la notte si sposta, si ridisegna una seconda volta con
      quella vera: due render sono niente, una barra bugiarda no. */
-  RXNIGHT=null; RXPR=null; RXCOV=null; RXAVAIL=0; showAvail(null);
+  RXNIGHT=null; RXPR=null; RXCOV=null; RXAVAIL=0; showAvail(null); renderPreview(null);
   $('rxCtx').innerHTML=rxContext();
   /* La carta della configurazione vive in Strumentazione, non piu' nella home. */
   const cc=$('cfgCtx'); if(cc) cc.innerHTML=cfgContext();
@@ -14987,6 +15129,7 @@ function renderRx(np){
     ? prescribe(e,RXCAP,dv,ppRx.panels) : pr0;
   RXCOV=ppRx;
   RXPR=pr;
+  renderPreview(t,dv);            // il campo che questa configurazione inquadra
   showAvail(t,RN,NN,pr);                          // idem: il riepilogo la legge da qui
   const L=RXLVL[pr.level];
   const ba=binAdvice(CFG,SITE.fwhm);
