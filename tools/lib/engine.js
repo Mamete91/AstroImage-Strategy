@@ -25,6 +25,7 @@ const M=new Function(...Object.keys(ctx),pure+`return {derive,refCfg,timeFactor,
   bandThroughput,samplingVerdict,framing,nightProfile,effFWHM,evaluate,prescribe,synthTarget,
   roadChannels,roadSum,costGroups,accessibleH,moonPenalty,lpPenalty,filterFor,
   dualPass,BAND_LAMBDA,BB_NM,leakOf,kExt,mosaicPanels,binAdvice,expectFor,
-  cfaFraction,bandSpec,skyRateFor,subExposure,exposurePlan,objectSatTime,subPlan};`)
+  cfaFraction,bandSpec,skyRateFor,subExposure,exposurePlan,objectSatTime,subPlan,
+  fitAlternatives,framing};`)
   (...Object.values(ctx));
 module.exports={M,DB,TG,CAT,CIT,ROOT:R};

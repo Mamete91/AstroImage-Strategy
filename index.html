@@ -2039,7 +2039,20 @@ function expectFor(tg,refHours){
 }
 
 /* La prescrizione vera e propria. */
-function prescribe(e,hours,dv){
+/* Le ore che arrivano qui sono quelle DISPONIBILI in totale; il budget della
+   scheda e' invece la profondita' di UN campo. Prima le due cose venivano
+   confrontate direttamente, e su un soggetto piu' largo del sensore il verdetto
+   valeva per un pannello mentre il costo si pagava sull'oggetto intero: bastava
+   raggiungere la soglia su un ventiquattresimo del Velo per leggere «progetto
+   pieno». Il conto giusto divide le ore disponibili per i pannelli — non
+   moltiplica il budget, che resta la grandezza fotometrica che era.
+   `panels` arriva da chi chiama quando conosce la rotazione della camera;
+   altrimenti si prende quella che evaluate() ha gia' calcolato sulla geometria
+   del bersaglio. Con un oggetto che sta in un campo vale 1 e non cambia nulla. */
+function prescribe(e,hours,dv,panels){
+  const P=Math.max(1,Math.round(panels||e.panels||1));
+  const hoursTot=hours;
+  hours=hours/P;                    // le ore che restano a ciascun pannello
   const tg=e.tg, budget=e.budget, dual=e.dual;
   const seen=new Set();
   const roads=tg.roads.map(r=>{
@@ -2093,13 +2106,17 @@ function prescribe(e,hours,dv){
   const exp = level==='insufficiente' ? null : expectFor(tg,spent/Math.max(f,1e-6));
 
   // notti e settimane con la finestra reale del sito
-  const nights = e.perNight>0.3 ? spent/e.perNight : Infinity;
+  const nights = e.perNight>0.3 ? spent*P/e.perNight : Infinity;
   const weeks  = isFinite(nights) ? nights/(7*(e.clearFrac||0.35)) : Infinity;
 
   return {level,road:chosen.r,roadTotals:{ideal:chosen.ideal,acc:chosen.acc,floor:chosen.floor},
           roads:cand,alt:roads.filter(x=>!x.distinct),
           alloc,spent,unused:Math.max(0,hours-spent),critGroup:critG.id,needed,
-          expect:exp,nights,weeks,hours};
+          expect:exp,nights,weeks,hours,
+          /* `spent` e `hours` restano PER PANNELLO — e' cosi' che li usano posa,
+             piano ed esportazione. Il progetto intero e' qui accanto, dichiarato. */
+          panels:P,hoursTotal:hoursTot,spentTotal:spent*P,
+          roadTotalsProject:{ideal:chosen.ideal*P,acc:chosen.acc*P,floor:chosen.floor*P}};
 }
 
 /* Quando non ci sta: quale ALTRA configurazione fra quelle che possiedi lo
@@ -2118,7 +2135,7 @@ function mountRms(mountId,scale){
   return (scale<0.8?m.rms_long_fl_arcsec:m.rms_typ_arcsec)||0.8;
 }
 
-function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN){
+function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot){
   const out=[];
   const cur=`${cfg.tel}|${cfg.red}|${cfg.cam}|${cfg.bin||1}`;
   for(const p of presets){
@@ -2131,10 +2148,18 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN){
       const site2={...site,rms:rms2,fwhm:effFWHM(site.seeing,rms2)};
       const e2=evaluate(tg,dv2,site2,np,state);
       if(e2.missing.length) continue;
-      const pr=prescribe(e2,hours,dv2);
+      /* Ogni configurazione porta la propria geometria: un tubo corto copre il
+         soggetto in un campo dove uno lungo ne chiede venti, e il confronto deve
+         vedere il sistema intero — profondita' E copertura — non mezzo sistema. */
+      const mp2=mosaicPanels(tg,dv2,undefined,rot||0);
+      const pr=prescribe(e2,hours,dv2,mp2.cols*mp2.rows);
       if(pr.level==='insufficiente') continue;
-      out.push({cfg:c,preset:p,bin,dv:dv2,pr,ev:e2,rms:rms2,
-        samp:e2.samp.k,ok:e2.samp.k==='corretto',spent:pr.spent});
+      out.push({cfg:c,preset:p,bin,dv:dv2,pr,ev:e2,rms:rms2,panels:pr.panels,
+        samp:e2.samp.k,ok:e2.samp.k==='corretto',spent:pr.spent,total:pr.spentTotal,
+        /* Quanto costerebbe fare il soggetto INTERO per bene con questo sistema.
+           E' la grandezza giusta per rispondere a «con quale strumento»: le ore
+           spese le spendono tutti uguali, sono quelle disponibili. */
+        projectH:pr.roadTotalsProject.ideal});
     }
   }
   /* Ordine: prima chi resta in campionamento corretto, poi chi arriva più in
@@ -2144,7 +2169,7 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN){
   const rank={pieno:4,ridotto:3,parziale:2,minimo:1};
   out.sort((a,b)=>((b.ok?1:0)-(a.ok?1:0))
     || (rank[b.pr.level]-rank[a.pr.level])
-    || (a.spent-b.spent));
+    || (a.projectH-b.projectH));   // il soggetto intero, pannelli inclusi
   return out.slice(0,maxN||3);
 }
 
@@ -3678,10 +3703,23 @@ function evaluate(tg,dv,site,np,state){
      Il ciclo lunare si, perche' torna il novilunio; l'IL c'e' tutte le notti.
      Escluderlo dal calcolo strategico faceva sembrare fattibile da Milano un
      progetto che richiede quarantaquattro volte le ore. */
+  /* LA COPERTURA — l'anello che mancava.
+     La profondita' e' una proprieta' del SINGOLO CAMPO: le ore per canale dicono
+     quanto a lungo posare su un pezzo di cielo grande quanto il sensore. Il
+     progetto pero' e' l'OGGETTO INTERO, e un soggetto piu' largo del campo va
+     coperto a pannelli — ognuno da portare alla stessa profondita'.
+     Le due grandezze restano separate e non si contaminano: le ore per canale
+     non vengono toccate, e' il conto del progetto che le moltiplica. Quando
+     l'oggetto ci sta in un campo `panels` vale 1 e non cambia niente, che e' il
+     motivo per cui questa non e' una correzione per un oggetto o per un tubo:
+     e' la geometria che decide, oggetto per oggetto e ottica per ottica. */
+  const mos=mosaicPanels(tg,dv);
+  const panels=Math.max(1,mos.cols*mos.rows);
+  const roadHTot=roadH*panels, roadAccHTot=roadAccH*panels;
   const perNight=Math.min(critH*lpF, np.darkH||np.nautH);
-  const nights = perNight>0.3 ? roadH/perNight : Infinity;
+  const nights = perNight>0.3 ? roadHTot/perNight : Infinity;
   const weeks  = isFinite(nights) ? nights/(7*site.clearFrac) : Infinity;
-  const nightsAcc = perNight>0.3 ? roadAccH/perNight : Infinity;
+  const nightsAcc = perNight>0.3 ? roadAccHTot/perNight : Infinity;
   const weeksAcc  = isFinite(nightsAcc) ? nightsAcc/(7*site.clearFrac) : Infinity;
   const critHeff = critH*skyF;
 
@@ -3734,7 +3772,8 @@ function evaluate(tg,dv,site,np,state){
   return {tg,segs,critH,critHeff,softH,maxAlt,critBand,critFloor,softFloor,
           moonF,lpF,skyF,isNarrow,dMagV,moonUpFrac,moonIllum:mi,moonAlt:mAA.alt,rho,
           tsub:_tsub,                       // la posa con cui e' stato calcolato il fattore
-          budget,roadH,roadAccH,accReal,defRoad,nights,weeks,nightsAcc,weeksAcc,
+          budget,roadH,roadAccH,roadHTot,roadAccHTot,panels,mos,
+          accReal,defRoad,nights,weeks,nightsAcc,weeksAcc,
           fit,samp,progress,progressAcc,score,perNight,
           feas,feasAcc,missing,critFilter,dual,dualUsed,clearFrac:site.clearFrac};
 }
@@ -5263,11 +5302,18 @@ function showAvail(t,rn,n,pr){
     nt.textContent='scegli un oggetto: le ore utili dipendono da quando sale'; return; }
   const av=RXAVAIL;
   v.innerHTML=`${fmt(av,1)}<span class="u"> h</span>`;
-  const ideal=pr&&pr.roadTotals?pr.roadTotals.ideal:0;
+  /* Il fabbisogno da mostrare è quello del SOGGETTO INTERO. Su un mosaico il
+     costo di un campo direbbe che quattro ore bastano per una cosa che ne chiede
+     centoquindici: roadTotalsProject porta già dentro i riquadri. */
+  const ideal=pr&&pr.roadTotalsProject?pr.roadTotalsProject.ideal
+            :(pr&&pr.roadTotals?pr.roadTotals.ideal:0);
   const corto=ideal>av+1e-9;
   v.className='ha-v'+(corto?' short':'');
   const min=corto?nightsForHours(t,rn&&rn.date?rn.date:rxDate(),ideal):null;
   nt.innerHTML=`su ${n} nott${n===1?'e':'i'} da ${esc(dayLabel(rn&&rn.date?rn.date:rxDate()))}`+
+    /* Se il soggetto non ci sta in un campo va detto qui, non solo nel piano:
+       è la ragione per cui il fabbisogno è quello che è. */
+    (pr&&pr.panels>1?` &middot; mosaico da <b>${pr.panels}</b> riquadri`:'')+
     (corto
       ? ` &middot; il progetto intero ne chiede <b>${fmt(ideal,1)}</b>`+
         (min?`: servono <b>${min}</b> nott${min===1?'e':'i'}`:'')
@@ -5366,7 +5412,10 @@ function renderRx(np){
   const e=RN.shift>0?evaluate(t,dv,SITE,npRx,STATE)
                     :(EVAL.find(x=>x.tg.id===t.id)||evaluate(t,dv,SITE,np,STATE));
   RXEVAL=e;
-  const pr=prescribe(e,hours,dv);
+  /* La copertura con la rotazione che l'utente ha impostato: ruotare la camera
+     puo' far scendere i pannelli, e se lo fa il progetto costa meno davvero. */
+  const mosRx=mosaicPanels(t,dv,undefined,rotFor(t));
+  const pr=prescribe(e,hours,dv,mosRx.cols*mosRx.rows);
   RXPR=pr;
   showAvail(t,RN,NN,pr);                          // idem: il riepilogo la legge da qui
   const L=RXLVL[pr.level];
@@ -5409,13 +5458,14 @@ function renderRx(np){
 
   let body='';
   if(pr.level==='insufficiente'){
-    const alts=fitAlternatives(t,CFG,SITE,np,STATE,hours,DB.presets,3);
+    const alts=fitAlternatives(t,CFG,SITE,np,STATE,hours,DB.presets,3,rotFor(t));
     body=`<p class="small">Con <b>${fmt(hours,1)} h</b> il canale che decide l'immagine
       (<b>${pr.critGroup}</b>) non arriva alla sua soglia: ne servono <b>${fmt(pr.needed,1)} h</b>
       solo per farlo esistere. Spendere queste ore comunque non ti dà una versione
       più piccola dell'immagine: ti dà rumore da spegnere in elaborazione.</p>
-      <p class="small">Le tecniche possibili per questo oggetto costano <b>${fmt(pr.roadTotals.floor,1)} h</b> al minimo
-      e ${fmt(pr.roadTotals.ideal,1)} h per intero, su questa configurazione.</p>
+      <p class="small">Le tecniche possibili per questo oggetto costano <b>${fmt(pr.roadTotalsProject.floor,1)} h</b> al minimo
+      e ${fmt(pr.roadTotalsProject.ideal,1)} h per intero, su questa configurazione${
+        pr.panels>1?` — il soggetto non ci sta in un campo e va coperto in <b>${pr.panels}</b> riquadri`:''}.</p>
       ${alts.length?`<h4 style="margin:14px 0 4px;font-size:13px">Con questa strumentazione invece ci sta</h4>
         ${alts.map(a=>`<div class="altrow">
           <span class="pill ${a.pr.level==='pieno'?'p-ok':a.pr.level==='ridotto'?'p-ok':'p-warn'}">${RXLVL[a.pr.level].k}</span>
@@ -5782,9 +5832,11 @@ function rxPlanHtml(pr,e,dv,t){
       panels>1?` × ${mos.cols}×${mos.rows} pannelli`:''}</h4>`;
   const mosNote = panels>1
     ? `<div class="warnbox" style="margin:0 0 8px"><b>Mosaico ${mos.cols}×${mos.rows}.</b>
-        Le ${fmt(pr.spent,1)} h della prescrizione sono il costo di <b>un pannello</b>:
-        il progetto intero ne chiede <b>${fmt(pr.spent*panels,1)} h</b>. È il vero prezzo del
-        mosaico — l'allineamento è la parte facile. Il piano qui sotto conta già tutti i pannelli.</div>`
+        Il soggetto è più largo del campo, quindi va coperto in <b>${panels}</b> riquadri, ognuno
+        da portare alla stessa profondità. Le <b>${fmt(pr.spent,1)} h</b> della prescrizione sono
+        il costo di <b>un riquadro</b>; il progetto intero ne chiede <b>${fmt(pr.spent*panels,1)} h</b>,
+        e il giudizio le conta già tutte. È il vero prezzo del mosaico — l'allineamento è la
+        parte facile.</div>`
     : '';
 
   if(!pl.ok){

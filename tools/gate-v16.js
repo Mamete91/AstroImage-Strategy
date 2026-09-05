@@ -262,8 +262,13 @@ H('7 · LE ORE PRESCRITTE — prima e dopo, su un progetto reale');
  for(const [nm,tel,red,mnt] of SET){
    const dA=A.M.derive({tel,red,cam:'asi2600mm',mnt,bin:1});
    const dB=B.M.derive({tel,red,cam:'asi2600mm',mnt,bin:1});
-   const pA=A.M.prescribe(A.M.evaluate(m31A,dA,stA,npA,{}),14.5,dA);
-   const pB=B.M.prescribe(B.M.evaluate(m31B,dB,stB,npB,{}),14.5,dB);
+   /* Un pannello su entrambi i lati. Questo gate confronta il modello v1.6 —
+      RGB mono sequenziale e CFA in banda stretta — fra due versioni del motore:
+      la copertura geometrica, introdotta dopo, non c'entra e falserebbe il
+      confronto perche' il lato vecchio non la conosce. Il quarto argomento e'
+      ignorato dalla versione precedente, che ne accetta tre. */
+   const pA=A.M.prescribe(A.M.evaluate(m31A,dA,stA,npA,{}),14.5,dA,1);
+   const pB=B.M.prescribe(B.M.evaluate(m31B,dB,stB,npB,{}),14.5,dB,1);
    const fmt=p=>p.alloc.filter(g=>!g.dropped&&g.hours>0).map(g=>g.id+' '+g.hours.toFixed(2)).join('  ');
    console.log('  '+P(nm,26)+P('prima',7)+P(pA.road.id,10)+fmt(pA));
    console.log('  '+P('',26)+P('dopo',7)+P(pB.road.id,10)+fmt(pB));

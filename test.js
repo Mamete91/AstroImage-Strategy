@@ -689,8 +689,14 @@ chk('ogni strada ha un budget proprio o dichiara perche no',roadsOk,true);
 const m31=TG.targets.find(t=>t.names[0]==='M31');
 const dvM31mono=M.derive({tel:'tecnosky115',red:0.80,cam:'asi2600mm',mnt:'am5',bin:1});
 const dvM31osc =M.derive({tel:'askar71f',red:0.75,cam:'asi2600mc',mnt:'am5',bin:1});
-const prMono=M.prescribe(M.evaluate(m31,dvM31mono,bornoSite,npB,{}),14.5,dvM31mono);
-const prOsc =M.prescribe(M.evaluate(m31,dvM31osc ,bornoSite,npB,{}),14.5,dvM31osc );
+/* Copertura fissata a UN pannello: qui si misura la catena FOTOMETRICA —
+   scelta della strada e ripartizione delle ore — che vive sul singolo campo.
+   La catena GEOMETRICA, cioe' quanti campi servono a coprire il soggetto, ha
+   il suo gate dedicato in tools/gate-copertura.js. Tenerle separate qui e' il
+   punto: M31 su questa configurazione chiede sei pannelli, e mescolare le due
+   cose renderebbe questi test illeggibili invece che piu' severi. */
+const prMono=M.prescribe(M.evaluate(m31,dvM31mono,bornoSite,npB,{}),14.5,dvM31mono,1);
+const prOsc =M.prescribe(M.evaluate(m31,dvM31osc ,bornoSite,npB,{}),14.5,dvM31osc ,1);
 console.log(`      M31 in 14.5h — mono: ${prMono.road.id} [${prMono.alloc.filter(g=>!g.dropped).map(g=>g.id+' '+g.hours.toFixed(1)).join(' ')}]`);
 console.log(`      M31 in 14.5h — OSC:  ${prOsc.road.id} [${prOsc.alloc.filter(g=>!g.dropped).map(g=>g.id+' '+g.hours.toFixed(1)).join(' ')}]`);
 chk('su mono l Ha additivo ci sta',prMono.road.id,'lrgb_ha');
@@ -789,7 +795,8 @@ chk('nessuna discordanza su un tipo a corrispondenza diretta e non voluta',
 console.log('\n--- archetipi: le strade proteggono il canale critico ---');
 const rosetta=M.synthTarget(CAT.objects.find(o=>o.name==='NGC 2237'));
 const eRos2=M.evaluate(rosetta,dvRef,bornoSite,npB,{});
-const prR15=M.prescribe(eRos2,15,dvRef), prR30=M.prescribe(eRos2,30,dvRef);
+// un campo solo: qui si misura la ripartizione, non la copertura — vedi gate-copertura.js
+const prR15=M.prescribe(eRos2,15,dvRef,1), prR30=M.prescribe(eRos2,30,dvRef,1);
 const fmtA=p=>p.road.id+': '+p.alloc.filter(g=>!g.dropped).map(g=>g.id+' '+g.hours.toFixed(1)).join(' ');
 console.log('      HII di catalogo, 15h → '+fmtA(prR15));
 console.log('      HII di catalogo, 30h → '+fmtA(prR30));
@@ -812,7 +819,7 @@ console.log('      tolleranza lunare (fondo +2 mag): '+
 chk('l Ha tollera la Luna molto piu della luminanza',
   M.moonTolerance('Ha',monoCam,false)>M.moonTolerance('L',monoCam,false)+0.5,true);
 const eM31=M.evaluate(m31,dvM31mono,bornoSite,npB,{});
-const prM31=M.prescribe(eM31,14.5,dvM31mono);
+const prM31=M.prescribe(eM31,14.5,dvM31mono,1);   // un campo: vedi gate-copertura.js
 const PDATE=new Date(2026,8,1);
 const POPT={site:bornoSite,date:PDATE};
 
