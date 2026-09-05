@@ -6902,7 +6902,34 @@ function rxExpoHtml(expo,dv,pr){
       <td><span class="pill ${bcls}" style="font-size:10px" data-tip="${esc(bwhy)}">${esc(e.binding)}</span>
         <span class="muted">${lim.map(([k,v],i)=>`${i?'':'&nbsp;'}${k} ${Math.round(v)} s`).join(' · ')}${
           e.floored?` · pavimento ${e.minSub} s`:''}</span></td>
-      <td>${Math.round(e.eff*100)}%<span class="muted"> del limite del cielo</span></td>
+      <td>${(()=>{
+        /* LA COLONNA CHE RISPONDE ALLA DOMANDA «PERCHE' PROPRIO QUESTA POSA».
+
+           Prima diceva «91% del limite del cielo». E' vero e non risponde: dice
+           quanto sei vicino all'ideale, non che cosa ti sta trattenendo ne' quanto
+           ti costa. La valuta giusta e' il tempo — da sigma^2 = (fondo+lettura)/t,
+           il rumore di lettura si paga come una frazione di ore in piu' — e va
+           mostrata SEMPRE, non solo quando scatta un'etichetta: la domanda del
+           forum e' arrivata da una configurazione in cui la lettura costava il
+           20%, cioe' sotto la soglia che cambia il nome del vincolo. */
+        const c=e.rnCost!=null?e.rnCost:(1/(e.eff*e.eff)-1);
+        const swamp=e.swamp!=null?e.swamp:null;
+        const tip='Il fondo cielo qui vale '+e.sky.toExponential(2)+' e⁻/px/s e in '+e.sec+' s '+
+          'accumula '+(swamp!=null?swamp.toFixed(1)+' volte':'poco piu\' del')+' la varianza del rumore '+
+          'di lettura. Quello che resta scoperto lo paghi in tempo: '+Math.round(c*100)+'% di ore in piu\' '+
+          'per arrivare allo stesso risultato di una posa infinitamente lunga.\n\n'+
+          'Non dipende dal rapporto focale nel verso che sembra: il fondo per pixel vale pixel²/F², '+
+          'quindi piu\' APERTO e\' il sistema, prima il fondo copre la lettura. A f/8 con lo stesso '+
+          'filtro servirebbe una posa piu\' lunga, non piu\' corta. Quello che comanda e\' la '+
+          'larghezza del filtro sotto questo cielo: in banda larga sullo stesso tubo la posa scende '+
+          'a poche decine di secondi.\n\n'+
+          'Accorciare e\' legittimo e a volte giusto — vento, guida incerta, inseguimento senza '+
+          'autoguida — ma si paga, e qui sai quanto.';
+        const cls=c>0.5?'p-warn':c>0.15?'p-dim':'p-ok';
+        return `<span class="pill ${cls}" style="font-size:10px" data-tip="${esc(tip)}">`+
+               `la lettura costa +${Math.round(c*100)}%</span>`+
+               `<span class="muted"> · ${Math.round(e.eff*100)}% del limite del cielo</span>`;
+      })()}</td>
       <td class="muted">satura oltre V ${fmt(e.magSafe,1)}</td></tr>`;
   }).join('');
   const h=expo.__hdr;
