@@ -208,5 +208,69 @@ H('H - i grumi restano sottostruttura');
     conConteggio.length + ' nubi dichiarano quanti grumi contengono');
 }
 
+// ===========================================================================
+H('I - le note curate: documentazione, non prescrizione');
+// ===========================================================================
+{
+  const NP = path.join(ROOT, 'data', 'darknotes.json');
+  if (!fs.existsSync(NP)) { chk('data/darknotes.json presente', false); }
+  else {
+    const NT = JSON.parse(fs.readFileSync(NP, 'utf8'));
+    const E = NT.entries || {};
+    const nomi = Object.keys(E);
+    chk('il file dichiara metodo e scala di confidenza',
+      !!(NT.method && NT.confidence_scale), Object.keys(NT.confidence_scale || {}).join(', '));
+
+    /* Ogni nota deve agganciarsi a un oggetto che esiste, altrimenti e'
+       documentazione su niente. */
+    const chiavi = new Set();
+    for (const o of CAT.objects) { chiavi.add(norm(o.name)); (o.aliases || []).forEach(a => chiavi.add(norm(a))); }
+    for (const o of O) { chiavi.add(norm(o[F.desig])); (o[F.xref] || []).forEach(x => chiavi.add(norm(x))); }
+    const orfane = nomi.filter(d => !chiavi.has(norm(d)));
+    chk('ogni nota si aggancia a un oggetto del catalogo', orfane.length === 0,
+      orfane.length ? orfane.join(', ') : nomi.length + ' note');
+
+    /* Ogni affermazione porta una confidenza dichiarata. */
+    const senzaConf = [];
+    for (const d of nomi) {
+      const e = E[d];
+      for (const k of ['components', 'notability'])
+        for (const x of (e[k] || [])) if (!x.conf) senzaConf.push(d + '.' + k);
+      for (const x of ((e.photographic || {}).integrations || [])) if (!x.conf) senzaConf.push(d + '.integrations');
+    }
+    chk('ogni affermazione dichiara la propria confidenza', senzaConf.length === 0,
+      senzaConf.length ? senzaConf.slice(0, 4).join(', ') : 'tutte');
+
+    const senzaRif = nomi.filter(d => !(E[d].refs || []).length);
+    chk('ogni nota cita almeno una fonte consultabile', senzaRif.length === 0,
+      senzaRif.length ? senzaRif.join(', ') : nomi.length + '/' + nomi.length);
+
+    /* Il vincolo che conta: una nota non accende canali, non assegna classi. */
+    const invasive = nomi.filter(d => E[d].archetype || E[d].cls || E[d].budget || E[d].default_budget);
+    chk('nessuna nota assegna una classe o un budget', invasive.length === 0,
+      invasive.length ? invasive.join(', ') : 'le note restano documentazione');
+
+    /* Dove documentano un Ha, deve essere un fatto osservato su QUELL oggetto. */
+    const haRe = /Ha|idrogeno/i;
+    const conHa = nomi.filter(d => (E[d].components || []).some(c => haRe.test(c.what + ' ' + (c.value || ''))));
+    const haSenzaFonte = conHa.filter(d => (E[d].components || [])
+      .filter(c => haRe.test(c.what + ' ' + (c.value || '')))
+      .some(c => !c.from && c.conf !== 'documentato'));
+    chk('ogni emissione documentata cita l osservazione', haSenzaFonte.length === 0,
+      conHa.length + ' oggetti con emissione documentata: ' + conHa.join(', '));
+
+    /* I canali elencati sono uso altrui, non prescrizione: deve esserci varieta'
+       reale, altrimenti sarebbe una regola travestita da documentazione. */
+    const conCanali = nomi.filter(d => ((E[d].photographic || {}).channels_used || []).length);
+    chk('i canali documentati sono registrati', conCanali.length > 0,
+      conCanali.length + ' oggetti');
+    const larga = /^(Ha|OIII|SII)$/;
+    const soloLarga = conCanali.filter(d => !(E[d].photographic.channels_used || []).some(c => larga.test(c)));
+    chk('e c e varieta reale fra banda larga e banda stretta',
+      soloLarga.length > 0 && soloLarga.length < conCanali.length,
+      soloLarga.length + ' solo banda larga, ' + (conCanali.length - soloLarga.length) + ' con banda stretta');
+  }
+}
+
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
 process.exit(ko ? 1 : 0);

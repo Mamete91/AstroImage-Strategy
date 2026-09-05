@@ -1,0 +1,244 @@
+{
+  "source": "Strato curato a mano: nomi propri, evidenze di popolarita' e documentazione fotografica",
+  "note": "Terzo livello sopra il catalogo importato, e va letto per quello che e'. Il catalogo dice dove sta un oggetto e quanto e' opaco; questo dice che cosa se ne sa. Le voci esistono solo dove ho trovato documentazione verificabile, e ogni affermazione porta la propria fonte. Gli oggetti che non compaiono qui non sono meno validi: sono meno documentati, e ricevono una scheda piu' prudente basata sui soli dati fisici. REGOLA: la notorieta' non e' mai una prescrizione. Un'emissione entra in `components` solo se una fonte la documenta su QUELL'oggetto — mai dedotta dal catalogo, mai dalla fama. In questa versione le note sono informative e non toccano il motore.",
+  "built": "2026-09-05",
+  "method": "Ricerca web mirata sugli oggetti del benchmark fotografico, piu' verifica di esistenza e visualizzazioni delle voci Wikipedia (API pubbliche, finestra settembre 2025 - settembre 2026). Il conteggio diretto delle immagini non e' stato ottenibile: AstroBin richiede una chiave (401/403).",
+  "confidence_scale": {
+    "verificato": "letto su una fonte identificabile e citata qui",
+    "documentato": "riportato in modo concorde da piu' lavori fotografici pubblicati",
+    "riferito": "affermazione singola, non corroborata"
+  },
+  "entries": {
+    "LDN 1622": {
+      "names": ["Boogeyman Nebula", "Nebulosa dell'Uomo Nero"],
+      "notability": [
+        { "what": "voce enciclopedica", "value": "LDN 1622", "from": "Wikipedia (en)", "conf": "verificato" },
+        { "what": "lavori fotografici pubblicati", "value": "molti, su AstroBin, Cloudy Nights, siti personali", "conf": "documentato" }
+      ],
+      "physical": { "constellation": "Orione", "distance_ly": 500, "size_ly": 10 },
+      "components": [
+        { "what": "nube molecolare oscura", "conf": "documentato" },
+        { "what": "fondo di emissione Ha", "value": "la nube si staglia su un fondo debole di idrogeno ionizzato, ai margini del Barnard's Loop", "from": "galactic-hunter.com, astrobackyard.com", "conf": "documentato" }
+      ],
+      "photographic": {
+        "structures": "sagoma antropomorfa scura contro il fondo rosso; i bordi sono la parte che regge o non regge lo stretch",
+        "channels_used": ["L", "R", "G", "B", "Ha"],
+        "strategy": "banda larga per la silhouette e il campo stellare, Ha per costruire il fondo contro cui la sagoma si legge. E' lo stesso schema di B33 su IC 434: l'Ha non e' emesso dalla nube, e' cio' che la rende visibile.",
+        "integrations": [
+          { "value": "141x60s L, 43x60s R, 44x60s G, 42x60s B, piu' 42x180s e 69x180s Ha", "from": "astrophotos.se", "conf": "verificato" }
+        ],
+        "traps": "tirare fuori il dettaglio senza sollevare rumore e' il problema centrale; le maschere aiutano poco"
+      },
+      "refs": [
+        "https://www.galactic-hunter.com/post/ldn1622",
+        "https://astrobackyard.com/boogieman-nebula/",
+        "https://astrophotos.se/?p=2869"
+      ]
+    },
+
+    "LDN 1235": {
+      "names": ["Shark Nebula", "Dark Shark", "Nebulosa Squalo"],
+      "notability": [
+        { "what": "lavori fotografici pubblicati", "value": "numerosi, incluso Sky & Telescope online gallery", "conf": "documentato" }
+      ],
+      "physical": { "constellation": "Cefeo", "distance_ly": 650 },
+      "components": [
+        { "what": "nube molecolare oscura", "conf": "documentato" },
+        { "what": "riflessione", "value": "vdB 149 e vdB 150, illuminate da stelle di tipo B8", "from": "AstroBin, Sky & Telescope", "conf": "documentato" }
+      ],
+      "photographic": {
+        "structures": "il profilo dello squalo e' dato dall'occhio (LDN 1235) piu' le due riflessioni azzurre; il resto e' polvere debolissima",
+        "channels_used": ["L", "R", "G", "B"],
+        "strategy": "solo banda larga. Nessuna banda stretta nei lavori esaminati, ed e' coerente: qui non c'e' emissione, ci sono assorbimento e luce stellare diffusa.",
+        "integrations": [
+          { "value": "5,7 h LRGB", "from": "cosgrovescosmos.com", "conf": "verificato" },
+          { "value": "7,4 h LRGB", "from": "cosgrovescosmos.com", "conf": "verificato" },
+          { "value": "15 h LRGB", "from": "AstroBin", "conf": "riferito" }
+        ],
+        "traps": "l'oggetto e' quasi incolore: la calibrazione del colore decide se la polvere resta bruna o diventa grigia. Estremamente debole rispetto al fondo."
+      },
+      "refs": [
+        "https://cosgrovescosmos.com/projects/ldn-1235-shark-nebula",
+        "https://www.galactic-hunter.com/post/the-shark-nebula",
+        "https://skyandtelescope.org/online-gallery/lnd-1235-dark-shark-nebula-ldn-1251-dark-nebula-vdb-149-vdb-150-vdb-152-reflection-nebulae-surrounding-molecular-cloud/"
+      ]
+    },
+
+    "LBN 438": {
+      "names": ["Sandworm Nebula", "Shai-Hulud"],
+      "notability": [
+        { "what": "lavori fotografici molto profondi", "value": "oltre 100 ore documentate su un singolo lavoro", "from": "AstroBin", "conf": "verificato" },
+        { "what": "immagine del giorno", "value": "AAPOD2", "conf": "verificato" }
+      ],
+      "physical": { "constellation": "Lucertola", "association": "Lacerta OB1, presso Sh 2-126" },
+      "components": [
+        { "what": "nube oscura", "conf": "documentato" },
+        { "what": "emissione Ha propria, debole", "value": "la nebulosa contiene idrogeno ionizzato ma emette un segnale Ha relativamente debole", "from": "AstroBin — Stefan Pfleger", "conf": "documentato" },
+        { "what": "struttura tipo Herbig-Haro", "value": "una struttura a tromba presente SOLO nello strato Ha e assente in LRGB, diretta verso una stella di magnitudine 16", "from": "AstroBin — Stefan Pfleger", "conf": "riferito" }
+      ],
+      "photographic": {
+        "structures": "profilo sinuoso da verme delle sabbie sul campo della Via Lattea; sopra la nebulosa una struttura a getto visibile solo in Ha",
+        "channels_used": ["L", "R", "G", "B", "Ha"],
+        "strategy": "banda larga come base per acquisire il soggetto, Ha come COMPLEMENTO per la parte debole di idrogeno ionizzato. Non e' una ripresa a banda stretta: e' una banda larga con uno strato Ha aggiunto.",
+        "integrations": [
+          { "value": "oltre 100 h complessive, con 10,5 h aggiuntive da un collaboratore per le polveri circostanti", "from": "AstroBin", "conf": "verificato" }
+        ],
+        "traps": "il soggetto principale emerge presto; sono le polveri circostanti e la mescolanza di Ha debole a richiedere le decine di ore"
+      },
+      "refs": [
+        "https://app.astrobin.com/i/zx7202",
+        "https://www.aapod2.com/blog/lbn-438-the-sandworm-nebula",
+        "https://www.adamblockphotos.com/lbn-438.html"
+      ]
+    },
+
+    "B 72": {
+      "names": ["Snake Nebula", "Nebulosa Serpente"],
+      "notability": [
+        { "what": "voce enciclopedica", "value": "Snake Nebula", "from": "Wikipedia (en)", "conf": "verificato" },
+        { "what": "visualizzazioni enciclopediche", "value": "3724 in dodici mesi", "from": "API Wikimedia", "conf": "verificato" }
+      ],
+      "physical": { "constellation": "Ofiuco", "position": "bordo nord-nordovest della coppa della Nebulosa Pipa" },
+      "components": [
+        { "what": "corsia di polvere oscura a S", "conf": "documentato" }
+      ],
+      "photographic": {
+        "structures": "corsia a S netta e piccola, davanti alle nubi stellari della Via Lattea: il soggetto e' il contrasto col campo, non l'oggetto",
+        "channels_used": ["R", "G", "B"],
+        "strategy": "silhouette su campo stellare: solo banda larga. Il fondo che la rende visibile sono le stelle, non un'emissione.",
+        "integrations": [
+          { "value": "40 minuti RGB con Takahashi FSQ-106", "from": "deepskycorner.ch", "conf": "riferito" }
+        ],
+        "traps": "il campo e' densissimo di stelle: la riduzione stellare aggressiva cancella proprio il fondo che disegna la sagoma"
+      },
+      "refs": [
+        "https://www.deepskycorner.ch/obj/b72.en.php",
+        "https://en.wikipedia.org/wiki/Snake_Nebula"
+      ]
+    },
+
+    "B 142": {
+      "names": ["Barnard's E", "Nebulosa E"],
+      "notability": [
+        { "what": "voce enciclopedica", "value": "E Nebula", "from": "Wikipedia (en)", "conf": "verificato" },
+        { "what": "visualizzazioni enciclopediche", "value": "3125 in dodici mesi", "from": "API Wikimedia", "conf": "verificato" }
+      ],
+      "physical": { "constellation": "Aquila", "distance_ly": 2000, "note": "forma la E insieme a B 143" },
+      "components": [
+        { "what": "coppia di nubi oscure", "conf": "documentato" }
+      ],
+      "photographic": {
+        "structures": "area scura ben definita a forma di E (o di 5) su un fondo di innumerevoli stelle; grande all'incirca come la Luna piena",
+        "channels_used": ["L", "R", "G", "B"],
+        "strategy": "silhouette su campo stellare: luminanza e colore, nessuna banda stretta.",
+        "traps": "il disegno della lettera dipende interamente dalla densita' del campo stellare dietro: sovraesporre il fondo lo cancella"
+      },
+      "refs": [
+        "https://en.wikipedia.org/wiki/E_Nebula",
+        "https://astrodoc.ca/barnards-e/",
+        "https://nightsky.at/Photo/Neb/B142_WN.php"
+      ]
+    },
+
+    "LBN 777": {
+      "names": ["Vulture Head Nebula", "Baby Eagle Nebula", "Testa di Avvoltoio"],
+      "notability": [
+        { "what": "lavori fotografici pubblicati", "value": "numerosi, incluso Sky & Telescope online gallery", "conf": "documentato" }
+      ],
+      "physical": { "constellation": "Toro", "distance_ly": 400, "association": "Taurus Molecular Cloud, circa 5 gradi a nordest delle Pleiadi, insieme a B 207" },
+      "components": [
+        { "what": "riflessione", "value": "nebulosa a riflessione debole", "from": "Sky & Telescope, AstroBin", "conf": "documentato" },
+        { "what": "componente oscura", "value": "B 207 nello stesso campo", "conf": "documentato" }
+      ],
+      "photographic": {
+        "structures": "profilo di testa d'uccello dato dalla polvere illuminata, con la nube oscura adiacente",
+        "channels_used": ["L", "R", "G", "B"],
+        "strategy": "solo banda larga: e' luce stellare diffusa dalla polvere, non emissione.",
+        "integrations": [
+          { "value": "300 minuti di luminanza piu' 90 minuti per canale RGB", "from": "astroeder.com", "conf": "verificato" },
+          { "value": "circa 7 h LRGB", "from": "AstroBin", "conf": "riferito" }
+        ]
+      },
+      "refs": [
+        "https://skyandtelescope.org/online-gallery/the-vulture-head-nebula-lbn777/",
+        "https://www.astroeder.com/lbn777_eder_en.html",
+        "https://app.astrobin.com/i/uin8y2"
+      ]
+    },
+
+    "B 68": {
+      "names": ["Barnard 68"],
+      "notability": [
+        { "what": "voce enciclopedica", "value": "Barnard 68", "from": "Wikipedia (en)", "conf": "verificato" },
+        { "what": "visualizzazioni enciclopediche", "value": "22726 in dodici mesi, il valore piu' alto fra le nebulose oscure misurate", "from": "API Wikimedia", "conf": "verificato" }
+      ],
+      "physical": { "constellation": "Ofiuco" },
+      "components": [{ "what": "globulo di Bok", "conf": "documentato" }],
+      "photographic": {
+        "structures": "globulo quasi sferico e molto compatto: pochi primi d'arco, su un campo stellare ricchissimo",
+        "channels_used": ["L", "R", "G", "B"],
+        "strategy": "silhouette su campo stellare, banda larga. La compattezza lo rende un soggetto da focale lunga, al contrario della maggior parte delle nebulose oscure.",
+        "traps": "e' piccolo: il campionamento conta piu' della profondita'"
+      },
+      "refs": ["https://en.wikipedia.org/wiki/Barnard_68"]
+    },
+
+    "B 59": {
+      "names": ["Pipe Nebula", "Nebulosa Pipa"],
+      "notability": [
+        { "what": "voce enciclopedica", "value": "Pipe Nebula", "from": "Wikipedia (en)", "conf": "verificato" },
+        { "what": "visualizzazioni enciclopediche", "value": "5376 in dodici mesi, condivise con l'intero complesso", "from": "API Wikimedia", "conf": "verificato" }
+      ],
+      "physical": { "constellation": "Ofiuco", "note": "il cannello della pipa; il complesso comprende anche B 65, B 67, B 78 e LDN 1773" },
+      "components": [{ "what": "complesso di nubi oscure", "conf": "documentato" }],
+      "photographic": {
+        "structures": "il disegno della pipa emerge solo inquadrando l'intero complesso: da soli i singoli Barnard non si riconoscono",
+        "channels_used": ["L", "R", "G", "B"],
+        "strategy": "silhouette su campo stellare, campo largo. E' il caso in cui la copertura conta piu' della profondita'.",
+        "traps": "l'enciclopedia e la pratica trattano il complesso come un oggetto solo: prescrivere sul singolo Barnard risponde a una domanda che nessuno fa"
+      },
+      "refs": ["https://en.wikipedia.org/wiki/Pipe_Nebula"]
+    },
+
+    "B 7": {
+      "names": ["Taurus Molecular Cloud"],
+      "notability": [
+        { "what": "voce enciclopedica", "value": "Taurus molecular cloud", "from": "Wikipedia (en)", "conf": "verificato" },
+        { "what": "visualizzazioni enciclopediche", "value": "6259 in dodici mesi", "from": "API Wikimedia", "conf": "verificato" },
+        { "what": "riscontri in letteratura", "value": "28 controparti nella compilazione di Dutra e Bica", "from": "Dobashi VII/244A", "conf": "verificato" }
+      ],
+      "physical": { "constellation": "Toro", "distance_ly": 430 },
+      "components": [
+        { "what": "nube molecolare", "value": "estinzione misurata Av 6,6 mag", "from": "Dobashi VII/244A", "conf": "verificato" },
+        { "what": "riflessione", "value": "diffusa nel complesso", "conf": "riferito" }
+      ],
+      "photographic": {
+        "structures": "complesso enorme, oltre dieci gradi: si fotografa a mosaico o a focale cortissima",
+        "channels_used": ["L", "R", "G", "B"],
+        "strategy": "banda larga profonda su campo larghissimo. La difficolta' non e' il segnale ma i gradienti su un campo di quelle dimensioni.",
+        "traps": "a questa scala il gradiente del cielo e la vignettatura pesano piu' del soggetto"
+      },
+      "refs": ["https://en.wikipedia.org/wiki/Taurus_molecular_cloud"]
+    },
+
+    "B 168": {
+      "names": ["corsia oscura del Bozzolo"],
+      "notability": [
+        { "what": "voce enciclopedica", "value": "IC 5146", "from": "Wikipedia (en)", "conf": "verificato" },
+        { "what": "visualizzazioni enciclopediche", "value": "10109 in dodici mesi, condivise con IC 5146", "from": "API Wikimedia", "conf": "verificato" }
+      ],
+      "physical": { "constellation": "Cigno", "association": "corsia oscura che conduce alla Nebulosa Bozzolo IC 5146" },
+      "components": [
+        { "what": "nube oscura allungata", "conf": "documentato" },
+        { "what": "emissione adiacente", "value": "IC 5146 e' una regione HII con emissione propria, ma appartiene all'oggetto adiacente, non a B 168", "conf": "documentato" }
+      ],
+      "photographic": {
+        "structures": "corsia scura che attraversa il campo fino al Bozzolo: si fotografa quasi sempre insieme a IC 5146",
+        "channels_used": ["L", "R", "G", "B", "Ha"],
+        "strategy": "la banda larga disegna la corsia; l'Ha serve alla regione HII adiacente, non alla nube oscura. Due soggetti nello stesso campo con esigenze diverse.",
+        "traps": "prescrivere per B 168 da solo ignora che l'inquadratura reale contiene IC 5146"
+      },
+      "refs": ["https://en.wikipedia.org/wiki/IC_5146"]
+    }
+  }
+}

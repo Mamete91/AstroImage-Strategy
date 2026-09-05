@@ -14,12 +14,15 @@ const ongcPath=path.join(dir,'data/openngc.json');
 const ongc=fs.existsSync(ongcPath)?fs.readFileSync(ongcPath,'utf8'):'null';
 const darkPath=path.join(dir,'data/darkcat.json');
 const dark=fs.existsSync(darkPath)?fs.readFileSync(darkPath,'utf8'):'null';
+const notesPath=path.join(dir,'data/darknotes.json');
+const notes=fs.existsSync(notesPath)?fs.readFileSync(notesPath,'utf8'):'null';
 
 const inject=`<script>
 window.__SETUPS__=${setups};
 window.__TARGETS__=${targets};
 window.__CATALOG__=${catalog};
 window.__DARKCAT__=${dark};
+window.__DARKNOTES__=${notes};
 window.__CITIES__=${cities};
 window.__ONGC__=${ongc};
 </script>

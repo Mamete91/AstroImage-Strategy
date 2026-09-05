@@ -4219,21 +4219,23 @@ const $=id=>document.getElementById(id);
 
 async function boot(){
   try{
-    const [a,b,c,ci,og,dk]=await Promise.all([
+    const [a,b,c,ci,og,dk,nt]=await Promise.all([
       fetch('data/setups.json').then(r=>{if(!r.ok)throw 0;return r.json()}),
       fetch('data/targets.json').then(r=>{if(!r.ok)throw 0;return r.json()}),
       fetch('data/catalog.json').then(r=>r.ok?r.json():{objects:[]}).catch(()=>({objects:[]})),
       fetch('data/cities.json').then(r=>r.ok?r.json():{cities:[]}).catch(()=>({cities:[]})),
       fetch('data/openngc.json').then(r=>r.ok?r.json():null).catch(()=>null),
-      fetch('data/darkcat.json').then(r=>r.ok?r.json():null).catch(()=>null)
+      fetch('data/darkcat.json').then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch('data/darknotes.json').then(r=>r.ok?r.json():null).catch(()=>null)
     ]);
-    DB=a; TG=b; CITIES=ci.cities||[]; CAT=mergeCatalog(c.objects||[],og,dk); start();
+    DB=a; TG=b; CITIES=ci.cities||[]; CAT=mergeCatalog(c.objects||[],og,dk,nt); start();
   }catch(e){
     if(window.__SETUPS__&&window.__TARGETS__){
       DB=window.__SETUPS__; TG=window.__TARGETS__;
       CITIES=(window.__CITIES__&&window.__CITIES__.cities)||[];
       CAT=mergeCatalog((window.__CATALOG__&&window.__CATALOG__.objects)||[],
-                       window.__ONGC__||null, window.__DARKCAT__||null);
+                       window.__ONGC__||null, window.__DARKCAT__||null,
+                       window.__DARKNOTES__||null);
       start(); return; }
     $('boot').innerHTML=`<div class="err">
       <b>Non riesco a leggere i file dati.</b><br>
@@ -4745,10 +4747,11 @@ const norm=x=>String(x).toLowerCase().replace(/[\s_'\u2019-]+/g,'');
      · ~13.300 da OPENNGC — tutto NGC e IC, con l'archetipo dedotto dal tipo e
        dalla morfologia, e la certezza di quella deduzione dichiarata.
    Il curato VINCE sempre: dove esiste una mano, la macchina si fa da parte. */
-function mergeCatalog(curated,ongc,dark){
+function mergeCatalog(curated,ongc,dark,notes){
   const out=curated.slice();
   curated.forEach(o=>{o.tier='curato'; o.archetype_confidence=o.archetype_confidence||'curato';});
   mergeDark(out,curated,dark);
+  applyNotes(out,notes);
   if(!ongc||!ongc.objects) return out;
   const seen=new Set();
   for(const o of curated){
@@ -4837,6 +4840,44 @@ function mergeDark(out,curated,dark){
       raw:a[F.raw]||null, source_cat:a[F.cat],
       tier:'dark'
     });
+  }
+}
+
+/* LE NOTE CURATE — che cosa si SA di un oggetto, oltre a dove sta.
+
+   Il catalogo importato da' posizione, ingombro e opacita': sono misure, e per
+   quattromilacinquecento oggetti sono tutto quello che esiste. Per una decina
+   pero' esiste molto di piu' — un nome che tutti usano, immagini pubblicate con
+   le ore dichiarate, strutture che si vedono solo in una banda — e buttarlo via
+   perche' non sta in una colonna di VizieR sarebbe perdere l'informazione piu'
+   utile alla ripresa.
+
+   Queste note NON toccano la prescrizione. Un'emissione documentata qui resta un
+   fatto dichiarato, non un canale acceso: accendere un canale sulla base di una
+   pagina web richiede una decisione di modello che non e' stata presa. E la
+   notorieta' non e' mai un punteggio — e' un indicatore di quanta evidenza
+   esiste, e quindi di quanto la scheda possa essere specifica.
+
+   Gli oggetti senza nota non sono penalizzati: hanno la scheda che i dati fisici
+   permettono, ed e' onesta cosi'. */
+function applyNotes(out,notes){
+  if(!notes||!notes.entries) return;
+  const byKey=new Map();
+  for(const o of out){
+    byKey.set(norm(o.name),o);
+    (o.aliases||[]).forEach(a=>{ if(!byKey.has(norm(a))) byKey.set(norm(a),o); });
+  }
+  for(const desig of Object.keys(notes.entries)){
+    const nota=notes.entries[desig];
+    const o=byKey.get(norm(desig));
+    if(!o) continue;
+    o.notes=nota;
+    /* I nomi propri entrano fra gli alias: chi cerca «Nebulosa Serpente» deve
+       trovarla, e finora il catalogo conosceva solo «B 72». */
+    if(nota.names&&nota.names.length){
+      o.aliases=[...new Set((o.aliases||[]).concat(nota.names))];
+      o.common_name=nota.names[0];
+    }
   }
 }
 
@@ -6131,6 +6172,42 @@ function renderRx(np){
         le ore qui sotto sono <b>per campo</b>, e il progetto intero costa
         altrettante volte.<br>
         Se non vuoi coprirlo tutto, passa a <b>inquadratura libera</b>.</div>`;
+  /* QUELLO CHE SI SA DELL'OGGETTO, quando si sa qualcosa.
+
+     Sta sotto il verdetto e non dentro: e' documentazione, non prescrizione. Le
+     ore citate qui sono quelle che altri hanno speso davvero, non quelle che il
+     motore consiglia, e i canali elencati sono quelli che altri hanno usato, non
+     quelli che il motore accende. Tenerli separati e' il punto: il giorno in cui
+     un'evidenza documentata dovesse cambiare una prescrizione, sara' una
+     decisione presa e dichiarata, non uno scivolamento. */
+  const nt = fromCat && fromCat.notes;
+  const noteBlock = !nt ? '' : (()=>{
+    const riga=(e)=>`<li>${esc(e.what)}${e.value?': <b>'+esc(e.value)+'</b>':''}
+      ${e.from?`<span class="muted">— ${esc(e.from)}</span>`:''}
+      ${e.conf?`<span class="pill ${e.conf==='verificato'?'p-ok':e.conf==='documentato'?'p-dim':'p-warn'}">${esc(e.conf)}</span>`:''}</li>`;
+    const ph = nt.photographic || {};
+    return `<details class="diag" style="margin-top:14px">
+      <summary>Che cosa si sa di questo oggetto — documentazione, non prescrizione</summary>
+      <div class="body dg">
+        ${nt.names&&nt.names.length?`<h5>Nomi</h5><p>${nt.names.map(esc).join(' &middot; ')}</p>`:''}
+        ${nt.physical?`<h5>Inquadramento fisico</h5><p>${
+          Object.entries(nt.physical).map(([k,v])=>esc(k.replace(/_/g,' '))+': <b>'+esc(String(v))+'</b>').join(' &middot; ')}</p>`:''}
+        ${nt.components&&nt.components.length?`<h5>Componenti documentate</h5>
+          <ul style="margin:4px 0 0 18px">${nt.components.map(riga).join('')}</ul>`:''}
+        ${ph.structures?`<h5>Che cosa si vede davvero</h5><p>${esc(ph.structures)}</p>`:''}
+        ${ph.channels_used?`<h5>Canali usati nei lavori pubblicati</h5>
+          <p>${ph.channels_used.map(c=>`<span class="pill p-dim">${esc(c)}</span>`).join(' ')}
+          <span class="muted">— sono i canali che altri hanno usato, non quelli che il motore prescrive</span></p>`:''}
+        ${ph.strategy?`<h5>Strategia ricorrente</h5><p>${esc(ph.strategy)}</p>`:''}
+        ${ph.integrations&&ph.integrations.length?`<h5>Integrazioni documentate</h5>
+          <ul style="margin:4px 0 0 18px">${ph.integrations.map(riga).join('')}</ul>`:''}
+        ${ph.traps?`<h5>Trappole segnalate</h5><p>${esc(ph.traps)}</p>`:''}
+        ${nt.notability&&nt.notability.length?`<h5>Quanto e documentato</h5>
+          <ul style="margin:4px 0 0 18px">${nt.notability.map(riga).join('')}</ul>`:''}
+        ${nt.refs&&nt.refs.length?`<h5>Fonti</h5><p>${nt.refs.map(u=>
+          `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u.replace(/^https?:\/\//,'').split('/')[0])}</a>`).join(' &middot; ')}</p>`:''}
+      </div></details>`;
+  })();
   out.innerHTML=`<div class="rx ${L.cls}">
     <div class="rxhead">
       <h3>${head} <span class="pill ${L.pill}" style="vertical-align:middle">${L.k}</span></h3>
@@ -6138,7 +6215,7 @@ function renderRx(np){
     </div>
     <div class="why">${why}</div>
     ${covBanner}${catBanner}${body}
-    ${rxDiagHtml(pr,e,dv,t)}</div>`;
+    ${noteBlock}${rxDiagHtml(pr,e,dv,t)}</div>`;
 }
 
 /* ---------- inquadratura reale (Aladin Lite v3) ----------
