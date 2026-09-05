@@ -339,5 +339,110 @@ H('H · valori di default e ingressi malformati');
     M.COV_FULL===FULL && M.COV_FRAMING===FRAME);
 }
 
+// ===========================================================================
+H('I - la fotometria non sa quanto e grande il campo');
+// ===========================================================================
+/* Il confine che questa modifica difende. Il CAMPO decide copertura e pannelli;
+   non deve entrare nella quantita' di fotoni raccolti per unita' di angolo
+   solido. La prova e' diretta: si prende una configurazione, le si allarga il
+   campo di dieci volte lasciando intatto tutto il resto - apertura, focale,
+   pixel, scala - e si verifica che ogni grandezza fotometrica resti identica.
+   Se un solo termine leggesse fovX o fovY, qui salterebbe. */
+{
+  const base=M.derive({tel:'askar71f',red:'0.75',cam:'asi2600mc',mnt:'am5',bin:1});
+  const largo={...base, fovX:base.fovX*10, fovY:base.fovY*10};
+  const SQM=20.8;
+  let tutte=true; const dove=[];
+  for(const b of ['Ha','OIII','SII','L','RGB']){
+    const a=M.rates(base,b,SQM), c=M.rates(largo,b,SQM);
+    for(const f of ['k','cfa','collect','om','R_b','R_d','RN'])
+      if(!eq(a[f],c[f],1e-12)){ tutte=false; dove.push(b+'.'+f); }
+    if(!eq(M.varRate(a,600,0),M.varRate(c,600,0),1e-12)){ tutte=false; dove.push(b+'.varRate'); }
+    if(!eq(M.timeFactor(base,b,600),M.timeFactor(largo,b,600),1e-12)){ tutte=false; dove.push(b+'.timeFactor'); }
+  }
+  chk('campo dieci volte piu largo: nessuna grandezza fotometrica cambia',
+    tutte, tutte?'5 bande x 9 grandezze invariate':dove.join(', '));
+
+  /* E il contrario: il campo cambia la copertura, che e' il suo dominio. */
+  const m31=tgt('M31');
+  const stretto=M.derive({tel:'rc8',red:'1',cam:'asi2600mm',mnt:'cem70g',bin:1});
+  const stLargo={...stretto, fovX:stretto.fovX*10, fovY:stretto.fovY*10};
+  const nB=(m=>m.cols*m.rows)(M.mosaicPanels(m31,stretto));
+  const nL=(m=>m.cols*m.rows)(M.mosaicPanels(m31,stLargo));
+  chk('mentre la copertura dipende dal campo, che e il suo dominio', nB>nL,
+    'M31: campo stretto '+nB+' riquadri, lo stesso campo x10 '+nL);
+
+  /* `om` e' l'angolo solido del PIXEL. Se qualcuno lo confondesse col campo,
+     questa e' la riga che lo direbbe. */
+  chk('om e la solid angle del pixel, non del campo',
+    eq(M.rates(base,'OIII',SQM).om, base.scale*base.scale, 1e-12),
+    base.scale.toFixed(3)+' al quadrato = '+(base.scale*base.scale).toFixed(3)+' arcsec2');
+}
+
+// ===========================================================================
+H('L - la differenza RC8 / Askar e ricostruibile dai fattori dichiarati');
+// ===========================================================================
+/* Non si pretende che un setup vinca: si pretende che la differenza sia il
+   prodotto esatto dei termini che il motore dichiara, e nient'altro. Se un
+   fattore entrasse due volte, o entrasse un fattore non dichiarato, il prodotto
+   non tornerebbe. */
+{
+  const ASK=cfg('askar71f','0.75','asi2600mc');
+  const RC =M.derive({tel:'rc8',red:'1',cam:'asi2600mm',mnt:'cem70g',bin:1});
+  const SQM=20.8, TS=600;
+  for(const b of ['Ha','OIII','SII']){
+    const a=M.rates(ASK,b,SQM), r=M.rates(RC,b,SQM);
+    chk('  '+b+': collect e (Aeff/100) x k, senza altri termini',
+      eq(r.collect/a.collect, (RC.Aeff/ASK.Aeff)*(r.k/a.k), 1e-9),
+      'Aeff x'+(RC.Aeff/ASK.Aeff).toFixed(2)+' per k x'+(r.k/a.k).toFixed(2)+
+      ' = collect x'+(r.collect/a.collect).toFixed(2));
+    const tA=M.varRate(a,TS,0)/(a.collect*a.collect);
+    const tR=M.varRate(r,TS,0)/(r.collect*r.collect);
+    chk('  '+b+': il rapporto dei tempi e var/collect al quadrato, per definizione',
+      eq(tR/tA, (M.varRate(r,TS,0)/M.varRate(a,TS,0))/Math.pow(r.collect/a.collect,2), 1e-9),
+      'RC8 impiega x'+(tR/tA).toFixed(3)+' del tempo dell Askar');
+    chk('  '+b+': il vantaggio RC8 viene da apertura e sensore, non dal campo',
+      (RC.Aeff/ASK.Aeff)>1 && (r.k/a.k)>1,
+      'apertura x'+(RC.Aeff/ASK.Aeff).toFixed(2)+', mono contro CFA x'+(r.k/a.k).toFixed(2));
+  }
+  /* La controprova sul rapporto focale: l'Askar E' piu' veloce per mm2 di
+     sensore, e il motore non lo nega - misura semplicemente un'altra cosa. */
+  chk('l Askar resta piu veloce per mm2 di sensore, come vuole il rapporto focale',
+    Math.pow(RC.fRatio/ASK.fRatio,2)>1,
+    'f/'+ASK.fRatio.toFixed(2)+' contro f/'+RC.fRatio.toFixed(2)+
+    ': x'+Math.pow(RC.fRatio/ASK.fRatio,2).toFixed(2)+' a favore dell Askar per unita di sensore');
+}
+
+// ===========================================================================
+H('M - sotto la soglia la prescrizione si da lo stesso');
+// ===========================================================================
+/* Il tempo disponibile decide quanto bene riuscira', non se e' permesso
+   provarci. Sotto la soglia del canale critico ci devono essere: ore ripartite,
+   proporzioni della strada rispettate, canali marcati, distanza dichiarata. */
+{
+  const velo=tgt('NGC 6960');
+  const ASK=cfg('askar71f','0.75','asi2600mc');
+  const e=M.evaluate(velo,ASK,site,np,{},FRAME);
+  const pp=M.projectPanels(velo,ASK,FRAME,0);
+  const sopra=M.prescribe(e,60,ASK,pp.panels);
+  const sotto=M.prescribe(e,3,ASK,pp.panels);
+  chk('con tempo abbondante la prescrizione c e', sopra.spent>0, sopra.level);
+  chk('con tempo scarso la prescrizione c e lo stesso', sotto.spent>0,
+    sotto.level+', '+sotto.spent.toFixed(2)+' h ripartite');
+  chk('e spende esattamente le ore che hai', eq(sotto.spent,3,1e-6));
+  chk('mantenendo le proporzioni della strada',
+    (()=>{ const tot=sotto.alloc.reduce((x,g)=>x+Math.max(0,g.useful||0),0);
+           return tot>0 && sotto.alloc.every(g=>
+             eq(g.hours, Math.max(0,g.useful||0)*3/tot, 1e-9)); })());
+  chk('nessun canale dichiarato fuori', sotto.alloc.every(g=>!g.dropped));
+  chk('il canale critico e marcato sotto la sua soglia',
+    sotto.alloc.some(g=>g.critical&&g.belowFloor));
+  chk('la distanza dalla soglia e dichiarata in ore', sotto.short>0,
+    'mancano '+sotto.short.toFixed(1)+' h');
+  chk('e cosa aspettarti viene comunque calcolato',
+    sotto.expect!==null || sopra.expect===null,
+    sotto.expect?('riga '+sotto.expect.key):'la scheda non ha righe expect');
+}
+
 console.log('\n'+(ko?'\x1b[31m':'\x1b[32m')+ok+' verifiche superate, '+ko+' fallite\x1b[0m');
 process.exit(ko?1:0);

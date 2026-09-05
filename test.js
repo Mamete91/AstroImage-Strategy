@@ -599,13 +599,31 @@ chk('e la riga di cosa aspettarti segue le equivalenti, non le reali',
 console.log('\n--- quando le ore non bastano ---');
 /* La soglia si e' spostata con la revisione del fattore: sull'RC8 la strada HOO
    completa costa ora 8.8 h invece di 34, quindi con 6 h la Crescent entra in versione
-   ridotta e a non entrare sono 2 h. L'invariante che il test difende resta lo stesso:
-   sotto il pavimento del canale critico il livello e 'insufficiente' e non si finanzia
-   nulla. */
+   ridotta e a non entrare sono 2 h.
+
+   CAMBIATO 2026-09: l'invariante difesa qui era «sotto il pavimento del canale
+   critico non si finanzia nulla», e la ripartizione tornava azzerata. Era un
+   divieto travestito da fisica: non raggiungere la soglia stimata per il
+   livello-obiettivo significa che l'immagine sara' meno profonda, non che non si
+   possa riprendere l'oggetto. Il livello resta 'insufficiente' — la soglia
+   davvero non e' raggiunta — ma la prescrizione adesso c'e', con le ore ripartite
+   in proporzione al peso dei canali e quelli sotto il proprio pavimento marcati.
+   Le due invarianti che restano sono qui sotto: si spende tutto il tempo che si
+   ha, e si spende mantenendo la forma della strada. */
 const prShort=M.prescribe(eRC8,2,dvRC8);
 console.log(`      RC8 nativo su NGC 6888:  2h → ${prShort.level}   6h → ${M.prescribe(eRC8,6,dvRC8).level}   10h → ${M.prescribe(eRC8,10,dvRC8).level}`);
 chk('sotto il pavimento del canale critico non entra',prShort.level,'insufficiente');
-chk('e in quel caso non si finanzia nessun canale',prShort.alloc.every(g=>g.hours===0),true);
+chk('ma la prescrizione ce lo stesso: le ore si spendono tutte',
+  Math.abs(prShort.spent-2)<1e-6,true);
+chk('ripartite mantenendo le proporzioni della strada',
+  (()=>{ const tot=prShort.alloc.reduce((a,g)=>a+Math.max(0,g.useful||0),0);
+         return tot>0 && prShort.alloc.every(g=>
+           Math.abs(g.hours - Math.max(0,g.useful||0)*2/tot) < 1e-9); })(),true);
+chk('e il canale critico e marcato sotto la propria soglia',
+  prShort.alloc.some(g=>g.critical&&g.belowFloor),true);
+chk('con la distanza dalla soglia dichiarata in ore',prShort.short>0,true);
+chk('nessun canale viene dichiarato fuori: sono tutti finanziati',
+  prShort.alloc.every(g=>!g.dropped),true);
 chk('con 6h invece entra in versione ridotta',M.prescribe(eRC8,6,dvRC8).level,'ridotto');
 const alts=M.fitAlternatives(t6888b,{tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1},
   bornoSite,npB,{},6,DB.presets,3);

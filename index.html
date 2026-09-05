@@ -2170,20 +2170,48 @@ function prescribe(e,hours,dv,panels){
   else if(hours>=chosen.acc-1e-9) level='ridotto';
   else level='minimo';
 
-  /* Se il canale critico non arriva alla soglia non esiste una ripartizione da
-     mostrare: riempire gli altri canali sarebbe un piano che produce un'immagine
-     che non si può chiudere. Meglio azzerare e dire quante ore mancano. */
-  const alloc=groups.map(g=>({...g,
-      hours: critDropped ? 0 : (fill.got[g.id]||0),
-      dropped: critDropped ? g.floor>0 : ((fill.got[g.id]||0)<=0 && g.floor>0)}))
+  /* SOTTO LA SOGLIA NON VUOL DIRE «NON PUOI FARLO».
+
+     Qui prima si azzerava tutto: se il canale critico non raggiungeva il proprio
+     pavimento la ripartizione spariva, e con essa pose, ordine e piano. Ma il
+     pavimento e' la soglia stimata per il livello-obiettivo, non un permesso.
+     Con meno ore si ottiene la stessa immagine meno profonda, ed e' una scelta
+     legittima di chi riprende — non un errore da impedire. Il motore prescrive
+     cio' che e' fisicamente sensato; quante ore hai decide quanto bene ti
+     riuscira', non se ti e' consentito provarci.
+
+     Sotto soglia la strada viene RISCALATA in proporzione al proprio `useful`:
+     ogni canale conserva ruolo e peso relativo, e l'immagine resta quella
+     prevista, solo piu' bassa. Il riscalamento e' necessario perche'
+     fillBudget() da solo farebbe di peggio: scarta il canale critico e poi
+     finanzia i restanti, cioe' sposta le ore proprio sul canale che NON decide
+     l'immagine. I canali che restano sotto il proprio pavimento vengono marcati
+     — l'avvertimento resta, e' il divieto che sparisce. */
+  const alloc=(critDropped
+    ? (()=>{ const need=groups.reduce((a,g)=>a+Math.max(0,g.useful||0),0);
+             const q=need>0?hours/need:0;
+             return groups.map(g=>{ const h=Math.max(0,g.useful||0)*q;
+               return {...g,hours:h,dropped:false,
+                       belowFloor:(g.floor||0)>0&&h<g.floor-1e-9}; }); })()
+    : groups.map(g=>({...g,
+        hours:(fill.got[g.id]||0),
+        dropped:((fill.got[g.id]||0)<=0 && g.floor>0),
+        belowFloor:false})))
     .sort((a,b)=>((b.critical?1:0)-(a.critical?1:0))||(b.hours-a.hours));
   const spent=alloc.reduce((a,g)=>a+g.hours,0);
   const needed=critDropped?critG.floor:0;
+  /* Quante ore mancano al canale che decide l'immagine per arrivare alla sua
+     soglia. E' la distanza dal livello-obiettivo, ed e' un'informazione, non
+     un verdetto. Per campo, come tutto il resto della ripartizione. */
+  const short=critDropped?Math.max(0,critG.floor-hours):0;
 
   // ore equivalenti di riferimento, per scegliere la riga di "cosa aspettarti"
   // stessa posa con cui e' stato costruito il budget: altrimenti due fattori diversi
   const f=dv?timeFactor(dv,e.critBand,(e.tsub||{})[e.critBand]):1;
-  const exp = level==='insufficiente' ? null : expectFor(tg,spent/Math.max(f,1e-6));
+  /* «Cosa aspettarti» si legge sulle ore che spendi davvero, anche quando sono
+     sotto la soglia: e' esattamente il caso in cui chi riprende vuole sapere che
+     immagine ne uscira'. Prima qui c'era null, e la riga spariva. */
+  const exp = expectFor(tg,spent/Math.max(f,1e-6));
 
   // notti e settimane con la finestra reale del sito
   const nights = e.perNight>0.3 ? spent*P/e.perNight : Infinity;
@@ -2191,7 +2219,7 @@ function prescribe(e,hours,dv,panels){
 
   return {level,road:chosen.r,roadTotals:{ideal:chosen.ideal,acc:chosen.acc,floor:chosen.floor},
           roads:cand,alt:roads.filter(x=>!x.distinct),
-          alloc,spent,unused:Math.max(0,hours-spent),critGroup:critG.id,needed,
+          alloc,spent,unused:Math.max(0,hours-spent),critGroup:critG.id,needed,short,
           expect:exp,nights,weeks,hours,
           /* `spent` e `hours` restano PER PANNELLO — e' cosi' che li usano posa,
              piano ed esportazione. Il progetto intero e' qui accanto, dichiarato. */
@@ -5236,7 +5264,9 @@ const RXLVL={
   ridotto:    {cls:'',    pill:'p-ok',  k:'versione ridotta'},
   minimo:     {cls:'warn',pill:'p-warn',k:'al minimo'},
   parziale:   {cls:'warn',pill:'p-warn',k:'parziale'},
-  insufficiente:{cls:'bad',pill:'p-bad',k:'non ci sta'}
+  /* Non «non ci sta»: la prescrizione c'e' comunque. E' il livello-obiettivo a
+     restare fuori portata con queste ore, e quella e' una misura, non un veto. */
+  insufficiente:{cls:'warn',pill:'p-warn',k:'sotto la soglia'}
 };
 /* Le etichette degli archetipi sono scritte per la scheda, non per un chip:
    «Regione HII fotoionizzata classica» su un bottone non ci sta. */
@@ -5570,44 +5600,73 @@ function renderRx(np){
           : stellarT?`Luna −${Math.round((1-mp.p)*100)}%: fattibile, ma il colore ne risente`
           : `<span class="p-bad">Luna −${Math.round((1-mp.p)*100)}%: rimandalo</span>`)+
         (g.joint?' · stessa posa':'');
+    /* Un canale sotto il proprio pavimento va mostrato con le sue ore e con
+       l'avvertimento accanto: nasconderlo era il modo in cui l'avvertimento
+       diventava un divieto. */
+    const sotto=g.belowFloor?`<span class="p-warn">sotto la soglia di ${fmt(g.floor,1)} h</span> · `:'';
     return `<div class="rxrow${g.dropped?' out':''}">
       <div class="b" style="color:${RXCOL[g.id]||'var(--fg)'}">${g.id}</div>
       <div class="h">${g.dropped?'fuori':fmt(g.hours,1)+' h'}</div>
-      <div class="m">${note}</div></div>`;
+      <div class="m">${sotto}${note}</div></div>`;
   }).join('');
 
-  let body='';
-  if(pr.level==='insufficiente'){
+  /* LA PRESCRIZIONE SI DA' SEMPRE.
+
+     Qui c'era un bivio: sotto la soglia del canale critico l'app mostrava un
+     vicolo cieco — «non ci sta» — con l'elenco delle alternative al posto della
+     ricetta. Ma non avere abbastanza ore per il livello-obiettivo non toglie a
+     nessuno la possibilita' di riprendere l'oggetto: toglie profondita', e
+     quella si misura e si dichiara. Adesso il corpo e' uno solo. Lo scarto
+     diventa un avvertimento in testa, le alternative restano in coda come
+     consiglio, e canali, pose, ordine e piano ci sono in tutti i casi. */
+  const sottoSoglia = pr.level==='insufficiente';
+  const sottoBox = !sottoSoglia ? '' :
+    `<div class="warnbox" style="margin:0 0 12px;border-color:var(--warn)">
+      <span class="pill p-warn">sotto la soglia</span>
+      Con <b>${fmt(hours,1)} h</b> il canale che decide l'immagine (<b>${pr.critGroup}</b>)
+      non arriva alla soglia stimata di <b>${fmt(pr.needed,1)} h</b>: ne mancano
+      <b>${fmt(pr.short,1)} h</b>. La prescrizione qui sotto resta valida — le ore sono
+      ripartite mantenendo le proporzioni della strada, quindi otterrai
+      <b>la stessa immagine meno profonda</b>, non un'immagine diversa.<br>
+      Quanto sotto sei lo dice il numero, non un divieto: è una distanza dal
+      livello-obiettivo, e sta a te decidere se vale la nottata.</div>`;
+
+  const altBlock = !sottoSoglia ? '' : (()=>{
     const alts=fitAlternatives(t,CFG,SITE,np,STATE,hours,DB.presets,3,rotFor(t),covIntent());
-    body=`<p class="small">Con <b>${fmt(hours,1)} h</b> il canale che decide l'immagine
-      (<b>${pr.critGroup}</b>) non arriva alla sua soglia: ne servono <b>${fmt(pr.needed,1)} h</b>
-      solo per farlo esistere. Spendere queste ore comunque non ti dà una versione
-      più piccola dell'immagine: ti dà rumore da spegnere in elaborazione.</p>
-      <p class="small">Le tecniche possibili per questo oggetto costano <b>${fmt(pr.roadTotalsProject.floor,1)} h</b> al minimo
-      e ${fmt(pr.roadTotalsProject.ideal,1)} h per intero, su questa configurazione${
-        pr.panels>1?` — il soggetto non ci sta in un campo e va coperto in <b>${pr.panels}</b> riquadri`
-        :(RXCOV&&RXCOV.limited?` — e questo è il costo di <b>un campo</b>: il soggetto intero
-            ne chiederebbe <b>${RXCOV.targetPanels}</b>`:'')}.</p>
-      ${alts.length?`<h4 style="margin:14px 0 4px;font-size:13px">Con questa strumentazione invece ci sta</h4>
-        ${alts.map(a=>`<div class="altrow">
-          <span class="pill ${a.pr.level==='pieno'?'p-ok':a.pr.level==='ridotto'?'p-ok':'p-warn'}">${RXLVL[a.pr.level].k}</span>
-          <span class="n"><b>${esc(a.preset.label)}</b>${a.bin>1?` a <b>bin ${a.bin}</b>`:''}
-            <span class="muted">— ${fmt(a.dv.scale,2)}″/px, campionamento ${a.samp}${
-              a.ok?'':' <span class="p-warn">(perdi risoluzione)</span>'}</span></span>
-          <button class="chip fn fn-cfg" onclick="rxApply('${a.preset.id}',${a.bin})">usa questa</button>
-        </div>`).join('')}
-        <p class="small muted" style="margin-top:8px">È il vantaggio di avere più di un tubo:
-        la domanda giusta spesso non è «quante ore mi servono» ma «con quale strumento».</p>`
-        :`<p class="small"><span class="pill p-bad">nessuna alternativa</span>
-          Nessuna delle tue configurazioni porta questo oggetto dentro ${fmt(hours,1)} h.
-          O aumenti le ore, o cambi oggetto: la lista qui sotto è ordinata per quello.</p>`}`;
-  } else {
+    if(!alts.length) return `<p class="small muted" style="margin-top:14px">Nessun'altra
+      configurazione fra le tue porta questo oggetto al livello-obiettivo in
+      ${fmt(hours,1)} h. Puoi comunque riprenderlo con quella che hai: la prescrizione
+      qui sopra e' la piu' sensata con queste ore.</p>`;
+    return `<h4 style="margin:16px 0 4px;font-size:13px">Con questa strumentazione invece
+      arrivi al livello-obiettivo</h4>
+      ${alts.map(x=>`<div class="altrow">
+        <span class="pill ${x.pr.level==='pieno'||x.pr.level==='ridotto'?'p-ok':'p-warn'}">${RXLVL[x.pr.level].k}</span>
+        <span class="n"><b>${esc(x.preset.label)}</b>${x.bin>1?` a <b>bin ${x.bin}</b>`:''}
+          <span class="muted">— ${fmt(x.dv.scale,2)}″/px, campionamento ${x.samp}${
+            x.ok?'':' <span class="p-warn">(perdi risoluzione)</span>'}</span></span>
+        <button class="chip fn fn-cfg" onclick="rxApply('${x.preset.id}',${x.bin})">usa questa</button>
+      </div>`).join('')}
+      <p class="small muted" style="margin-top:8px">È il vantaggio di avere più di un tubo:
+      la domanda giusta spesso non è «quante ore mi servono» ma «con quale strumento».
+      Non è un obbligo di cambiare: è l'alternativa, se ce l'hai.</p>`;
+  })();
+
+  const costoNote = `<p class="small" style="margin:10px 0 0"><b>Il costo per intero.</b>
+    Le tecniche possibili per questo oggetto costano <b>${fmt(pr.roadTotalsProject.floor,1)} h</b>
+    al minimo e <b>${fmt(pr.roadTotalsProject.ideal,1)} h</b> per il livello-obiettivo, su questa
+    configurazione${
+      pr.panels>1?` — il soggetto va coperto in <b>${pr.panels}</b> riquadri`
+      :(RXCOV&&RXCOV.limited?` — e questo è il costo di <b>un campo</b>: il soggetto intero
+          ne chiederebbe <b>${RXCOV.targetPanels}</b>`:'')}.</p>`;
+
+  let body='';
+  {
     const ord=t.order?`<p class="small" style="margin:10px 0 0"><b>Ordine.</b> ${t.order}</p>`:'';
     const exp=pr.expect?`<p class="small" style="margin:8px 0 0"><b>Cosa aspettarti.</b>
       ${pr.expect.text} <span class="muted">(letto alla riga «${pr.expect.key}» della scheda,
       cioè le tue ${fmt(pr.spent,1)} h riportate alla configurazione di riferimento)</span></p>`:'';
     const drop=pr.alloc.filter(g=>g.dropped);
-    body=`${rows}
+    body=`${sottoBox}${rows}
       <div class="rxtot"><b>${fmt(pr.spent,1)} h</b>
         <span class="muted">${isFinite(pr.weeks)?`≈ ${wkTxt(pr.weeks)} di calendario con il
           ${Math.round(SITE.clearFrac*100)}% di notti serene`:'la finestra utile è troppo corta da qui'}</span>
@@ -5621,8 +5680,8 @@ function renderRx(np){
             : 'meglio un canale in meno fatto bene che due a metà.');})()}</div>`:''}
       <p class="small" style="margin:10px 0 0"><b>Binning.</b> ${dv.bin}×${dv.bin} —
         <span class="pill ${ba.cls}">${ba.k}</span> <span class="muted">${ba.txt}</span></p>
-      ${ord}${exp}
-      ${rxPlanHtml(pr,e,dv,t)}`;
+      ${ord}${exp}${sottoSoglia?costoNote:''}
+      ${rxPlanHtml(pr,e,dv,t)}${altBlock}`;
   }
 
   const roadNote=pr.alt.length?`<span class="muted"> · le altre tecniche possibili
@@ -5635,12 +5694,11 @@ function renderRx(np){
     ? ` <span class="muted" data-tip="${esc(G.tfactor)}">Le ore citate qui sopra sono quelle
        del telescopio con cui la scheda è stata scritta; con la tua strumentazione vanno moltiplicate per ×${fmt(tf,2)}.</span>`:'';
   const arch0=TG.archetypes[t.archetype]||{label:'classe non determinata'};
-  const head = pr.level==='insufficiente'
-    ? `${esc(t.names[0])} — non ci sta in ${fmt(hours,1)} h`
-    : `${esc(t.names[0])} — ${esc(pr.road.name)}`;
-  const why = pr.level==='insufficiente'
-    ? `Nessuna delle strade di questa scheda entra nelle ore che hai.`
-    : (pr.road.when?'Quando ha senso: '+esc(pr.road.when)+tfNote:'')+roadNote;
+  /* Il titolo nomina la STRADA, sempre: e' quella che il motore prescrive, e
+     una strada c'e' anche quando le ore non bastano al livello-obiettivo.
+     «non ci sta in 16.4 h» diceva che non si poteva fare, e non era vero. */
+  const head = `${esc(t.names[0])} — ${esc(pr.road.name)}`;
+  const why = (pr.road.when?'Quando ha senso: '+esc(pr.road.when)+tfNote:'')+roadNote;
   /* Un oggetto composto dal catalogo va dichiarato per quello che è, sempre e
      sopra il numero: la prescrizione è vera per la CLASSE, non misurata su questo
      bersaglio. Nascondere la differenza sarebbe peggio che non dare la risposta. */
@@ -6460,11 +6518,11 @@ function renderRows(np){
        dice «ci sta»: è la differenza fra un catalogo e uno strumento di scelta. */
     const rx = RXH>0 ? prescribe(e,RXH,DVX) : null;
     const rxPill = rx ? `<div class="tsub"><span class="pill ${
-        rx.level==='insufficiente'?'p-bad':rx.level==='pieno'||rx.level==='ridotto'?'p-ok':'p-warn'}"
+        rx.level==='pieno'||rx.level==='ridotto'?'p-ok':'p-warn'}"
         data-tip="${esc(rx.level==='insufficiente'
-          ? 'Con le ore disponibili il canale che decide l’immagine non arriva al suo minimo. Quello che ne uscirebbe non è una versione più piccola: è rumore.'
+          ? 'Con queste ore il canale che decide l’immagine resta sotto la soglia stimata: la prescrizione c’è comunque, l’immagine sarà meno profonda.'
           : 'La tecnica che sta dentro le ore disponibili, e fino a che livello arriva.')}">in ${fmt(RXH,0)} h: ${
-        rx.level==='insufficiente'?'non ci sta':esc(rx.road.name.split(/[ ,(]/)[0])+' '+RXLVL[rx.level].k}</span></div>` : '';
+        esc(rx.road.name.split(/[ ,(]/)[0])+' '+RXLVL[rx.level].k}</span></div>` : '';
     const wk = !isFinite(e.weeks) ? '<span class="muted">—</span>'
       : `${fmt(e.roadH,0)} h`+
         (e.accReal?` <span class="pill p-dim" data-tip="${esc(G.accessible)}">${fmt(e.roadAccH,0)} h ridotto</span>`:'')+
