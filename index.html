@@ -3354,8 +3354,35 @@ function subExposure(dv,site,band,opts){
        mentre il soggetto non saturava affatto. In un programma il cui pregio e'
        dichiarare il perche', una diagnosi falsa costa piu' di un numero storto.
        Il colpevole e' il piu' basso dei tre tetti: si guarda quale, e si nomina. */
+    /* PERCHE' LA POSA E' AL TETTO, non soltanto QUAL E' il tetto.
+
+       La domanda che il motore non sapeva rispondere: «perche' a f/4.5 mi obbliga
+       a 600 s con un filtro da 7 nm?». Diceva «rischio / montatura», che e' vero e
+       inutile — nomina cio' che ti IMPEDISCE di andare oltre, non cio' che ti fa
+       VOLERE di andare oltre. E la seconda cosa e' il rumore di lettura.
+
+       `swamp` e' il rapporto classico fra la varianza del fondo e quella di
+       lettura: sopra 10 il fondo domina e la posa non ha piu' niente da guadagnare,
+       sotto 3 il rumore di lettura e' ancora un socio in affari. `rnCost` lo dice
+       in valuta: e' la frazione di tempo TOTALE in piu' che serve per pareggiare —
+       da sigma^2 = (fondo + lettura)/t, allungare la posa fa scendere solo il
+       secondo addendo.
+
+       A f/4.9 con un OIII da 6.5 nm sotto SQM 21.3 il fondo vale 0.014 e-/px/s:
+       anche a 600 s la lettura costa ancora un terzo del tempo. Non e' la focale —
+       a f/8 sarebbe peggio, non meglio, e in luminanza sullo stesso tubo la posa
+       scende a 60 s. E' la banda stretta su un cielo buio, ed e' il motivo per cui
+       si va al tetto e non oltre.
+
+       La soglia sotto cui vale la pena nominarlo — un quarto del tempo, cioe'
+       swamp 4 — e' una CONVENZIONE dichiarata, non un risultato: sotto quel valore
+       il rumore di lettura smette di essere un arrotondamento. */
+    const swamp = rn>0 ? (sky*t)/(rn*rn) : Infinity;
+    const rnCost = rn>0&&sky*t>0 ? (rn*rn)/(sky*t) : 0;
+    const RN_NOMINA = 0.25;
     const lowCap=Math.min(tObj,tSky,risk,tFrames);
     const rec={gm:m,rn,tStar,tObj,tSky,tSat,tMax,sec:t,eff,duty,merit:eff*duty,
+      swamp,rnCost,
       underFloor:t<floorSub-1e-9,   // la posa scende sotto quanto converrebbe
       binding: t<floorSub-1e-9
                ? (lowCap===tSky    ? 'il fondo cielo satura'
@@ -3367,6 +3394,12 @@ function subExposure(dv,site,band,opts){
              : tMaxStar===tStar ? 'saturazione stellare'
              : tMaxStar===tFrames ? 'numero minimo di pose'
              : (arch&&arch.sub_max_s&&risk===arch.sub_max_s) ? 'tetto di classe'
+             /* Al tetto della montatura e ancora limitati dalla lettura: la
+                risposta utile e' la seconda, non la prima. Dove il tetto viene
+                invece dalla pratica documentata per la classe, vince quella —
+                stesso principio del catalogo curato: chi ha il dato batte chi
+                ha il modello. */
+             : rnCost>RN_NOMINA ? 'il fondo non copre il rumore di lettura'
              : 'rischio / montatura'};
     rec.magSafe = star>0 ? mProt+2.5*Math.log10(m.full_well_e/(star*t)) : null;
     modes.push(rec);
@@ -3388,6 +3421,11 @@ function subExposure(dv,site,band,opts){
   const magSafe = star>0 ? mProt+2.5*Math.log10(best.gm.full_well_e/(star*best.sec)) : null;
   return {band,sec:best.sec,gm:best.gm,rnBin:best.rn,sky,fwhm,sqm,star,spec,arch,
           eff:best.eff,duty:best.duty,merit:best.merit,binding:best.binding,
+          /* Quanto il fondo copre la lettura, e quanto la lettura sta ancora
+             costando. `tSwamp` qui accanto dice a che posa il conto si chiuderebbe:
+             quando e' sopra il tetto della montatura, il tetto e' la risposta al
+             «quanto posso», e questi due numeri al «perche' vorrei di piu'». */
+          swamp:best.swamp,rnCost:best.rnCost,
           underFloor:best.underFloor,minSub:floorSub,
           tSat:best.tSat,tStar:best.tStar,tObj:best.tObj,
           tRisk:risk,tFrames,tSwamp,magSafe,protectMag:mProt,
@@ -4397,7 +4435,14 @@ function start(){
   enrichTargets();
   STATE=loadState(); SITES=loadSites();
   renderSiteSelect();
-  applySite(siteFromDB(DB.sites[0]));
+  /* La scelta di prima, se c'e'. Altrimenti il primo sito in elenco, marcato come
+     assunto: e' un punto di partenza per far girare i numeri, non il tuo cielo. */
+  {
+    const pick=loadPick();
+    const trovato=pick?[...DB.sites.map(siteFromDB),...SITES].find(x=>x.id===pick):null;
+    SITE_DEFAULT=!trovato;
+    applySite(trovato||siteFromDB(DB.sites[0]));
+  }
   $('date').value=new Date().toISOString().slice(0,10);
 
   loadGear(); loadReducers(); loadUserFilters(); UTGT=loadUserTargets();
@@ -4478,6 +4523,8 @@ function start(){
   ['sqm','hor','cnf'].forEach(id=>
     $(id).addEventListener('input',()=>{
       if(id==='sqm') $('sqm').dataset.src='manuale';
+      // mettere le mani sul cielo o sulle coordinate e' una scelta: il default cade
+      if(id==='sqm'||id==='lat'||id==='lon') SITE_DEFAULT=false;
       $('site').value='__custom'; readSite(); refresh();
     }));
   /* Seeing e RMS non hanno valori standard e cambiano da notte a notte: si
@@ -4499,7 +4546,8 @@ function start(){
     const v=$('site').value;
     if(v==='__custom') return;
     const s=[...DB.sites.map(siteFromDB),...SITES].find(x=>x.id===v);
-    if(s){applySite(s);refresh()}
+    // sceglierlo e' l'atto che lo rende tuo: da qui in poi si ricorda
+    if(s){SITE_DEFAULT=false; persistPick(v); applySite(s); refresh()}
   });
   $('btnGeo').onclick=detectLocation;
   $('btnSqm').onclick=()=>{ const q=autoSQM(); readSite(); refresh();
@@ -5582,6 +5630,27 @@ function renderSiteSelect(){
     SITES.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')+`</optgroup>`:'';
   $('site').innerHTML=shipped+mine+`<option value="__custom">Personalizzato…</option>`;
 }
+/* IL SITO NON ERA FRA LE COSE CHE L'APP RICORDAVA.
+
+   `localStorage` conservava binning, modalita' notte, attrezzatura, riduttori,
+   filtri, bersagli e perfino l'RMS della montatura. Non il sito. `start()`
+   chiamava `applySite(siteFromDB(DB.sites[0]))` a ogni avvio, e DB.sites[0] e'
+   Borno: chi apriva l'app si ritrovava sotto la montagna di qualcun altro, e ci
+   restava anche dopo aver salvato il proprio sito, perche' alla ricarica la
+   selezione tornava indietro.
+
+   Finche' il cielo entrava solo nel calendario era un fastidio. Da quando entra
+   nel budget e' un errore che vale fino a otto volte le ore: la stessa immagine
+   costa 8.8 h a SQM 21.3 e 18.4 h a 17.8, e chi non ha toccato niente legge il
+   primo numero credendo che sia il suo.
+
+   Due cose, quindi. La scelta si ricorda. E finche' nessuno ha scelto, l'app
+   dichiara che quel cielo e' un default e non una misura. */
+const loadPick=()=>{try{return localStorage.getItem('ap_site')||''}catch(e){return''}};
+const persistPick=id=>{try{ id?localStorage.setItem('ap_site',id)
+                             :localStorage.removeItem('ap_site') }catch(e){}};
+let SITE_DEFAULT=false;              // nessuno ha ancora scelto: il cielo e' assunto
+
 const loadSites=()=>{
   let v=[]; try{v=JSON.parse(localStorage.getItem('ap_sites')||'[]')}catch(e){}
   // i siti salvati prima della stima non hanno il flag: si ristimano, ed e'
@@ -5599,12 +5668,14 @@ function saveSite(){
     horizonMin:SITE.horizonMin,clearFrac:SITE.clearFrac,
     sqm_manual:$('sqm').dataset.src==='manuale'});
   persistSites(); renderSiteSelect(); $('site').value=id;
+  SITE_DEFAULT=false; persistPick(id);
   geoMsg('ok',`Sito «${esc(name)}» salvato. Finisce anche in progetti.json quando esporti, così te lo porti sull'altro PC.`);
 }
 function delSite(){
   const i=SITES.findIndex(s=>s.id===$('site').value);
   if(i<0){geoMsg('bad','Puoi eliminare solo i siti che hai salvato tu.');return}
   const n=SITES[i].name; SITES.splice(i,1); persistSites(); renderSiteSelect();
+  persistPick(''); SITE_DEFAULT=true;
   applySite(siteFromDB(DB.sites[0])); refresh();
   geoMsg('dim',`Sito «${esc(n)}» eliminato.`);
 }
@@ -5721,6 +5792,11 @@ function refresh(){
   const lpB=lpPenalty(SITE.sqm,BB_NM), lpN=lpPenalty(SITE.sqm,3);
   $('lpMsg').innerHTML=
     `<span class="pill ${SITE.sqm>=21?'p-ok':SITE.sqm>=19.5?'p-warn':'p-bad'}" data-tip="${esc(G.lp)}">Bortle ${bo.n}</span> `+
+    (SITE_DEFAULT?`<span class="pill p-warn" data-tip="${esc(
+      'Nessun sito scelto: questo e\' il primo dell\'elenco, non il tuo. Il cielo decide le ore '+
+      'del progetto — la stessa immagine costa il doppio da un cielo peggiore di mezza magnitudine '+
+      '— quindi finche\' non scegli il tuo sito o non scrivi il tuo SQM, le ore qui sotto valgono '+
+      'per un altro posto. Scegli il sito qui accanto, oppure premi Rileva.')}">cielo non tuo: default</span> `:'')+
     `<span class="pill ${$('sqm').dataset.src==='manuale'?'p-ok':'p-dim'}" data-tip="${
       $('sqm').dataset.src==='manuale'
         ? 'Valore impostato da te: il modello non lo tocca piu\'. Usa Ristima per tornare alla stima automatica.'
@@ -6802,7 +6878,14 @@ function rxExpoHtml(expo,dv,pr){
       'pavimento operativo':'Le stelle chiederebbero meno, ma sotto questa soglia la notte si spende in scarichi e assestamenti. Un nucleo stellare bruciato si cura in elaborazione; per questo il pavimento tiene contro le stelle e non contro il soggetto.',
       'tetto di classe':'Tetto che viene dalla pratica documentata per questa classe, non dal modello: 600 s si fanno su soggetti deboli, non su globulari, ammassi o planetarie brillanti.',
       'numero minimo di pose':'Sotto questo numero di fotogrammi la reiezione statistica in integrazione non ha materiale su cui lavorare.',
-      'rischio / montatura':'Quanto sei disposto a perdere quando un fotogramma va storto.'}[e.binding]||'';
+      'rischio / montatura':'Quanto sei disposto a perdere quando un fotogramma va storto.',
+      'il fondo non copre il rumore di lettura':
+        'La posa e\' al tetto perche\' il fondo cielo non e\' ancora abbastanza da coprire il '+
+        'rumore di lettura: a questa lunghezza la lettura costa ancora '+Math.round((e.rnCost||0)*100)+
+        '% di tempo totale in piu\'. Non dipende dal rapporto focale — piu\' aperto e\' il '+
+        'sistema, prima il fondo copre la lettura: a f/8 servirebbe di piu\', non di meno. '+
+        'Dipende dalla larghezza del filtro sotto questo cielo. Accorciare e\' legittimo, ma si '+
+        'paga: dimezzare la posa qui costa circa il doppio delle ore.'}[e.binding]||'';
     return `<tr><td><b style="color:${RXCOL[x.group]||'var(--fg)'}">${esc(b)}</b></td>
       <td><b>${e.sec} s</b></td>
       <td>${e.gm.gain!=null?'gain '+e.gm.gain+' <span class="muted">'+esc(e.gm.name)+'</span>':'<span class="muted">'+esc(e.gm.name)+'</span>'}${

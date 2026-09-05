@@ -1060,6 +1060,63 @@ chk('in banda stretta il cielo non raggiunge mai il rumore di lettura',
 chk('e quindi il vincolo non e il fondo cielo',exHa.binding!=='fondo cielo',true);
 chk('il fondo in banda stretta e due ordini sotto la banda larga',
   exL.sky/exHa.sky>50,true);
+
+/* PERCHE' LA POSA E' AL TETTO — la domanda arrivata dal forum, e la sua risposta.
+
+   «Non ho capito perche' a f/4.5 mi obbliga a scattare a 600 s a campo largo con
+   un filtro da 7 nm». Il motore rispondeva «rischio / montatura»: vero e inutile,
+   perche' nomina cio' che IMPEDISCE di allungare, non cio' che fa VOLERE di
+   allungare. La seconda cosa e' il rumore di lettura, e la premessa della domanda
+   e' rovesciata — il rapporto focale aperto non e' la causa, e' l'attenuante.
+
+   Tre confronti bastano a dimostrarlo, e sono tre asserzioni, non tre opinioni. */
+{
+  const S=q=>{const x={lat:46.0167,lon:10.3333,sqm:q,seeing:2.5,rms:1.0,
+    horizonMin:20,clearFrac:0.35}; x.fwhm=M.effFWHM(x.seeing,x.rms); return x;};
+  const veloce=M.derive({tel:'redcat51',red:0.92,cam:'asi2600mm',mnt:'am5',bin:1});
+  const lento =M.derive({tel:'rc8',red:'1',cam:'asi2600mm',mnt:'am5',bin:1});
+  const aBuio =M.subExposure(veloce,S(21.3),'OIII',{hours:8});
+  const aF8   =M.subExposure(lento ,S(21.3),'OIII',{hours:8});
+  const inCitta=M.subExposure(veloce,S(18.5),'OIII',{hours:8});
+  const inLum =M.subExposure(veloce,S(21.3),'L',   {hours:8});
+  const pc=x=>Math.round(x.rnCost*100)+'%';
+  console.log(`      f/4.9 OIII cielo buio: ${aBuio.sec} s, swamp ${aBuio.swamp.toFixed(1)}, `+
+    `la lettura costa +${pc(aBuio)} · «${aBuio.binding}»`);
+  console.log(`      f/8.0 stesso filtro:   ${aF8.sec} s, swamp ${aF8.swamp.toFixed(1)}, `+
+    `la lettura costa +${pc(aF8)} — piu chiuso e PEGGIO, non meglio`);
+  console.log(`      f/4.9 da SQM 18.5:     ${inCitta.sec} s, swamp ${inCitta.swamp.toFixed(1)}, `+
+    `+${pc(inCitta)} · «${inCitta.binding}»`);
+  console.log(`      f/4.9 in luminanza:    ${inLum.sec} s, swamp ${inLum.swamp.toFixed(1)}, +${pc(inLum)}`);
+
+  chk('al tetto e ancora limitata dalla lettura, il motore lo nomina',
+    aBuio.binding,'il fondo non copre il rumore di lettura');
+  /* Il punto che rovescia la premessa: chiudere il diaframma non accorcia la posa,
+     la allunga. A f/8 lo stesso filtro sullo stesso cielo lascia il fondo quattro
+     volte piu' basso, e la lettura costa il triplo. */
+  chk('un sistema piu chiuso e limitato dalla lettura PIU di uno aperto',
+    aF8.rnCost>aBuio.rnCost*2,true);
+  /* E il perche' e' geometrico, non empirico. Il fondo per pixel vale
+     brillanza x angolo solido del pixel x area di raccolta x trasmissione; angolo
+     solido e area portano `pixel^2 D^2 / focale^2 = pixel^2 / F^2`, e la focale
+     sparisce. A parita' di camera resta il rapporto focale al quadrato, per la
+     trasmissione — che sull'RC8 e' 0.70 contro 0.96, perche' un'ostruzione del 45%
+     e due specchi si pagano. Ignorarla sbagliava di un terzo. */
+  const attesa=Math.pow(lento.fRatio/veloce.fRatio,2)*(veloce.thru/lento.thru);
+  console.log(`      rapporto dei fondi: misurato ${(aBuio.sky/aF8.sky).toFixed(2)}, `+
+    `atteso ${attesa.toFixed(2)} da (F8/F4.9)² x trasmissioni`);
+  chk('e il fondo per pixel scala col rapporto focale al quadrato, a meno della trasmissione',
+    Math.abs((aBuio.sky/aF8.sky)/attesa-1)<0.05,true);
+  /* Quando il fondo copre davvero la lettura, l'etichetta deve cambiare: e' la
+     prova che la soglia fa un lavoro vero e non rietichetta tutto. */
+  chk('quando il cielo copre la lettura, il vincolo torna a essere il tetto',
+    inCitta.binding,'rischio / montatura');
+  chk('e in banda larga sullo stesso tubo la posa e corta, non lunga',
+    inLum.sec<=120,true);
+  /* E la valuta: `rnCost` e' la frazione di tempo TOTALE in piu' che la lettura
+     costa, quindi deve coincidere con quello che dice l'efficienza. */
+  chk('rnCost e coerente con l efficienza dichiarata',
+    Math.abs((1/(aBuio.eff*aBuio.eff)-1)-aBuio.rnCost)<1e-9,true);
+}
 /* Il binning si semplifica: fondo ×bin², rumore ×bin, quindi il rapporto resta. */
 const dvB2=M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:2});
 chk('binnare non cambia la soglia di sommersione del rumore',
