@@ -659,8 +659,18 @@ td.archcell{max-width:120px}
   padding:5px 9px;font-size:10px;line-height:1.35;color:var(--dim);
   background:linear-gradient(transparent,rgba(0,0,0,.72) 42%)}
 .hero-prev figcaption a{color:inherit}
+.hero-prev .pv-go{display:block;width:100%;padding:0;border:0;background:none;cursor:pointer;
+  color:inherit;font:inherit;text-align:inherit;position:relative}
+.hero-prev .pv-go:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.hero-prev .pv-cue{position:absolute;top:7px;right:7px;padding:3px 8px;border-radius:20px;
+  font-size:10px;font-weight:600;color:var(--fg);background:rgba(0,0,0,.55);
+  border:1px solid rgba(255,255,255,.18);opacity:0;transition:opacity .15s}
+.hero-prev .pv-go:hover .pv-cue,
+.hero-prev .pv-go:focus-visible .pv-cue{opacity:1}
+.hero-prev .pv-go:hover img{filter:brightness(1.08)}
 .hero-prev .pv-off{display:flex;align-items:center;justify-content:center;text-align:center;
   min-height:120px;padding:16px;font-size:11.5px;line-height:1.5;color:var(--dim2)}
+@media (hover:none){ .hero-prev .pv-cue{opacity:1} }
 @media (max-width:720px){ .hero-prev{flex:1 1 100%} }
 
 /* I TRE RIQUADRI DEL «COME RIPRENDERE».
@@ -14964,24 +14974,57 @@ function renderPreview(t,dv){
   const u=`${HIPS}?hips=${encodeURIComponent('CDS/P/DSS2/color')}`+
     `&width=${W}&height=${H}&fov=${fovDeg.toFixed(4)}&projection=TAN&coordsys=icrs`+
     `&ra=${t.ra_deg}&dec=${t.dec_deg}&format=jpg`;
+  /* E CI SI CLICCA SOPRA. La miniatura e' un ritaglio fisso; la vista di
+     riferimento — Aladin, dentro la scheda completa — e' quella navigabile, con il
+     riquadro del sensore disegnato sopra, i pannelli del mosaico, la rotazione e
+     il «centra sulla vista». Passare dall'una all'altra e' il gesto naturale: hai
+     visto che l'oggetto e' quello, adesso vuoi vedere come ci cade dentro.
+
+     E' un <button> vero, non una figura con un onclick: si raggiunge col tab,
+     risponde a Invio e a Spazio, e ha un anello di fuoco. */
   box.hidden=false;
-  box.innerHTML=`<img alt="${esc('Campo di '+t.names[0]+' come lo inquadra questa configurazione')}"
-      width="${W}" height="${H}" loading="lazy" decoding="async" src="${esc(u)}">
+  box.innerHTML=`<button type="button" class="pv-go"
+      title="Apri la vista navigabile con il riquadro del sensore"
+      aria-label="${esc('Apri la vista navigabile del campo di '+t.names[0])}">
+      <img alt="${esc('Campo di '+t.names[0]+' come lo inquadra questa configurazione')}"
+        width="${W}" height="${H}" loading="lazy" decoding="async" src="${esc(u)}">
+      <span class="pv-cue" aria-hidden="true">apri la vista &rsaquo;</span></button>
     <figcaption>${fmt(dv.fovX/60,2)}° × ${fmt(dv.fovY/60,2)}° — il tuo campo &middot;
       DSS2 via <a href="https://cds.unistra.fr" target="_blank" rel="noopener">CDS</a></figcaption>`;
+  const go=box.querySelector('.pv-go');
+  if(go) go.onclick=()=>apriVista(t);
   /* `onerror` da solo non basta, e il banco di prova l'ha mostrato: una richiesta
      che non risponde — rete filtrata, host irraggiungibile, proxy che ingoia — non
      fallisce mai, resta appesa. Con il solo gestore d'errore il riquadro sarebbe
      rimasto vuoto per sempre, che e' proprio la cosa che si voleva evitare.
      Quindi un tetto di tempo, come per Aladin: passato quello si dichiara. */
   const img=box.querySelector('img');
-  const spento=()=>{ box.innerHTML=`<div class="pv-off"><span><b>Anteprima non disponibile.</b><br>
-    Arriva dal CDS e richiede la rete: ${location.protocol==='file:'
-      ? 'stai usando la versione offline.' : 'sembra che non ci sia connessione.'}<br>
-    Tutto il resto funziona lo stesso.</span></div>`; };
+  /* Anche il ripiego resta cliccabile: senza l'immagine la scheda completa serve
+     lo stesso — c'e' il verdetto sull'inquadratura, i pannelli, la rotazione. */
+  const spento=()=>{ box.innerHTML=`<button type="button" class="pv-go pv-off">
+      <span><b>Anteprima non disponibile.</b><br>
+      Arriva dal CDS e richiede la rete: ${location.protocol==='file:'
+        ? 'stai usando la versione offline.' : 'sembra che non ci sia connessione.'}<br>
+      Apri comunque la vista del campo &rsaquo;</span></button>`;
+    const g=box.querySelector('.pv-go'); if(g) g.onclick=()=>apriVista(t); };
   const to=setTimeout(()=>{ if(!img.complete||!img.naturalWidth) spento(); },8000);
   img.onload=()=>clearTimeout(to);
   img.onerror=()=>{ clearTimeout(to); spento(); };
+}
+
+/* Dalla miniatura alla vista navigabile. `rxOpenSheet` apre la scheda completa e
+   `openSheet` chiama gia' `drawField`, che carica Aladin da se': qui resta solo da
+   portare lo sguardo sul riquadro, invece di lasciare l'utente in cima a una
+   scheda lunga a cercarselo. Il ritardo non e' un'attesa di caricamento — il
+   contenitore c'e' subito, con il suo «Carico l'immagine del campo…» — e' il tempo
+   che il pannello impiega a comparire prima che scorrere abbia senso. */
+function apriVista(t){
+  if(!t) return;
+  rxOpenSheet(t.id);
+  setTimeout(()=>{
+    const a=document.getElementById('aladin');
+    if(a) a.scrollIntoView({block:'center',behavior:'smooth'});
+  },260);
 }
 
 let RXCOV=null;                   // l'ultima copertura risolta: soggetto e progetto
