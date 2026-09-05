@@ -937,6 +937,25 @@ td.archcell{max-width:120px}
                   <span>Inquadratura libera</span></label>
               </div>
             </div>
+            <!-- LA STRATEGIA DI ACQUISIZIONE, dove si decide.
+                 Sta qui accanto alla copertura perche' e' una scelta dello stesso
+                 tipo: non cambia che cosa serve al soggetto, cambia come lo si
+                 riprende. I numeri — posa, pose, integrazione, orologio, costo —
+                 stanno in Risultati, dove esiste una prescrizione da misurare. -->
+            <div class="hero-cov">
+              <div class="hc-k">Strategia di acquisizione</div>
+              <div class="hc-seg" role="radiogroup" aria-label="Strategia di acquisizione">
+                <label data-tip="Massima efficienza fotometrica: la posa più lunga che i limiti fisici concedono. È il riferimento — meno ore di orologio per la stessa profondità.">
+                  <input type="radio" name="rxStrat" id="rxStratResa" value="resa">
+                  <span>Resa</span></label>
+                <label data-tip="Si ferma dove il fondo cielo ha sommerso il rumore di lettura: oltre quel punto allungare la posa compra meno del dieci per cento, e pose più corte sono più robuste. Dove il fondo non ci arriva coincide con Resa, e lo dice.">
+                  <input type="radio" name="rxStrat" id="rxStratEq" value="equilibrio" checked>
+                  <span>Equilibrio</span></label>
+                <label data-tip="Nessuna stella di campo alla magnitudine protetta va a fondo scala, e i fotogrammi sono più numerosi. NON promette più risoluzione: quella la decidono ottica, seeing e guida.">
+                  <input type="radio" name="rxStrat" id="rxStratDin" value="dinamica">
+                  <span>Dinamica</span></label>
+              </div>
+            </div>
             <label class="f hero-num">In quante notti
               <input type="number" id="rxNights" step="1" min="1" max="60"
                 title="Le notti che vuoi dedicare al progetto. Le ore le conta il motore."></label>
@@ -13028,6 +13047,13 @@ function start(){
   $('rxGo').onclick=()=>{ persistRx(); refresh(); go('risultati'); };
   $('rxTarget').addEventListener('change',()=>{ persistRx(); refresh(); });
   $('rxHours').addEventListener('change',()=>{ persistRx(); refresh(); });
+  /* I tre radio della home e le tre schede in Risultati sono lo stesso stato:
+     `setStrat` aggiorna la variabile, la salva e ridisegna, e `syncStrat` riporta
+     i radio sul valore ricordato all'avvio. Nessuno dei due e' la fonte di
+     verita' — lo e' RXSTRAT. */
+  ['rxStratResa','rxStratEq','rxStratDin'].forEach(id=>{ const el=$(id); if(el)
+    el.addEventListener('change',()=>{ if(el.checked) setStrat(el.value); }); });
+  syncStrat();
   ['rxCovFull','rxCovFrame'].forEach(id=>{ const el=$(id); if(el)
     el.addEventListener('change',()=>{ persistRx(); refresh(); }); });
   $('rxNights').addEventListener('change',()=>{ persistRx(); refresh(); });
@@ -14648,7 +14674,10 @@ function rxMoon(band,e){
    sono a un clic. Si ricorda, come il sito. */
 let RXSTRAT=(()=>{ try{ const v=localStorage.getItem('ap_strat');
   return (v&&STRATEGIES.some(x=>x.id===v))?v:'equilibrio'; }catch(e){ return 'equilibrio'; } })();
-const setStrat=id=>{ RXSTRAT=id; try{localStorage.setItem('ap_strat',id)}catch(e){} refresh(); };
+const setStrat=id=>{ RXSTRAT=id; try{localStorage.setItem('ap_strat',id)}catch(e){}
+  syncStrat(); refresh(); };
+const syncStrat=()=>{ const m={resa:'rxStratResa',equilibrio:'rxStratEq',dinamica:'rxStratDin'};
+  const el=document.getElementById(m[RXSTRAT]); if(el) el.checked=true; };
 
 let RXCOV=null;                   // l'ultima copertura risolta: soggetto e progetto
 let RXNIGHT=null;                 // la notte risolta: la usano barra, scheda e piano
