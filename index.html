@@ -593,6 +593,25 @@ td.archcell{max-width:120px}
 .hero-input .clr{position:static;flex:none;margin-left:var(--s2)}
 .hero-row{display:flex;gap:var(--s4);flex-wrap:wrap;align-items:stretch}
 .hero-num{justify-content:center;max-width:150px}
+/* La copertura decide se il progetto e' il soggetto intero o una sua
+   inquadratura: cambia il costo di tutto quello che si legge sotto, quindi sta
+   qui sopra e non nella diagnostica. Due segmenti perche' le scelte sono due. */
+.hero-cov{display:flex;flex-direction:column;justify-content:center;gap:6px;
+  background:var(--bg3);border:1px solid var(--line);border-radius:var(--radius);
+  padding:8px var(--s4);flex:1 1 260px;min-width:230px}
+.hc-k{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--dim2)}
+.hc-seg{display:flex;border:1px solid var(--line);border-radius:var(--radius);
+  overflow:hidden;background:var(--sunken)}
+.hc-seg label{flex:1;margin:0;border-bottom:none;display:flex}
+.hc-seg label + label{border-left:1px solid var(--line)}
+.hc-seg input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.hc-seg span{flex:1;display:flex;align-items:center;justify-content:center;
+  padding:8px 7px;font-size:12.5px;font-weight:600;color:var(--dim);
+  text-align:center;line-height:1.25;cursor:pointer;
+  transition:background .15s,color .15s}
+.hc-seg span:hover{color:var(--fg)}
+.hc-seg input:checked + span{background:rgba(var(--acc-rgb),.16);color:var(--acc)}
+.hc-seg input:focus-visible + span{outline:2px solid var(--acc);outline-offset:-2px}
 /* Il tempo disponibile non e' un campo: e' un risultato. Ha la forma di un dato
    letto, non di una casella da riempire — nessun bordo da input, nessun cursore. */
 .hero-avail{display:flex;flex-direction:column;justify-content:center;gap:2px;
@@ -874,6 +893,17 @@ td.archcell{max-width:120px}
           </div>
           <div class="hero-row">
             <div id="rxCtx"></div>
+            <div class="hero-cov">
+              <div class="hc-k">Copertura del soggetto</div>
+              <div class="hc-seg" role="radiogroup" aria-label="Copertura del soggetto">
+                <label data-tip="Il motore considera l'intera estensione del target. Se il soggetto supera il campo del setup, calcola automaticamente il mosaico e il relativo tempo complessivo.">
+                  <input type="radio" name="rxCov" id="rxCovFull" value="full" checked>
+                  <span>Soggetto completo</span></label>
+                <label data-tip="Il target può essere più grande del campo del telescopio. Il motore non presume che tu voglia fotografarlo interamente: l'integrazione viene riferita alla porzione scelta nell'inquadratura.">
+                  <input type="radio" name="rxCov" id="rxCovFrame" value="framing">
+                  <span>Inquadratura libera</span></label>
+              </div>
+            </div>
             <label class="f hero-num">In quante notti
               <input type="number" id="rxNights" step="1" min="1" max="60"
                 title="Le notti che vuoi dedicare al progetto. Le ore le conta il motore."></label>
@@ -1840,6 +1870,56 @@ function mosaicPanels(tg,dv,overlap,rot){
           stepX,stepY,overlap:ov,rot:rot||0,extent:ex};
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   L'INTENZIONE DI COPERTURA — quanto del soggetto vuoi davvero riprendere.
+
+   Il catalogo dice quanto e' grande il soggetto in cielo. Non dice che tu
+   voglia fotografarlo tutto, e il motore lo dava per scontato: dalla
+   dimensione catalogata ricavava i pannelli, e dai pannelli il costo del
+   progetto. Cosi' il Velo diventava ventiquattro campi e qualche centinaio
+   di ore anche per chi voleva riprendere soltanto il Pipistrello.
+
+   La dimensione del bersaglio resta quella che e': non la si tocca, non la
+   si rimpicciolisce per farla stare nel campo. Quello che si dichiara e' il
+   PROGETTO, che e' una cosa diversa dal bersaglio:
+
+       ingombro del bersaglio  (catalogo, invariato)
+              |
+              +-- intenzione di copertura  (completo / inquadratura)
+              |
+       estensione del progetto
+              |
+              +-- campo del setup
+              |
+       pannelli del progetto  ->  costo del progetto
+
+   Con `completo` si copre tutto l'ingombro, mosaico compreso, ed e'
+   esattamente il conto di fad92b5. Con `inquadratura` il progetto e' un
+   campo: il sensore decide che porzione entra, e le ore si riferiscono a
+   quella. I pannelli del bersaglio intero continuano a essere calcolati e
+   restituiti — servono a dire «il soggetto completo ne chiederebbe N» —
+   ma non moltiplicano piu' il costo di un progetto che non li ha chiesti.
+
+   Quando il soggetto ci sta in un campo le due modalita' coincidono, ed e'
+   il motivo per cui questa non e' una scorciatoia per il Velo o per l'RC8:
+   e' una domanda che il motore prima non faceva. */
+const COV_FULL='full', COV_FRAMING='framing';
+const coverageOf=c=>(c===COV_FRAMING?COV_FRAMING:COV_FULL);
+
+function projectPanels(tg,dv,cov,rot){
+  const target=mosaicPanels(tg,dv,undefined,rot||0);
+  const targetPanels=Math.max(1,target.cols*target.rows);
+  const intent=coverageOf(cov);
+  /* L'inquadratura e' un campo per definizione: il progetto e' cio' che il
+     sensore contiene. Non e' un tetto arbitrario, e' la modalita' stessa. */
+  const panels=intent===COV_FRAMING?1:targetPanels;
+  return {intent,target,targetPanels,panels,
+          /* vero solo quando la scelta cambia davvero il conto: serve alla UI
+             per dire che il soggetto eccede il campo senza gridarlo quando
+             non eccede niente. */
+          limited:intent===COV_FRAMING&&targetPanels>1};
+}
+
 /* Il rettangolo del sensore sul cielo, con la rotazione della camera.
    Convenzione: a rotazione 0 l'altezza del sensore è lungo Nord e la larghezza
    lungo Est; ruotare di `rot` porta l'asse dell'altezza a puntare all'angolo di
@@ -2116,6 +2196,9 @@ function prescribe(e,hours,dv,panels){
           /* `spent` e `hours` restano PER PANNELLO — e' cosi' che li usano posa,
              piano ed esportazione. Il progetto intero e' qui accanto, dichiarato. */
           panels:P,hoursTotal:hoursTot,spentTotal:spent*P,
+          /* Portate avanti da evaluate() perche' chi stampa il verdetto sappia
+             se quei pannelli sono il progetto o soltanto la misura del soggetto. */
+          coverage:e.coverage||COV_FULL,targetPanels:e.targetPanels||P,
           roadTotalsProject:{ideal:chosen.ideal*P,acc:chosen.acc*P,floor:chosen.floor*P}};
 }
 
@@ -2135,7 +2218,10 @@ function mountRms(mountId,scale){
   return (scale<0.8?m.rms_long_fl_arcsec:m.rms_typ_arcsec)||0.8;
 }
 
-function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot){
+/* `cov` in coda: la stessa configurazione vale diversamente a seconda che tu
+   voglia il soggetto intero o una sua inquadratura, e il confronto deve saperlo.
+   L'ordinamento non cambia — cambia cosa costa ciascun candidato. */
+function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov){
   const out=[];
   const cur=`${cfg.tel}|${cfg.red}|${cfg.cam}|${cfg.bin||1}`;
   for(const p of presets){
@@ -2146,19 +2232,24 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot){
       // la montatura del preset porta con sé il suo errore di guida
       const rms2=mountRms(p.mount,dv2.scale0);
       const site2={...site,rms:rms2,fwhm:effFWHM(site.seeing,rms2)};
-      const e2=evaluate(tg,dv2,site2,np,state);
+      const e2=evaluate(tg,dv2,site2,np,state,cov);
       if(e2.missing.length) continue;
       /* Ogni configurazione porta la propria geometria: un tubo corto copre il
          soggetto in un campo dove uno lungo ne chiede venti, e il confronto deve
          vedere il sistema intero — profondita' E copertura — non mezzo sistema. */
-      const mp2=mosaicPanels(tg,dv2,undefined,rot||0);
-      const pr=prescribe(e2,hours,dv2,mp2.cols*mp2.rows);
+      const pp2=projectPanels(tg,dv2,cov,rot||0);
+      const pr=prescribe(e2,hours,dv2,pp2.panels);
       if(pr.level==='insufficiente') continue;
       out.push({cfg:c,preset:p,bin,dv:dv2,pr,ev:e2,rms:rms2,panels:pr.panels,
+        /* Quanti campi chiederebbe il soggetto intero con QUESTA ottica: resta
+           visibile anche in inquadratura libera, dove non entra nel costo. */
+        targetPanels:pp2.targetPanels,coverage:pp2.intent,framed:pp2.limited,
         samp:e2.samp.k,ok:e2.samp.k==='corretto',spent:pr.spent,total:pr.spentTotal,
-        /* Quanto costerebbe fare il soggetto INTERO per bene con questo sistema.
-           E' la grandezza giusta per rispondere a «con quale strumento»: le ore
-           spese le spendono tutti uguali, sono quelle disponibili. */
+        /* Quanto costerebbe portare a termine per bene il PROGETTO con questo
+           sistema — il soggetto intero in copertura completa, l'inquadratura in
+           copertura parziale. E' la grandezza giusta per rispondere a «con quale
+           strumento»: le ore spese le spendono tutti uguali, sono quelle
+           disponibili, ed e' l'obiettivo che cambia da un caso all'altro. */
         projectH:pr.roadTotalsProject.ideal});
     }
   }
@@ -3550,7 +3641,7 @@ function nightProfile(date,lat,lon){
 }
 
 /* ---------- ranking ---------- */
-function evaluate(tg,dv,site,np,state){
+function evaluate(tg,dv,site,np,state,cov){
   const floors=DB.altitude_floors;
   const horizon=site.horizonMin;
   // FWHM reale delle stelle, non seeing nudo: la guida ci si somma in quadratura
@@ -3713,8 +3804,13 @@ function evaluate(tg,dv,site,np,state){
      l'oggetto ci sta in un campo `panels` vale 1 e non cambia niente, che e' il
      motivo per cui questa non e' una correzione per un oggetto o per un tubo:
      e' la geometria che decide, oggetto per oggetto e ottica per ottica. */
-  const mos=mosaicPanels(tg,dv);
-  const panels=Math.max(1,mos.cols*mos.rows);
+  /* Quanti campi servono al bersaglio intero e quanti ne chiede il progetto
+     sono pero' due domande diverse, e la seconda dipende da cosa vuoi
+     riprendere: `projectPanels` tiene separate le due risposte. In copertura
+     completa coincidono ed e' il conto di sempre. */
+  const cvr=projectPanels(tg,dv,cov);
+  const mos=cvr.target;
+  const panels=cvr.panels;
   const roadHTot=roadH*panels, roadAccHTot=roadAccH*panels;
   const perNight=Math.min(critH*lpF, np.darkH||np.nautH);
   const nights = perNight>0.3 ? roadHTot/perNight : Infinity;
@@ -3773,6 +3869,10 @@ function evaluate(tg,dv,site,np,state){
           moonF,lpF,skyF,isNarrow,dMagV,moonUpFrac,moonIllum:mi,moonAlt:mAA.alt,rho,
           tsub:_tsub,                       // la posa con cui e' stato calcolato il fattore
           budget,roadH,roadAccH,roadHTot,roadAccHTot,panels,mos,
+          /* `panels` e' il costo del progetto; `targetPanels` e' la geometria
+             del soggetto intero, che resta consultabile anche quando il
+             progetto non la paga. */
+          targetPanels:cvr.targetPanels,coverage:cvr.intent,framed:cvr.limited,
           accReal,defRoad,nights,weeks,nightsAcc,weeksAcc,
           fit,samp,progress,progressAcc,score,perNight,
           feas,feasAcc,missing,critFilter,dual,dualUsed,clearFrac:site.clearFrac};
@@ -3958,6 +4058,8 @@ function start(){
   $('rxGo').onclick=()=>{ persistRx(); refresh(); go('risultati'); };
   $('rxTarget').addEventListener('change',()=>{ persistRx(); refresh(); });
   $('rxHours').addEventListener('change',()=>{ persistRx(); refresh(); });
+  ['rxCovFull','rxCovFrame'].forEach(id=>{ const el=$(id); if(el)
+    el.addEventListener('change',()=>{ persistRx(); refresh(); }); });
   $('rxNights').addEventListener('change',()=>{ persistRx(); refresh(); });
   $('rxTarget').addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ persistRx(); refresh(); } });
   /* Pulisci. Non si limita a svuotare il campo: un campo vuoto e' uno STATO che il
@@ -5115,7 +5217,7 @@ function refresh(){
      OpenNGC intero resterebbe fuori scala e fuori scopo: tredicimila galassie
      anonime non sono una lista di consigli, e il curato è per costruzione lo
      strato «questo merita». Chi cerca un NGC qualsiasi lo trova scrivendolo. */
-  EVAL=evalPool().map(t=>evaluate(t,dv,SITE,np,STATE)).sort((a,b)=>b.score-a.score);
+  EVAL=evalPool().map(t=>evaluate(t,dv,SITE,np,STATE,covIntent())).sort((a,b)=>b.score-a.score);
   renderRows(np);
   renderBest();
   renderRx(np);
@@ -5151,6 +5253,13 @@ const shortArch=key=>ARCH_SHORT[key]||((TG.archetypes[key]||{}).label||'');
    funzione da cui passano il piano e la guardia: una sorgente sola. */
 let RXAVAIL=0;
 const rxHours=()=>RXAVAIL>0?RXAVAIL:10;
+/* L'intenzione di copertura come la legge la UI. Il motore non conosce il DOM:
+   qui si traduce una scelta in un argomento, e da li' in poi e' fisica. */
+const covIntent=()=>{
+  const r=document.querySelector('input[name=rxCov]:checked');
+  return r&&r.value==='framing'?'framing':'full';
+};
+const covIsFraming=()=>covIntent()==='framing';
 const rxNights=()=>Math.round(clamp(+$('rxNights').value||3,1,60));
 // l'ultima valutazione mostrata: gli oggetti composti dal catalogo non stanno in EVAL
 let RXEVAL=null;
@@ -5310,14 +5419,19 @@ function showAvail(t,rn,n,pr){
   const corto=ideal>av+1e-9;
   v.className='ha-v'+(corto?' short':'');
   const min=corto?nightsForHours(t,rn&&rn.date?rn.date:rxDate(),ideal):null;
+  /* Che il soggetto ecceda il campo va detto in tutti e due i casi: in copertura
+     completa perché è la ragione per cui il fabbisogno è quello che è, in
+     inquadratura libera perché altrimenti l'informazione andrebbe persa proprio
+     dove serve di più — è lì che il numero a schermo NON è il soggetto intero. */
+  const tp=RXCOV?RXCOV.targetPanels:(pr?pr.targetPanels||1:1);
+  const framed=!!(RXCOV&&RXCOV.limited);
   nt.innerHTML=`su ${n} nott${n===1?'e':'i'} da ${esc(dayLabel(rn&&rn.date?rn.date:rxDate()))}`+
-    /* Se il soggetto non ci sta in un campo va detto qui, non solo nel piano:
-       è la ragione per cui il fabbisogno è quello che è. */
-    (pr&&pr.panels>1?` &middot; mosaico da <b>${pr.panels}</b> riquadri`:'')+
+    (framed?` &middot; inquadratura libera: <b>1</b> campo dei <b>${tp}</b> del soggetto intero`
+           :(pr&&pr.panels>1?` &middot; mosaico da <b>${pr.panels}</b> riquadri`:''))+
     (corto
-      ? ` &middot; il progetto intero ne chiede <b>${fmt(ideal,1)}</b>`+
+      ? ` &middot; ${framed?'l’inquadratura':'il progetto intero'} ne chiede <b>${fmt(ideal,1)}</b>`+
         (min?`: servono <b>${min}</b> nott${min===1?'e':'i'}`:'')
-      : ` &middot; bastano per il progetto intero`);
+      : ` &middot; bastano per ${framed?'l’inquadratura scelta':'il progetto intero'}`);
 }
 
 /* Penalizzazione lunare per la banda di un gruppo, con la larghezza del filtro
@@ -5330,6 +5444,7 @@ function rxMoon(band,e){
   return {p,f};
 }
 
+let RXCOV=null;                   // l'ultima copertura risolta: soggetto e progetto
 let RXNIGHT=null;                 // la notte risolta: la usano barra, scheda e piano
 let RXPR=null, RXDV=null;         // ultima prescrizione e ultima catena derivata.
                                   // Esistono perche' il riepilogo laterale LEGGA i
@@ -5346,7 +5461,7 @@ function renderRx(np){
      mancante — e legarla alla risoluzione lasciava la barra della richiesta
      precedente. Quando la notte si sposta, si ridisegna una seconda volta con
      quella vera: due render sono niente, una barra bugiarda no. */
-  RXNIGHT=null; RXPR=null; RXAVAIL=0; showAvail(null);
+  RXNIGHT=null; RXPR=null; RXCOV=null; RXAVAIL=0; showAvail(null);
   $('rxCtx').innerHTML=rxContext();
   /* La carta della configurazione vive in Strumentazione, non piu' nella home. */
   const cc=$('cfgCtx'); if(cc) cc.innerHTML=cfgContext();
@@ -5409,13 +5524,18 @@ function renderRx(np){
   const WA=nightWindows(t,SITE,RN.date,NN,OPSET);
   RXAVAIL=WA.nights.slice(0,NN).reduce((a,x)=>a+x.availH,0);
   const hours=rxHours();
-  const e=RN.shift>0?evaluate(t,dv,SITE,npRx,STATE)
-                    :(EVAL.find(x=>x.tg.id===t.id)||evaluate(t,dv,SITE,np,STATE));
+  const e=RN.shift>0?evaluate(t,dv,SITE,npRx,STATE,covIntent())
+                    :(EVAL.find(x=>x.tg.id===t.id)||evaluate(t,dv,SITE,np,STATE,covIntent()));
   RXEVAL=e;
   /* La copertura con la rotazione che l'utente ha impostato: ruotare la camera
      puo' far scendere i pannelli, e se lo fa il progetto costa meno davvero. */
-  const mosRx=mosaicPanels(t,dv,undefined,rotFor(t));
-  const pr=prescribe(e,hours,dv,mosRx.cols*mosRx.rows);
+  /* Due numeri, non uno: quanti campi chiede il SOGGETTO — che resta detto
+     comunque — e quanti ne chiede il PROGETTO, che dipende da cosa hai scelto
+     di riprendere. In copertura completa sono lo stesso numero. */
+  const ppRx=projectPanels(t,dv,covIntent(),rotFor(t));
+  const mosRx=ppRx.target;
+  const pr=prescribe(e,hours,dv,ppRx.panels);
+  RXCOV=ppRx;
   RXPR=pr;
   showAvail(t,RN,NN,pr);                          // idem: il riepilogo la legge da qui
   const L=RXLVL[pr.level];
@@ -5458,14 +5578,16 @@ function renderRx(np){
 
   let body='';
   if(pr.level==='insufficiente'){
-    const alts=fitAlternatives(t,CFG,SITE,np,STATE,hours,DB.presets,3,rotFor(t));
+    const alts=fitAlternatives(t,CFG,SITE,np,STATE,hours,DB.presets,3,rotFor(t),covIntent());
     body=`<p class="small">Con <b>${fmt(hours,1)} h</b> il canale che decide l'immagine
       (<b>${pr.critGroup}</b>) non arriva alla sua soglia: ne servono <b>${fmt(pr.needed,1)} h</b>
       solo per farlo esistere. Spendere queste ore comunque non ti dà una versione
       più piccola dell'immagine: ti dà rumore da spegnere in elaborazione.</p>
       <p class="small">Le tecniche possibili per questo oggetto costano <b>${fmt(pr.roadTotalsProject.floor,1)} h</b> al minimo
       e ${fmt(pr.roadTotalsProject.ideal,1)} h per intero, su questa configurazione${
-        pr.panels>1?` — il soggetto non ci sta in un campo e va coperto in <b>${pr.panels}</b> riquadri`:''}.</p>
+        pr.panels>1?` — il soggetto non ci sta in un campo e va coperto in <b>${pr.panels}</b> riquadri`
+        :(RXCOV&&RXCOV.limited?` — e questo è il costo di <b>un campo</b>: il soggetto intero
+            ne chiederebbe <b>${RXCOV.targetPanels}</b>`:'')}.</p>
       ${alts.length?`<h4 style="margin:14px 0 4px;font-size:13px">Con questa strumentazione invece ci sta</h4>
         ${alts.map(a=>`<div class="altrow">
           <span class="pill ${a.pr.level==='pieno'?'p-ok':a.pr.level==='ridotto'?'p-ok':'p-warn'}">${RXLVL[a.pr.level].k}</span>
@@ -5560,13 +5682,35 @@ function renderRx(np){
       ${fromCat?`<button onclick="openTargetForm(null,${jsAttr(fromCat.name)})"
         title="Se conosci meglio questo oggetto, salvalo fra i tuoi e correggi l'archetipo">Salvalo fra i miei oggetti</button>`:''}
     </div>`;
+  /* LA COPERTURA, DETTA PRIMA DEL VERDETTO.
+     Serve solo quando la geometria la rende una scelta vera, cioe' quando il
+     soggetto eccede il campo: se ci sta, le due modalita' danno lo stesso conto
+     e annunciarle sarebbe rumore. In inquadratura libera dice a chiare lettere
+     che il tempo si riferisce a una porzione, e quanti campi vorrebbe il
+     soggetto intero — l'informazione non si perde, cambia solo di ruolo. */
+  const covBanner = !(RXCOV&&RXCOV.targetPanels>1) ? '' :
+    RXCOV.limited
+    ? `<div class="warnbox" style="margin:0 0 12px">
+        <span class="pill p-warn">inquadratura libera</span>
+        Il soggetto supera il campo del setup: il tempo qui sotto è calcolato sulla
+        <b>porzione inquadrata</b>, non sull'intero mosaico del soggetto.<br>
+        Campo: <b>${fmt(dv.fovX,0)}′ × ${fmt(dv.fovY,0)}′</b> &middot;
+        il soggetto completo chiederebbe <b>${RXCOV.targetPanels}</b> riquadri
+        (${RXCOV.target.cols}×${RXCOV.target.rows}).</div>`
+    : `<div class="warnbox" style="margin:0 0 12px">
+        <span class="pill p-warn">copertura completa</span>
+        Il soggetto supera il campo del setup e viene coperto in
+        <b>${RXCOV.targetPanels}</b> riquadri (${RXCOV.target.cols}×${RXCOV.target.rows}):
+        le ore qui sotto sono <b>per campo</b>, e il progetto intero costa
+        altrettante volte.<br>
+        Se non vuoi coprirlo tutto, passa a <b>inquadratura libera</b>.</div>`;
   out.innerHTML=`<div class="rx ${L.cls}">
     <div class="rxhead">
       <h3>${head} <span class="pill ${L.pill}" style="vertical-align:middle">${L.k}</span></h3>
       ${actions}
     </div>
     <div class="why">${why}</div>
-    ${catBanner}${body}
+    ${covBanner}${catBanner}${body}
     ${rxDiagHtml(pr,e,dv,t)}</div>`;
 }
 
@@ -5614,11 +5758,18 @@ function rotLines(t,dv,rot){
       f.ex.known?` (ingombro ${fmt(f.ex.x,1)}′ × ${fmt(f.ex.y,1)}′ sugli assi del sensore)`
                 : `, assumendo l'orientamento peggiore — l'angolo di posizione non è in catalogo`}.
     Campionamento <span class="pill ${samp.cls}">${samp.k}</span>, ${samp.n}.`;
+  /* Quanti campi vuole il SOGGETTO intero: e' una misura della geometria e va
+     detta sempre. Se poi quei campi si paghino dipende da cosa hai scelto di
+     riprendere, e la frase lo dichiara invece di darlo per scontato. */
   $('mosLine').innerHTML = n>1
     ? `<p class="small"><span class="pill p-warn">mosaico ${m.cols}×${m.rows}</span>
-        Con il 15% di sovrapposizione servono <b>${n} pannelli</b>: le ore del budget qui
-        sotto vanno moltiplicate per altrettanto, ed è il vero costo del mosaico — non
-        l'allineamento, che è la parte facile.</p>`
+        Con il 15% di sovrapposizione il soggetto intero occupa <b>${n} pannelli</b>.${
+        covIsFraming()
+        ? ` Sei in <b>inquadratura libera</b>: il progetto è un campo solo, e le ore del
+            budget qui sotto valgono così come sono. Passa a <b>soggetto completo</b>
+            se vuoi coprirlo tutto.`
+        : ` Le ore del budget qui sotto vanno moltiplicate per altrettanto, ed è il vero
+            costo del mosaico — non l'allineamento, che è la parte facile.`}</p>`
     : '';
   const bb=bestRotation(t,dv,5);
   $('rotAdvice').innerHTML = bb
@@ -5818,8 +5969,11 @@ function rxPlanHtml(pr,e,dv,t){
      il punto in cui le due variabili temporali si separavano. */
   const date=(RXNIGHT&&RXNIGHT.date)||rxDate();
   const fit=framing(t,dv,rotFor(t));
-  const mos=mosaicPanels(t,dv,undefined,rotFor(t));
-  const panels=Math.max(1,mos.cols*mos.rows);
+  /* Il piano riguarda il progetto: in inquadratura libera si pianifica un
+     campo, non il mosaico che il soggetto intero richiederebbe. */
+  const ppPl=projectPanels(t,dv,covIntent(),rotFor(t));
+  const mos=ppPl.target;
+  const panels=ppPl.panels;
   /* La posa si calcola PRIMA del piano: dipende dal totale del progetto e dalla
      configurazione, non da come le notti si dividono. Il pianificatore la usa solo
      per sapere quanto vale «tre pose» in ore. Nessuna circolarità. */
@@ -5837,7 +5991,17 @@ function rxPlanHtml(pr,e,dv,t){
         il costo di <b>un riquadro</b>; il progetto intero ne chiede <b>${fmt(pr.spent*panels,1)} h</b>,
         e il giudizio le conta già tutte. È il vero prezzo del mosaico — l'allineamento è la
         parte facile.</div>`
-    : '';
+    /* In inquadratura libera il piano riguarda un campo, e va detto quale: senza
+       questa riga il numero di riquadri del soggetto sparirebbe proprio dal
+       documento che si porta in postazione. */
+    : (ppPl.limited
+      ? `<div class="warnbox" style="margin:0 0 8px"><b>Inquadratura libera.</b>
+          Il soggetto è più largo del campo — ne servirebbero <b>${ppPl.targetPanels}</b>
+          riquadri (${mos.cols}×${mos.rows}) per coprirlo tutto — ma il piano qui sotto
+          riguarda <b>un campo solo</b>, quello che il sensore contiene. Le
+          <b>${fmt(pr.spent,1)} h</b> sono il costo di questa inquadratura, non del
+          soggetto intero.</div>`
+      : '');
 
   if(!pl.ok){
     const b=pl.bounds||{};
@@ -6235,12 +6399,16 @@ function rxOpenSheet(id){
 }
 function persistRx(){
   try{ localStorage.setItem('ap_rx',JSON.stringify(
-    {t:$('rxTarget').value,n:$('rxNights').value})); }catch(e){}
+    {t:$('rxTarget').value,n:$('rxNights').value,c:covIntent()})); }catch(e){}
 }
 function loadRx(){
   let v={}; try{ v=JSON.parse(localStorage.getItem('ap_rx')||'{}'); }catch(e){}
   $('rxNights').value=v.n||3;
   $('rxTarget').value=v.t||'';
+  /* La copertura si ricorda come tutto il resto: chi riprende una porzione del
+     Velo stasera la riprende anche domani, e ripartire da «soggetto completo»
+     ogni volta sarebbe una domanda fatta due volte. */
+  const cv=$(v.c==='framing'?'rxCovFrame':'rxCovFull'); if(cv) cv.checked=true;
   const b=$('rxClear'); if(b) b.hidden=!(v.t||'').trim();
 }
 /* Costruito una volta sola: dipende dal catalogo, non dalla configurazione, e
@@ -6752,10 +6920,18 @@ function renderSummary(){
   /* --- integrazione e esito, dalla prescrizione --- */
   if(pr){
     const L=RXLVL[pr.level]||{};
-    h+=sumBlock('Tempo totale di integrazione',
+    /* `pr.spent` sono le ore di UN campo. Finche' il progetto e' un campo la
+       parola «totale» e' esatta; su un mosaico non lo e' piu', e il riepilogo
+       deve dire quale delle due grandezze sta mostrando. */
+    const mosaico=pr.panels>1;
+    h+=sumBlock(mosaico?'Integrazione per riquadro':'Tempo totale di integrazione',
       `<span class="sumv big">${fmt(pr.spent,1)}<span class="u"> h</span></span>`,
       `Distribuite su ${rxNights()} nott${rxNights()===1?'e':'i'} &middot; `+
-      `disponibili ${fmt(rxHours(),1)} h`);
+      `disponibili ${fmt(rxHours(),1)} h`+
+      (mosaico?` &middot; progetto intero <b>${fmt(pr.spentTotal,1)} h</b> su ${pr.panels} riquadri`
+       :(RXCOV&&RXCOV.limited
+         ? ` &middot; inquadratura libera: un campo dei ${RXCOV.targetPanels} del soggetto`
+         :'')));
     h+=sumBlock('Esito',
       `<span class="pill ${L.pill||'p-dim'}">${esc(L.k||pr.level)}</span>`,
       pr.critGroup?`Canale che decide l'immagine: <b>${esc(pr.critGroup)}</b>.`:'');
