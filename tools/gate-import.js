@@ -209,6 +209,89 @@ H('H - i grumi restano sottostruttura');
 }
 
 // ===========================================================================
+H('L - le coordinate sono coordinate');
+// ===========================================================================
+/* IL DIFETTO CHE QUARANTUNO VERIFICHE NON HANNO VISTO.
+
+   `hms2deg` moltiplicava per 15 qualunque cosa ricevesse. Su Barnard, LDN e LBN —
+   che VizieR rende in sessagesimale — e' giusto. Su Dobashi, che arriva in gradi
+   decimali, ogni ascensione retta usciva quindici volte troppo grande: 246.0562
+   diventava 3690.843. Erano 2214 record su 4499, meta' del catalogo oscuro nel
+   posto sbagliato del cielo, e con essa visibilita', altezza e separazione dalla
+   Luna.
+
+   Duemilacentocinquantatre' si vedevano a occhio, perche' superavano i 360 gradi.
+   Sessantuno no: quelli con ascensione retta vera sotto le 24 gradi restavano
+   sotto la soglia e sembravano validi.
+
+   Nessuna delle verifiche precedenti guardava il VALORE di una coordinata. Questa
+   sezione esiste perche' non succeda di nuovo, e non solo per l'ascensione retta:
+   qualunque grandezza con un intervallo fisico deve stare nel suo. */
+{
+  const ra = F.ra_deg, de = F.dec_deg;
+  const fuori = O.filter(o => o[ra] == null || !(o[ra] >= 0 && o[ra] <= 360));
+  chk('ogni ascensione retta sta fra 0 e 360 gradi', fuori.length === 0,
+    fuori.length ? fuori.slice(0, 3).map(o => o[F.desig] + '=' + o[ra]).join(', ')
+                 : O.length + ' oggetti');
+  const fuoriD = O.filter(o => o[de] == null || !(o[de] >= -90 && o[de] <= 90));
+  chk('e ogni declinazione fra -90 e +90', fuoriD.length === 0,
+    fuoriD.length ? fuoriD.slice(0, 3).map(o => o[F.desig] + '=' + o[de]).join(', ')
+                  : O.length + ' oggetti');
+
+  /* Il controllo che avrebbe preso anche i sessantuno silenziosi: un catalogo che
+     copre il piano galattico non puo' avere tutte le sue ascensioni rette
+     schiacciate in una fetta di cielo. Se una fonte finisse di nuovo moltiplicata
+     per quindici, la sua distribuzione si accartoccerebbe. */
+  const perCat = {};
+  for (const o of O) (perCat[o[F.cat]] = perCat[o[F.cat]] || []).push(o[ra]);
+  const stretti = [];
+  for (const [c, v] of Object.entries(perCat)) {
+    if (v.length < 50) continue;
+    const q = v.slice().sort((a, b) => a - b);
+    const campo = q[q.length - 1] - q[0];
+    if (campo < 120) stretti.push(c + ' copre solo ' + campo.toFixed(0) + '°');
+  }
+  chk('nessun catalogo ha le ascensioni rette schiacciate in una fetta di cielo',
+    stretti.length === 0, stretti.length ? stretti.join(', ')
+      : Object.keys(perCat).filter(c => perCat[c].length >= 50).join(', ') + ' ben distribuiti');
+
+  /* E le dimensioni: un primo d'arco e' un primo d'arco.
+
+     Qui la soglia non si inventa. La distribuzione vera non ha uno scalino — 63
+     oggetti sopra i 5°, dieci sopra i 10°, due sopra i 20° e nessuno sopra i 30° —
+     e i piu' grandi sono complessi reali: B 348, B 229, B 7, LBN 918. Mettere una
+     linea a venti gradi avrebbe bocciato oggetti veri.
+
+     Il limite che si puo' affermare senza scegliere niente e' quello fisico: un
+     oggetto non e' piu' grande del cielo. E basta a intercettare cio' che serve:
+     un errore di unita' per 60 sul piu' grande oggetto reale darebbe 1560 gradi.
+     Il massimo osservato si stampa comunque, cosi' una deriva si vede crescere. */
+  const sz = F.size_arcmin;
+  const conSz = O.filter(o => Array.isArray(o[sz]));
+  const maxSz = Math.max(...conSz.map(o => Math.max(o[sz][0], o[sz][1])));
+  const assurdi = conSz.filter(o =>
+    o[sz][0] > 10800 || o[sz][1] > 10800 || o[sz][0] <= 0 || o[sz][1] <= 0);
+  chk('nessuna dimensione oltre il limite fisico, ne nulla o negativa',
+    assurdi.length === 0, assurdi.length ? assurdi.slice(0, 3)
+      .map(o => o[F.desig] + '=' + JSON.stringify(o[sz])).join(', ')
+      : 'il piu grande e ' + (maxSz / 60).toFixed(1) + '°, su ' + conSz.length + ' oggetti');
+
+  /* La controprova positiva: le posizioni devono coincidere con quelle di oggetti
+     noti. Se la conversione tornasse a sbagliare, questi tre lo direbbero subito. */
+  const noti = [['B 142', 295.18, 10.72], ['B 72', 260.95, -23.62], ['LDN 1235', 333.6, 73.4]];
+  const male = [];
+  for (const [nome, tra, tde] of noti) {
+    const o = O.find(x => norm(x[F.desig]) === norm(nome));
+    if (!o) { male.push(nome + ' assente'); continue; }
+    if (Math.abs(o[ra] - tra) > 1.5 || Math.abs(o[de] - tde) > 1.5)
+      male.push(nome + ' a ' + o[ra] + '/' + o[de] + ' invece di ' + tra + '/' + tde);
+  }
+  chk('e le posizioni di tre oggetti noti coincidono con quelle vere',
+    male.length === 0, male.length ? male.join(' · ')
+      : noti.map(x => x[0]).join(', ') + ' entro 1.5°');
+}
+
+// ===========================================================================
 H('I - le note curate: documentazione, non prescrizione');
 // ===========================================================================
 {

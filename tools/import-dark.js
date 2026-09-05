@@ -90,17 +90,35 @@ async function scarica(nome) {
   return { txt, url: u };
 }
 
-/* Il TSV di VizieR: righe di commento, poi intestazione, unita', separatore. */
+/* Il TSV di VizieR: righe di commento, poi intestazione, unita', separatore.
+
+   LA RIGA DELLE UNITA' NON E' DECORAZIONE, e ignorarla e' costato caro: VizieR
+   rende `_RA.icrs` in due formati diversi a seconda del catalogo, e lo DICHIARA
+   proprio li'.
+
+     Barnard  VII/220A   "h:m:s"   03 32 57.4
+     LDN      VII/7A     "h:m:s"   16 28 51.5
+     LBN      VII/9      "h:m:s"   17 45 10.5
+     Dobashi  VII/244A   "deg"     246.0562
+
+   Le unita' vengono quindi lette e portate avanti, e la conversione le usa invece
+   di indovinare dal numero di campi. Indovinare avrebbe funzionato su queste
+   quattro fonti; leggerle funziona anche sulla quinta. */
 function righe(txt) {
   const L = txt.split('\n').filter(l => l && !l.startsWith('#'));
   const i = L.findIndex(l => l.indexOf('recno') === 0);
-  if (i < 0) return [];
+  if (i < 0) { const v = []; v.units = {}; return v; }
   const hdr = L[i].split('\t').map(s => s.trim());
-  return L.slice(i + 3).map(l => {
+  const uni = (L[i + 1] || '').split('\t').map(s => s.trim().replace(/^"+|"+$/g, ''));
+  const units = {};
+  hdr.forEach((h, k) => units[h] = uni[k] || '');
+  const out = L.slice(i + 3).map(l => {
     const c = l.split('\t'); const o = {};
     hdr.forEach((h, k) => o[h] = (c[k] || '').trim());
     return o;
   }).filter(o => o.recno);
+  out.units = units;
+  return out;
 }
 
 const N = x => { const v = parseFloat(x); return isFinite(v) ? v : null; };
@@ -109,18 +127,41 @@ const r2 = x => x == null ? null : Math.round(x * 100) / 100;
 
 /* Sessagesimale "hh mm ss.s" / "+dd mm ss" -> gradi. VizieR fornisce _RA.icrs
    e _DE.icrs gia' calcolate: qui si converte solo il formato, non il sistema. */
-function hms2deg(s) {
+/* IL DIFETTO CHE QUESTA FIRMA CHIUDE.
+
+   `hms2deg` moltiplicava per 15 qualunque cosa ricevesse. Su Barnard, LDN e LBN —
+   sessagesimali — e' giusto. Su Dobashi, che arriva in gradi decimali, ogni
+   ascensione retta usciva quindici volte troppo grande: 246.0562 diventava
+   3690.843. Erano 2214 record su 4499, cioe' meta' del catalogo oscuro nel posto
+   sbagliato del cielo — e con essa visibilita', altezza sull'orizzonte e
+   separazione dalla Luna.
+
+   Duemilacentocinquantatre' si vedevano, perche' superavano i 360 gradi. SESSANTUNO
+   no: quelli con ascensione retta vera sotto le 24 gradi restavano sotto la soglia
+   e sembravano validi. Sono il motivo per cui questa correzione non poteva essere
+   «taglia i fuori scala»: andava corretta la conversione, e rifatto l'import. */
+function hms2deg(s, unit) {
   if (!s) return null;
-  const p = s.trim().split(/\s+/).map(parseFloat);
+  const t = String(s).trim();
+  if (!t) return null;
+  const p = t.split(/\s+/).map(parseFloat);
   if (!p.length || !isFinite(p[0])) return null;
+  // l'unita' dichiarata dalla fonte vince; in sua assenza decide la forma
+  const gradi = unit ? /deg/i.test(unit) : p.length === 1;
+  if (gradi) return p[0];
   return (p[0] + (p[1] || 0) / 60 + (p[2] || 0) / 3600) * 15;
 }
-function dms2deg(s) {
+/* La declinazione si e' salvata per caso: un valore decimale in un solo campo
+   somma a se' stesso e viene fuori giusto. Resta un caso fortunato, e le fortune
+   non si lasciano nel codice: anche qui l'unita' e' esplicita. */
+function dms2deg(s, unit) {
   if (!s) return null;
-  const neg = /^-/.test(s.trim());
-  const p = s.trim().replace(/^[+-]/, '').split(/\s+/).map(parseFloat);
+  const t = String(s).trim();
+  const neg = /^-/.test(t);
+  const p = t.replace(/^[+-]/, '').split(/\s+/).map(parseFloat);
   if (!p.length || !isFinite(p[0])) return null;
-  const v = p[0] + (p[1] || 0) / 60 + (p[2] || 0) / 3600;
+  const gradi = unit ? /deg/i.test(unit) : p.length === 1;
+  const v = gradi ? p[0] : (p[0] + (p[1] || 0) / 60 + (p[2] || 0) / 3600);
   return neg ? -v : v;
 }
 
@@ -155,8 +196,17 @@ function chiavi(cat, num) {
     dati[nome] = R;
     manifesto.push({ id: nome, source: FONTI[nome].src, ref: FONTI[nome].rif,
                      bibcode: FONTI[nome].bibcode, query: url, rows: R.length });
-    console.log(R.length + ' righe');
+    console.log(R.length + ' righe' +
+      (R.units && R.units['_RA.icrs'] ? '   _RA in ' + R.units['_RA.icrs'] : ''));
   }
+  /* Le unita' dichiarate da ciascuna fonte, raccolte in un posto solo: e' quello
+     che la conversione consulta invece di indovinare. */
+  const U = {};
+  for (const nome of Object.keys(FONTI))
+    U[nome] = { _RA: (dati[nome].units || {})['_RA.icrs'] || '',
+                _DE: (dati[nome].units || {})['_DE.icrs'] || '' };
+  console.log('  unita lette: ' + Object.entries(U)
+    .map(([k, v]) => k + ' ' + (v._RA || '?')).join('  ') + '\n');
 
   /* ── 2 · il curato, che ha la precedenza ─────────────────────────────── */
   const CAT = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'catalog.json'), 'utf8'));
@@ -250,7 +300,7 @@ function chiavi(cat, num) {
     rec({
       keys: ks.concat(xkeys),
       desig: 'TGU ' + tgu, cat: 'Dobashi', num: tgu,
-      ra_deg: r3(hms2deg(d['_RA.icrs'])), dec_deg: r3(dms2deg(d['_DE.icrs'])),
+      ra_deg: r3(hms2deg(d['_RA.icrs'], U.dobashi._RA)), dec_deg: r3(dms2deg(d['_DE.icrs'], U.dobashi._DE)),
       /* Estensioni lungo gli assi GALATTICI, non assi di un'ellisse: il riquadro
          e' orientato dalla griglia di misura, non dalla nube. L'angolo di
          posizione dell'oggetto resta ignoto, ed e' cosi' che va usato. */
@@ -292,7 +342,7 @@ function chiavi(cat, num) {
     rec({
       keys: ks.concat(bk),
       desig: 'LDN ' + num, cat: 'LDN', num: String(num),
-      ra_deg: r3(hms2deg(l['_RA.icrs'])), dec_deg: r3(dms2deg(l['_DE.icrs'])),
+      ra_deg: r3(hms2deg(l['_RA.icrs'], U.ldn._RA)), dec_deg: r3(dms2deg(l['_DE.icrs'], U.ldn._DE)),
       size_arcmin: d ? [d, d] : null,
       geom: 'derivata-da-area', pa_deg: null,
       raw: { area_deg2: area, opacity: op },
@@ -320,7 +370,7 @@ function chiavi(cat, num) {
     rec({
       keys: ks,
       desig: 'B ' + num, cat: 'Barnard', num,
-      ra_deg: r3(hms2deg(b['_RA.icrs'])), dec_deg: r3(dms2deg(b['_DE.icrs'])),
+      ra_deg: r3(hms2deg(b['_RA.icrs'], U.lbn._RA)), dec_deg: r3(dms2deg(b['_DE.icrs'], U.lbn._DE)),
       /* Un diametro solo: l'oggetto e' circolare per quanto il catalogo sappia. */
       size_arcmin: dia ? [dia, dia] : null,
       geom: 'catalogo-diametro', pa_deg: null,
@@ -355,7 +405,7 @@ function chiavi(cat, num) {
     rec({
       keys: ks.concat(ak),
       desig: 'LBN ' + num, cat: 'LBN', num: String(num),
-      ra_deg: r3(hms2deg(b['_RA.icrs'])), dec_deg: r3(dms2deg(b['_DE.icrs'])),
+      ra_deg: r3(hms2deg(b['_RA.icrs'], U.barnard._RA)), dec_deg: r3(dms2deg(b['_DE.icrs'], U.barnard._DE)),
       size_arcmin: (d1 && d2) ? [Math.max(d1, d2), Math.min(d1, d2)] : (d1 ? [d1, d1] : null),
       geom: 'catalogo-assi', pa_deg: null,
       raw: { diam1_arcmin: d1, diam2_arcmin: d2, area_deg2: N(b.Area),
