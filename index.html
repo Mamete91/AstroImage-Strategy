@@ -4219,19 +4219,21 @@ const $=id=>document.getElementById(id);
 
 async function boot(){
   try{
-    const [a,b,c,ci,og]=await Promise.all([
+    const [a,b,c,ci,og,dk]=await Promise.all([
       fetch('data/setups.json').then(r=>{if(!r.ok)throw 0;return r.json()}),
       fetch('data/targets.json').then(r=>{if(!r.ok)throw 0;return r.json()}),
       fetch('data/catalog.json').then(r=>r.ok?r.json():{objects:[]}).catch(()=>({objects:[]})),
       fetch('data/cities.json').then(r=>r.ok?r.json():{cities:[]}).catch(()=>({cities:[]})),
-      fetch('data/openngc.json').then(r=>r.ok?r.json():null).catch(()=>null)
+      fetch('data/openngc.json').then(r=>r.ok?r.json():null).catch(()=>null),
+      fetch('data/darkcat.json').then(r=>r.ok?r.json():null).catch(()=>null)
     ]);
-    DB=a; TG=b; CITIES=ci.cities||[]; CAT=mergeCatalog(c.objects||[],og); start();
+    DB=a; TG=b; CITIES=ci.cities||[]; CAT=mergeCatalog(c.objects||[],og,dk); start();
   }catch(e){
     if(window.__SETUPS__&&window.__TARGETS__){
       DB=window.__SETUPS__; TG=window.__TARGETS__;
       CITIES=(window.__CITIES__&&window.__CITIES__.cities)||[];
-      CAT=mergeCatalog((window.__CATALOG__&&window.__CATALOG__.objects)||[],window.__ONGC__||null);
+      CAT=mergeCatalog((window.__CATALOG__&&window.__CATALOG__.objects)||[],
+                       window.__ONGC__||null, window.__DARKCAT__||null);
       start(); return; }
     $('boot').innerHTML=`<div class="err">
       <b>Non riesco a leggere i file dati.</b><br>
@@ -4743,9 +4745,10 @@ const norm=x=>String(x).toLowerCase().replace(/[\s_'\u2019-]+/g,'');
      · ~13.300 da OPENNGC — tutto NGC e IC, con l'archetipo dedotto dal tipo e
        dalla morfologia, e la certezza di quella deduzione dichiarata.
    Il curato VINCE sempre: dove esiste una mano, la macchina si fa da parte. */
-function mergeCatalog(curated,ongc){
+function mergeCatalog(curated,ongc,dark){
   const out=curated.slice();
   curated.forEach(o=>{o.tier='curato'; o.archetype_confidence=o.archetype_confidence||'curato';});
+  mergeDark(out,curated,dark);
   if(!ongc||!ongc.objects) return out;
   const seen=new Set();
   for(const o of curated){
@@ -4780,6 +4783,61 @@ function mergeCatalog(curated,ongc){
       why:why||null,pa_deg:pa!=null?pa:null,tier:'openngc'});
   }
   return out;
+}
+
+/* LO STRATO DELLE NEBULOSE OSCURE E DIFFUSE — Barnard, Lynds, Dobashi.
+
+   Terzo strato del catalogo, accanto al curato e a OpenNGC, e con le stesse
+   regole: il curato vince sempre, niente sovrascrive una scheda scritta a mano.
+
+   Quello che questo strato NON porta, ed e' il punto. Nessuna classe dedotta
+   dall'appartenenza a un catalogo: «essere in Barnard» dice che nel 1919 si
+   vedeva scuro su una lastra, non che cosa sia l'oggetto. La classe arriva solo
+   dove esiste una misura — l'estinzione di Dobashi, l'opacita' di Lynds, il
+   colore fotografico di Palomar — e porta con se' su cosa poggia. Nessuna
+   emissione dedotta: per Ha, OIII e SII non c'e' evidenza di riga in nessuno di
+   questi cataloghi, quindi nessun oggetto importato riceve una prescrizione a
+   banda stretta. Una LBN piu' brillante sul rosso puo' essere Ha o un continuo
+   arrossato, e la differenza decide la ripresa: quegli oggetti restano senza
+   classe invece di riceverne una inventata.
+
+   Come OpenNGC, questi oggetti stanno nel catalogo ma NON nella pozza di «cosa
+   riprendo stanotte»: si trovano cercandoli. Non e' un giudizio di qualita', e'
+   che la pozza e' un calcolo per ogni oggetto a ogni aggiornamento, e quattromila
+   valutazioni non ci stanno in un refresh. */
+function mergeDark(out,curated,dark){
+  if(!dark||!dark.objects||!dark.fields) return;
+  const F=Object.fromEntries(dark.fields.map((f,i)=>[f,i]));
+  const P=dark.phrases||[];
+  const frase=i=>(i==null?null:(P[i]!=null?P[i]:null));
+  const seen=new Set();
+  for(const o of curated){
+    seen.add(norm(o.name));
+    (o.aliases||[]).forEach(a=>seen.add(norm(a)));
+  }
+  for(const a of dark.objects){
+    const desig=a[F.desig], xref=a[F.xref]||[];
+    if(seen.has(norm(desig))) continue;
+    if(xref.some(x=>seen.has(norm(x)))) continue;
+    const sz=a[F.size_arcmin];
+    out.push({
+      name:desig, aliases:xref.slice(),
+      ra_deg:a[F.ra_deg], dec_deg:a[F.dec_deg],
+      size_arcmin:sz&&sz.length?sz:[1,1],
+      /* L'angolo di posizione non c'e' in nessuna di queste fonti: resta ignoto,
+         e objectExtent() applica la convenzione isotropa dichiarandolo. */
+      pa_deg:null, mag:null,
+      archetype:a[F.cls]||null,
+      archetype_confidence:a[F.clsConf]||null,
+      /* La provenienza viaggia con l'oggetto: geometria, base della classe e
+         evidenze restano leggibili fino all'interfaccia. */
+      geom_basis:a[F.geom], class_basis:frase(a[F.clsBasis]),
+      evidence:(a[F.ev]||[]).map(e=>({what:frase(e[0]),from:frase(e[1]),
+                                      value:e[2],conf:frase(e[3])})),
+      raw:a[F.raw]||null, source_cat:a[F.cat],
+      tier:'dark'
+    });
+  }
 }
 
 /* Le 13 schede curate vivono in targets.json e non passano dal merge del catalogo:
@@ -5777,6 +5835,28 @@ function renderRx(np){
     /* Una stella o una coppia di stelle non è un oggetto deep-sky esteso: il motore
        non ha niente da prescriverle, ma dirlo è comunque una risposta — molto meglio
        di «non trovato», che manderebbe a cercare un errore di battitura. */
+    /* DUE MOTIVI DIVERSI PER NON AVERE UNA CLASSE, e vanno detti diversamente.
+
+       Una stella non e' un oggetto esteso: il motore non ha niente da prescriverle,
+       e non lo avra' mai. Una nebulosa importata senza classe e' un'altra cosa: e'
+       un oggetto deep-sky a tutti gli effetti, e a mancare e' l'EVIDENZA per
+       decidere che cosa riprenderci. Confondere le due sarebbe dire a chi cerca
+       LBN 1 che non e' un bersaglio, quando il problema e' che il colore di una
+       lastra di Palomar non basta a distinguere l'Ha da un continuo arrossato. */
+    if(o&&!o.archetype&&o.tier==='dark'){
+      const ev=(o.evidence||[]).map(e=>`<li><b>${esc(e.what)}</b>: ${esc(e.value)}
+        <span class="muted">— ${esc(e.from)}, ${esc(e.conf)}</span></li>`).join('');
+      out.innerHTML=`<div class="rx warn"><h3>${esc(o.name)} — classe non determinata</h3>
+        <p class="small">È un oggetto reale e catalogato, ma <b>non ho l'evidenza per
+        stabilire che cosa emette</b>, e senza quella una prescrizione sarebbe inventata.
+        ${o.class_basis?esc(o.class_basis)+'.':''}</p>
+        ${ev?`<p class="small" style="margin-bottom:4px">Quello che so:</p>
+          <ul class="small" style="margin:0 0 10px 18px">${ev}</ul>`:''}
+        <p class="small">Geometria da <b>${esc(o.geom_basis||'—')}</b>, angolo di posizione
+        non disponibile in nessuna delle fonti. Se sai tu che cosa emette, aggiungilo
+        fra i tuoi oggetti con la classe giusta: da quel momento vale la tua.</p></div>`;
+      return;
+    }
     if(o&&!o.archetype){
       out.innerHTML=`<div class="rx warn"><h3>${esc(o.name)} — non è un bersaglio deep-sky</h3>
         <p class="small">Il catalogo lo classifica come <b>${esc(o.type||'stella')}</b>
