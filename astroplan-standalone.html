@@ -1048,7 +1048,7 @@ td.archcell{max-width:120px}
             La catena che decide tutto il resto.</div>
         </div>
         <div class="ch-act">
-          <button class="fn fn-cfg" id="btnGear" title="Modifica o elimina uno strumento che hai aggiunto tu">⚙ Gestisci</button>
+          <button class="fn fn-cfg" id="btnGear" title="Aggiungi, modifica o elimina i telescopi, le camere e le montature che hai inserito tu. Il catalogo non si tocca.">⚙ Gestisci</button>
         </div>
       </div>
       <div class="card-body">
@@ -12321,11 +12321,7 @@ function start(){
     if($('red').value==='__addred'){ addReducer(); return; }
     readCfg(); syncRms(); readSite(); refresh();
   });
-  $('btnGear').onclick=()=>{
-    const own=['tel','cam','mnt'].filter(k=>gearList(k).find(x=>x.id===$(k).value&&x.user));
-    if(!own.length){ gearMsg('dim','Nessuno strumento personalizzato selezionato. Usa <b>+ Aggiungi…</b> in una delle tendine.'); return; }
-    openGearForm(own[0],$(own[0]).value);
-  };
+  $('btnGear').onclick=()=>openGearManager();
   ['sqm','hor','cnf'].forEach(id=>
     $(id).addEventListener('input',()=>{
       if(id==='sqm') $('sqm').dataset.src='manuale';
@@ -12440,6 +12436,82 @@ function renderGearSelects(){
 
 const fld=(id,lab,val,extra='')=>`<label class="f" style="flex:1;min-width:120px">${lab}
   <input id="gf_${id}" value="${val==null?'':val}" ${extra}></label>`;
+
+/* IL GESTORE DELLA STRUMENTAZIONE.
+
+   Il tasto «Gestisci» apriva la scheda di modifica soltanto se lo strumento
+   selezionato in quel momento era stato aggiunto da te. Con la strumentazione di
+   catalogo — che e' lo stato normale di chiunque — non apriva niente: scriveva
+   una riga in fondo alla card, duecento pixel piu' in basso del tasto e fuori
+   dallo schermo. Il messaggio c'era, ma non dove uno guarda, e un controllo che
+   non risponde dove lo premi e' un controllo morto anche quando funziona.
+
+   Adesso apre l'elenco di quello che hai aggiunto tu — telescopi, camere,
+   montature — con modifica ed eliminazione, e i tre modi per aggiungerne. Fa
+   qualcosa in ogni stato, e lo fa dove hai cliccato. Non duplica niente: usa
+   `openGearForm()` e `delGear()`, che gia' esistevano. */
+const GEAR_VUOTO={tel:'Nessun telescopio aggiunto da te.',
+                  cam:'Nessuna camera aggiunta da te.',
+                  mnt:'Nessuna montatura aggiunta da te.'};
+const GEAR_ADD  ={tel:'+ Aggiungi un telescopio',
+                  cam:'+ Aggiungi una camera',
+                  mnt:'+ Aggiungi una montatura'};
+
+/* Una riga sola che dica di che pezzo si tratta: senza, un elenco di nomi non
+   aiuta a riconoscere quello che si vuole toccare. */
+function gearOneLine(kind,x){
+  if(kind==='tel'){
+    const f=x.aperture_mm>0?(x.focal_mm/x.aperture_mm):0;
+    return `${fmt(x.aperture_mm,0)} mm${f?` f/${fmt(f,1)}`:''} · ${fmt(x.focal_mm,0)} mm`+
+      ((x.reducers||[]).filter(r=>r.factor!==1).length
+        ? ` · riduttori ${x.reducers.filter(r=>r.factor!==1).map(r=>r.factor+'×').join(', ')}`:'');
+  }
+  if(kind==='cam') return `${x.width_px}×${x.height_px} px · ${fmt(x.pixel_um,2)} µm`+
+    (x.sensor?` · ${esc(x.sensor)}`:'');
+  return `RMS ${fmt(x.rms_typ_arcsec,1)}″${x.max_sub_s?` · posa max ${x.max_sub_s} s`:''}`;
+}
+
+/* `pending` chiede conferma su una riga sola, in linea. L'app non usa i dialoghi
+   del browser da nessuna parte, e la strumentazione aggiunta a mano vive solo in
+   questo browser: cancellarla per un clic di troppo la perde davvero. */
+function openGearManager(pending){
+  const sez=Object.keys(GEAR_KEY).map(k=>{
+    const mie=gearList(k).filter(x=>x.user);
+    const righe=mie.length ? mie.map(x=>{
+      const inUso=$(k).value===x.id;
+      const chiede=pending&&pending.kind===k&&pending.id===x.id;
+      return `<div class="altrow">
+        <span class="n"><b>${esc(x.name)}</b>${inUso?' <span class="pill p-dim">in uso</span>':''}
+          <div class="small muted">${gearOneLine(k,x)}</div></span>
+        ${chiede
+          ? `<span class="small p-warn" style="align-self:center;margin-right:6px">Eliminarla?</span>
+             <button class="chip fn fn-bad" onclick="gearDelFromManager('${k}','${x.id}')">Sì, elimina</button>
+             <button class="chip fn fn-cfg" onclick="openGearManager()">Annulla</button>`
+          : `<button class="chip fn fn-cfg" onclick="openGearForm('${k}','${x.id}')">Modifica</button>
+             <button class="chip fn fn-bad" onclick="openGearManager({kind:'${k}',id:'${x.id}'})">Elimina</button>`}
+      </div>`;
+    }).join('') : `<p class="small muted" style="margin:4px 0 0">${GEAR_VUOTO[k]}</p>`;
+    return `<h4 style="margin:16px 0 6px;font-size:13px">${GEAR_LBL[k].charAt(0).toUpperCase()+GEAR_LBL[k].slice(1)}</h4>
+      ${righe}
+      <button class="chip fn fn-cfg" style="margin-top:8px"
+        onclick="openGearForm('${k}',null)">${GEAR_ADD[k]}</button>`;
+  }).join('');
+
+  const quante=Object.keys(GEAR_KEY).reduce((a,k)=>a+gearList(k).filter(x=>x.user).length,0);
+  $('gearBody').innerHTML=`<h3>La tua strumentazione</h3>
+    <p class="small muted">${quante
+      ? 'Quello che hai aggiunto tu. Il catalogo non si tocca: da qui passano solo i tuoi pezzi.'
+      : 'Non hai ancora aggiunto niente di tuo. Il catalogo copre la strumentazione più diffusa; se il tuo pezzo non c\'è, aggiungilo qui e resta salvato in questo browser.'}</p>
+    ${sez}`;   // la scheda ha gia' il suo «Chiudi» in alto: due sarebbero uno di troppo
+  $('gearSheet').classList.add('on');
+}
+
+/* delGear() chiude la scheda: dal gestore invece si torna al gestore, perche'
+   chi sta facendo pulizia di solito ne cancella piu' di uno. */
+function gearDelFromManager(kind,id){
+  delGear(kind,id);
+  openGearManager();
+}
 
 function openGearForm(kind,editId){
   const item=editId?gearList(kind).find(x=>x.id===editId):null;
