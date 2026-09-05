@@ -381,6 +381,13 @@ label.f > input, label.f > select{text-transform:none;font-size:14px;letter-spac
   color:var(--dim);border:1px solid var(--line);background:var(--sunken);
   white-space:nowrap}
 
+/* L'avviso sui filtri: sta SOPRA la prescrizione, non al suo posto. Il bordo a
+   sinistra e' lo stesso stilema degli altri avvisi del piano. */
+.rx-warn{margin:0 0 12px;padding:10px 14px;border-radius:10px;font-size:12.5px;line-height:1.5;
+  background:var(--surface-2);border-left:3px solid var(--dim2);color:var(--dim)}
+.rx-warn b{color:var(--fg)}
+.rx-warn.bad{border-left-color:var(--bad)}
+
 .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;
   border:1px solid currentColor;white-space:nowrap}
 .p-ok{color:var(--ok)} .p-warn{color:var(--warn)} .p-bad{color:var(--bad)} .p-dim{color:var(--dim)}
@@ -2328,7 +2335,33 @@ function prescribe(e,hours,dv,panels){
       acc:roadSum(parts,v=>v.accessible,dual),
       floor:roadSum(parts,v=>v.floor,dual)};
   });
-  const cand=roads.filter(x=>x.distinct);
+  /* LE STRADE CHE PUOI DAVVERO PERCORRERE, con i filtri che hai in ruota.
+
+     Il motore sceglieva fra tutte le strade della scheda senza guardare la ruota:
+     su NGC 6888 con venti ore prendeva SHO e assegnava otto ore al SII anche a chi
+     un SII non ce l'ha. Non era un avviso mancato — l'avviso c'era in meta' dei
+     casi — era una PRESCRIZIONE IMPOSSIBILE: di venti ore ne restavano eseguibili
+     undici, e le altre nove non venivano ridistribuite. Con un corredo completo il
+     difetto non si manifesta mai, ed e' il motivo per cui e' rimasto nascosto; ma
+     chi ha solo un dual-band e una camera a colori — cioe' moltissimi — riceveva
+     tre prescrizioni su tredici che non poteva eseguire.
+
+     La regola: una strada e' percorribile se ogni canale che porta SEGNALE DEL
+     SOGGETTO ha un filtro. I canali a quota zero — l'RGB per le sole stelle —
+     degradano con eleganza: cadono con una nota, non squalificano la strada,
+     perche' senza il colore delle stelle l'immagine esiste lo stesso.
+
+     E non si arriva mai a un vicolo cieco: se nessuna strada e' percorribile si
+     sceglie comunque la migliore e si dichiara che cosa manca. E' la stessa regola
+     del «non ci sta» e del «non si puo' pianificare» — il motore prescrive, poi
+     dice che cosa serve. */
+  const hasFilter=b=>!dv||!dv.c||!!filterFor(b,dv.c);
+  const mancantiDi=x=>Object.entries(x.parts)
+    .filter(([b,v])=>v.useful>0&&(v.share||0)>0&&!hasFilter(b)).map(([b])=>b);
+  const cand0=roads.filter(x=>x.distinct);
+  const cand0Perc=cand0.filter(x=>mancantiDi(x).length===0);
+  const filterLimited=cand0Perc.length>0&&cand0Perc.length<cand0.length;
+  const cand=cand0Perc.length?cand0Perc:cand0;
   const byIdeal=cand.slice().sort((a,b)=>b.ideal-a.ideal);
 
   let chosen=null;
@@ -2336,6 +2369,19 @@ function prescribe(e,hours,dv,panels){
   if(!chosen) for(const c of byIdeal) if(hours>=c.acc-1e-9){ chosen=c; break; }
   if(!chosen) for(const c of byIdeal) if(hours>=c.floor-1e-9){ chosen=c; break; }
   if(!chosen) chosen=cand.slice().sort((a,b)=>a.floor-b.floor)[0];
+
+  /* Il canale per le sole stelle senza filtro cade qui, prima del riempimento:
+     non ha senso assegnargli ore, e la strada resta valida senza. */
+  const starsDropped=[];
+  for(const [b,v] of Object.entries(chosen.parts))
+    if(v.useful>0&&(v.share||0)===0&&!hasFilter(b)){ starsDropped.push(b); delete chosen.parts[b]; }
+
+  /* Che cosa manca sulla strada SCELTA — non su quella di default, che era il
+     motivo per cui quattro casi su otto non davano nessun avviso. E che cosa si
+     aprirebbe avendolo: e' l'informazione utile, non il rimprovero. */
+  const missing=mancantiDi(chosen);
+  const bloccate=cand0.filter(x=>mancantiDi(x).length>0)
+    .map(x=>({road:x.r.id,name:x.r.name,needs:mancantiDi(x)}));
 
   const groups=costGroups(chosen.parts,dual);
   const critG=groups.find(g=>g.critical)||groups[0];
@@ -2403,6 +2449,11 @@ function prescribe(e,hours,dv,panels){
 
   return {level,road:chosen.r,roadTotals:{ideal:chosen.ideal,acc:chosen.acc,floor:chosen.floor},
           roads:cand,alt:roads.filter(x=>!x.distinct),
+          /* La ruota che hai, e che cosa ha deciso. `missing` e' vuoto ogni volta
+             che una strada percorribile esiste; `filterLimited` dice che la scelta
+             e' stata ristretta dai filtri e non dalle ore; `blocked` elenca che
+             cosa si aprirebbe comprando che cosa. */
+          missing,filterLimited,blocked:bloccate,starsDropped,
           alloc,spent,unused:Math.max(0,hours-spent),critGroup:critG.id,needed,short,
           expect:exp,nights,weeks,hours,
           /* `spent` e `hours` restano PER PANNELLO — e' cosi' che li usano posa,
@@ -6649,14 +6700,36 @@ function renderRx(np){
   const L=RXLVL[pr.level];
   const ba=binAdvice(CFG,SITE.fwhm);
 
-  // filtri mancanti: prima di ogni altra cosa
-  if(e.missing.length){
-    out.innerHTML=`<div class="rx bad"><h3>${esc(t.names[0])} — ti manca il filtro</h3>
-      <p class="small">La tecnica consigliata richiede <b>${e.missing.join(', ')}</b> e nella tua
-      ruota non c'è. Non è una questione di ore: senza quel filtro l'immagine non esiste.
-      Se ce l'hai e non l'ho registrato, aggiungilo da <b>Filtri…</b> qui sotto.</p></div>`;
-    return;
-  }
+  /* I FILTRI: UN AVVISO, NON UN VICOLO CIECO.
+
+     Qui c'era la terza schermata che sostituiva la prescrizione — «ti manca il
+     filtro», e fine. Era anche mal fondata: guardava `e.missing`, calcolato sulla
+     strada di DEFAULT della scheda, quindi scattava su strade che il motore non
+     avrebbe nemmeno scelto e taceva su quelle che sceglieva davvero.
+
+     Adesso e' `prescribe` a occuparsene: sceglie fra le strade percorribili con la
+     ruota che hai, e quando restringe lo dichiara. Restano due cose da dire, e si
+     dicono SOPRA la prescrizione invece che al suo posto:
+
+       ristretta   una strada migliore esiste ma ti manca un filtro. La
+                   prescrizione qui sotto e' quella giusta per cio' che hai.
+       impossibile nessuna strada e' percorribile: qui il filtro serve davvero, e
+                   si dice quale. La prescrizione resta comunque, perche' e' cio'
+                   che il soggetto chiede e sapere quanto costa e' informazione. */
+  const filtNote = pr.missing && pr.missing.length
+    ? `<div class="rx-warn bad"><b>Per questo oggetto ti serve un filtro ${esc(pr.missing.join(' e '))}.</b>
+        Ogni tecnica che la scheda prevede lo richiede: non e' una questione di ore.
+        La prescrizione qui sotto e' quella completa — serve a sapere che cosa
+        comporterebbe — ma con la ruota di adesso ${pr.missing.length>1?'quei canali':'quel canale'}
+        non ${pr.missing.length>1?'sono':'e'} riprendibil${pr.missing.length>1?'i':'e'}.
+        Se il filtro ce l'hai e non l'ho registrato, aggiungilo da <b>Filtri</b>.</div>`
+    : (pr.filterLimited&&pr.blocked&&pr.blocked.length
+      ? `<div class="rx-warn"><b>Strategia scelta sui filtri che hai.</b>
+          ${pr.blocked.length===1?'Una tecnica in piu':'Altre tecniche'} si aprirebbe${pr.blocked.length===1?'':'ro'}
+          con ${esc([...new Set(pr.blocked.flatMap(b=>b.needs))].join(' e '))}:
+          <b>${esc(pr.blocked.map(b=>b.name||b.road).join(', '))}</b>.
+          Quella qui sotto e' la migliore percorribile con la ruota di adesso.</div>`
+      : '');
 
   const stellarT=!!(TG.archetypes[t.archetype]||{}).stellar;
   const rows=pr.alloc.map(g=>{
@@ -6906,7 +6979,7 @@ function renderRx(np){
           `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u.replace(/^https?:\/\//,'').split('/')[0])}</a>`).join(' &middot; ')}</p>`:''}
       </div></details>`;
   })();
-  out.innerHTML=`<div class="rx ${L.cls}">
+  out.innerHTML=`${filtNote}<div class="rx ${L.cls}">
     <div class="rxhead">
       <h3>${head} <span class="pill ${L.pill}" style="vertical-align:middle">${L.k}</span></h3>
       ${actions}

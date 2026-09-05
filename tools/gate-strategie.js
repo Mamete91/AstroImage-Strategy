@@ -251,6 +251,147 @@ H('G · LA LUNA RESTA COERENTE E PER CANALE');
     pen.map(x => F(x, 3)).join(' >= '));
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+H('H · LA RUOTA CHE HAI DAVVERO — nessuna prescrizione impossibile');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* Il motore sceglieva fra tutte le strade della scheda senza guardare la ruota:
+     con venti ore su NGC 6888 prendeva SHO e assegnava otto ore al SII anche a chi
+     un SII non ce l'ha. Non era un avviso mancato — era una prescrizione che quella
+     persona non poteva eseguire, e di venti ore ne restavano undici senza che le
+     altre nove venissero ridistribuite.
+
+     Con un corredo completo il difetto non si manifesta mai, ed e' esattamente il
+     motivo per cui e' rimasto nascosto: la suite gira sui filtri di serie. Questo
+     blocco gira invece sui corredi che la gente ha davvero. */
+  const ENG=require('./lib/engine.js');
+  const fs=require('fs'), path=require('path');
+  const RT=path.join(__dirname,'..');
+  const pure=fs.readFileSync(path.join(RT,'index.html'),'utf8')
+    .split('<script>')[1].split('</script>')[0]
+    .split('/* =====================================================================\n   UI')[0];
+  const DBx=JSON.parse(fs.readFileSync(path.join(RT,'data','setups.json'),'utf8'));
+  const TGx=JSON.parse(fs.readFileSync(path.join(RT,'data','targets.json'),'utf8'));
+  const CATx=JSON.parse(fs.readFileSync(path.join(RT,'data','catalog.json'),'utf8'));
+  const CITx=JSON.parse(fs.readFileSync(path.join(RT,'data','cities.json'),'utf8'));
+  const RUOTA=[];                                   // la ruota, manipolabile
+  const ctx={DB:DBx,TG:TGx,CAT:CATx.objects,CITIES:CITx.cities,OWNED:RUOTA,
+    console,Math,Date,Object,JSON,isFinite,parseFloat,parseInt,Number,window:{}};
+  const Mx=new Function(...Object.keys(ctx),pure+`return {derive,evaluate,prescribe,
+    nightProfile,effFWHM,filterFor};`)(...Object.values(ctx));
+
+  const st={lat:46.0167,lon:10.3333,sqm:20.8,seeing:1.6,rms:0.6,horizonMin:20,clearFrac:0.35};
+  st.fwhm=Mx.effFWHM(st.seeing,st.rms);
+  const npx=Mx.nightProfile(new Date(2026,8,6),st.lat,st.lon);
+  const mono=Mx.derive({tel:'rc8',red:'1',cam:'asi2600mm',mnt:'cem70g',bin:1});
+  const osc =Mx.derive({tel:'askar71f',red:0.75,cam:'asi2600mc',mnt:'am5',bin:1});
+  const ruota=ids=>{ RUOTA.length=0; ids.forEach(i=>RUOTA.push(i)); };
+  const tutti=DBx.default_filters.slice();
+
+  /* Il numero che conta: ore assegnate a un canale che quella ruota non copre,
+     senza che nessuna strada alternativa sia stata provata. */
+  const impossibili=(dv)=>{
+    let n=0, ore=0, muti=0, esempi=[];
+    for(const tg of TGx.targets){
+      let e,pr; try{ e=Mx.evaluate(tg,dv,st,npx,{}); pr=Mx.prescribe(e,20,dv,1); }catch(err){ continue; }
+      const senza=pr.alloc.filter(g=>!g.dropped&&g.hours>0&&
+        (g.bands||[]).some(b=>!Mx.filterFor(b,dv.c)));
+      if(!senza.length) continue;
+      n++; ore+=senza.reduce((a,g)=>a+g.hours,0);
+      if(!pr.missing.length) { muti++; esempi.push(tg.names[0]); }
+    }
+    return {n,ore,muti,esempi};
+  };
+
+  const corredi=[
+    ['completo (di serie)',tutti],
+    ['Ha+OIII+LRGB, niente SII',tutti.filter(f=>!/^s2|^sii/.test(f))],
+    ['solo un dual-band',['lult']],
+    ['solo camera a colori',[]],
+  ];
+  console.log('  '+P('corredo',30)+P('mono',18)+'OSC');
+  console.log('  '+'─'.repeat(64));
+  let mutiTot=0;
+  for(const [lab,ids] of corredi){
+    ruota(ids);
+    const a=impossibili(mono), b=impossibili(osc);
+    mutiTot+=a.muti+b.muti;
+    console.log('  '+P(lab,30)+
+      P(a.n?a.n+' su '+TGx.targets.length+', '+F(a.ore,0)+' h':'nessuna',18)+
+      (b.n?b.n+' su '+TGx.targets.length+', '+F(b.ore,0)+' h':'nessuna'));
+  }
+  chk('nessun corredo produce una prescrizione impossibile IN SILENZIO',
+    mutiTot===0, mutiTot?mutiTot+' casi muti':'ogni caso residuo dichiara il filtro che manca');
+
+  /* Il caso che ha aperto la questione, misurato. */
+  ruota(tutti.filter(f=>!/^s2|^sii/.test(f)));
+  {
+    const cres=TGx.targets.find(t=>/6888/.test(t.names.join(' ')));
+    const pr=Mx.prescribe(Mx.evaluate(cres,mono,st,npx,{}),20,mono,1);
+    console.log('       NGC 6888 senza SII: strada '+pr.road.id+
+      (pr.filterLimited?' (ristretta dai filtri)':'')+
+      ' · '+pr.alloc.filter(g=>g.hours>0).map(g=>g.id+' '+F(g.hours,1)+'h').join(' '));
+    chk('senza SII il Crescent ripiega su HOO invece di prescrivere il SII',
+      pr.road.id==='hoo'&&!pr.alloc.some(g=>g.id==='SII'&&g.hours>0),true);
+    chk('e dichiara che la scelta e stata ristretta dai filtri',
+      pr.filterLimited&&pr.blocked.some(b=>b.needs.includes('SII')),
+      'con SII si aprirebbe '+pr.blocked.map(b=>b.road).join(', '));
+    /* Il guadagno vero non e' «spende tutte le venti ore» — HOO ha un utile di
+       15.5 h e oltre quello il motore non gonfia niente, il surplus resta
+       `unused`. Il guadagno e' che le ore ESEGUIBILI aumentano: prima chi non
+       aveva il SII riceveva SHO e poteva realizzarne 10.7 su 20, adesso riceve
+       HOO e le realizza tutte. */
+    const eseguibili=g=>g.filter(x=>x.hours>0&&(x.bands||[]).every(b=>Mx.filterFor(b,mono.c)))
+      .reduce((a,x)=>a+x.hours,0);
+    ruota(tutti);
+    const conSII=Mx.prescribe(Mx.evaluate(cres,mono,st,npx,{}),20,mono,1);
+    ruota(tutti.filter(f=>!/^s2|^sii/.test(f)));
+    const prNo=Mx.prescribe(Mx.evaluate(cres,mono,st,npx,{}),20,mono,1);
+    const persePrima=conSII.alloc.filter(x=>x.id==='SII').reduce((a,x)=>a+x.hours,0);
+    console.log('       con la vecchia scelta avrebbe ricevuto '+conSII.road.id+
+      ' e perso '+F(persePrima,1)+' h sul SII; ora riceve '+prNo.road.id+
+      ' con '+F(eseguibili(prNo.alloc),1)+' h tutte eseguibili');
+    chk('e le ore eseguibili aumentano invece di finire su un filtro assente',
+      eseguibili(prNo.alloc)>eseguibili(conSII.alloc)+1,
+      F(eseguibili(prNo.alloc),1)+' h contro '+F(eseguibili(conSII.alloc),1)+' h');
+    chk('senza lasciare una sola ora su un canale che non puoi riprendere',
+      prNo.alloc.every(x=>x.hours===0||(x.bands||[]).every(b=>Mx.filterFor(b,mono.c))),true);
+  }
+
+  /* Dove NESSUNA strada e' percorribile non si finisce in un vicolo cieco: la
+     prescrizione resta e il filtro mancante si dichiara. */
+  ruota([]);
+  {
+    const cres=TGx.targets.find(t=>/6888/.test(t.names.join(' ')));
+    const pr=Mx.prescribe(Mx.evaluate(cres,osc,st,npx,{}),20,osc,1);
+    chk('con nessun filtro la prescrizione arriva lo stesso',
+      pr.alloc.some(g=>g.hours>0), pr.alloc.filter(g=>g.hours>0).map(g=>g.id).join('+'));
+    chk('e dice esattamente quale filtro serve',
+      pr.missing.length>0, 'serve '+pr.missing.join(' e '));
+    /* Le galassie invece restano riprendibili: la matrice di Bayer e' il filtro. */
+    const m31=TGx.targets.find(t=>t.names[0]==='M31');
+    const pm=Mx.prescribe(Mx.evaluate(m31,osc,st,npx,{}),20,osc,1);
+    chk('mentre su una galassia la matrice di Bayer basta, e non chiede niente',
+      pm.missing.length===0, 'strada '+pm.road.id);
+  }
+
+  /* L'RGB per le sole stelle non deve squalificare una strada: senza R G B in
+     ruota la banda stretta si fa lo stesso, si perde il colore delle stelle. */
+  ruota(['ha3','o3_3','s2_3']);
+  {
+    const cres=TGx.targets.find(t=>/6888/.test(t.names.join(' ')));
+    const pr=Mx.prescribe(Mx.evaluate(cres,mono,st,npx,{}),20,mono,1);
+    console.log('       con soli Ha OIII SII: strada '+pr.road.id+' · canali '+
+      pr.alloc.filter(g=>g.hours>0).map(g=>g.id).join('+')+
+      (pr.starsDropped.length?' · caduto '+pr.starsDropped.join(','):''));
+    chk('senza R G B la banda stretta resta percorribile',
+      pr.missing.length===0&&pr.alloc.some(g=>g.hours>0), 'strada '+pr.road.id);
+    chk('e il canale per le sole stelle cade con una nota invece di bloccare tutto',
+      pr.starsDropped.includes('RGB'), pr.starsDropped.join(',')||'nessuno');
+  }
+  ruota(tutti);
+}
+
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
 if (ko) process.exitCode = 1;
 module.exports = { ok, ko };
