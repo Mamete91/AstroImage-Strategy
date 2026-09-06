@@ -353,6 +353,59 @@ H('H · LA LARGHEZZA CHE CONTA È QUELLA DELLA BANDA CHIESTA');
   ruota(DB.default_filters);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+H('I · UNA SOLA LARGHEZZA PER BANDA, IN TUTTO IL MOTORE');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* Il costo dell'inquinamento luminoso sul canale che decide l'immagine viene
+     calcolato in due punti: nel budget di ogni banda (`skyFactor`) e nella finestra
+     della notte (`lpF`). E' la STESSA grandezza fisica, e deve uscire uguale.
+
+     Non usciva. Il budget era passato alla larghezza della FINESTRA, la finestra
+     della notte era rimasta al riassunto SCALARE del filtro. Si vedeva solo dove i
+     due divergono — un L-eNhance riassume 10 nm e sull'OIII ne apre 24 — e li'
+     valeva +81% a SQM 17.8. Su ogni altro filtro del catalogo le due larghezze
+     coincidono e il difetto era invisibile: per questo va provato con QUEL filtro. */
+  const RUOTE = [
+    ['L-eNhance 10/24', ['lenh'], 'asi2600mc'],
+    ['L-Ultimate 3/3', ['lult'], 'asi2600mc'],
+    ['3 nm mono', ['ha3', 'o3_3', 's2_3', 'lum', 'red', 'grn', 'blu'], 'asi2600mm'],
+  ];
+  const istanza = (ruota) => {
+    const ctxx = { DB, TG, CAT: CAT.objects, CITIES: CIT.cities, OWNED: ruota.slice(),
+      console, Math, Date, Object, JSON, isFinite, parseFloat, parseInt, Number, window: {} };
+    return new Function(...Object.keys(ctxx), pure +
+      `return {derive,evaluate,nightProfile,effFWHM};`)(...Object.values(ctxx));
+  };
+  const stx = { lat: 46.0167, lon: 10.3333, seeing: 1.6, rms: 0.6, horizonMin: 20, clearFrac: 0.35 };
+  const cres = TG.targets.find(x => /6888/.test(x.names.join(' ')));
+  let peggio = 0, dove = '';
+  for (const [lab, ruota, cam] of RUOTE) {
+    const Mx = istanza(ruota);
+    stx.fwhm = Mx.effFWHM(1.6, 0.6);
+    const npx = Mx.nightProfile(new Date(2026, 8, 11), stx.lat, stx.lon);
+    const dv = Mx.derive({ tel: 'askar71f', red: 0.75, cam, mnt: 'am5', bin: 1 });
+    for (const q of [20.0, 18.5, 17.8]) {
+      const e = Mx.evaluate(cres, dv, Object.assign({}, stx, { sqm: q }), npx, {});
+      const cb = e.critBand, sf = e.budget && e.budget[cb] ? e.budget[cb].skyFactor : null;
+      if (e.lpF == null || sf == null) continue;
+      const sc = Math.abs(e.lpF * sf - 1) * 100;
+      if (sc > peggio) { peggio = sc; dove = lab + ' SQM ' + q; }
+      if (q === 17.8) console.log('       ' + P(lab, 18) + 'SQM ' + q + '   lpF ' + F(e.lpF, 4) +
+        '   1/skyFactor ' + F(1 / sf, 4) + '   scarto ' + F(sc, 2) + '%');
+    }
+  }
+  chk('il costo dell inquinamento e lo stesso numero ovunque lo si calcoli',
+    peggio < 0.01, peggio > 0.01 ? 'fino a ' + F(peggio, 1) + '% su ' + dove
+                                 : 'scarto massimo ' + F(peggio, 4) + '%');
+
+  /* E la riga che lo garantisce, perche' e' un ritorno indietro di un carattere. */
+  const src = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  chk('la finestra della notte usa la larghezza della banda, non il riassunto',
+    /const critFwhm=bandWidth\(critFilter,critBand\);/.test(src),
+    /critFilter\?critFilter\.fwhm_nm/.test(src) ? 'E TORNATO IL RIASSUNTO SCALARE' : 'bandWidth');
+}
+
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
 if (ko) process.exitCode = 1;
 module.exports = { ok, ko };

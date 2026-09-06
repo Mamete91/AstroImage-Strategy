@@ -1936,7 +1936,13 @@
     }
    ],
    "pavimento_rumore_e": 1.2,
-   "cfa_response": "sony_bayer_generic"
+   "cfa_response": "sony_bayer_generic",
+   "saturazione_e": 51400,
+   "saturazione_fonte": {
+    "esito": "dichiarato",
+    "come": "ZWO dichiara 51,4 ke- per l'ASI6200 (mono e colore montano lo stesso silicio). Grandezza identificabile con la carica di saturazione del fotodiodo: e' il tetto oltre cui nessun modo di guadagno puo' andare. Stesso passo di pixel dell'IMX571 (3,76 um) e stessa famiglia STARVIS retroilluminata, e il valore e' coerente con i 48,2 ke- misurati EMVA su quel sensore.",
+    "conf": "media"
+   }
   },
   {
    "id": "imx533",
@@ -1963,7 +1969,13 @@
     "conf": "media"
    },
    "pavimento_rumore_e": 1.2,
-   "cfa_response": "sony_bayer_generic"
+   "cfa_response": "sony_bayer_generic",
+   "saturazione_e": 50000,
+   "saturazione_fonte": {
+    "esito": "dichiarato",
+    "come": "ZWO dichiara 50 ke- per l'ASI533. Stesso passo di pixel e stessa famiglia dell'IMX571 e dell'IMX455, e il valore ci sta in mezzo: coerente.",
+    "conf": "media"
+   }
   },
   {
    "id": "imx294",
@@ -2170,7 +2182,13 @@
     "conf": "media"
    },
    "pavimento_rumore_e": 1.5,
-   "cfa_response": "sony_bayer_generic"
+   "cfa_response": "sony_bayer_generic",
+   "saturazione_e": 100000,
+   "saturazione_fonte": {
+    "esito": "dichiarato",
+    "come": "ZWO dichiara 100 ke- per l'ASI2400MC. E' il pozzetto piu' profondo del catalogo e non sorprende: 5,94 um di lato sono oltre due volte l'area di un pixel da 3,76 um, e la capacita' del fotodiodo scala con l'area.",
+    "conf": "media"
+   }
   },
   {
    "id": "imx071",
@@ -2195,7 +2213,13 @@
     "conf": "media"
    },
    "pavimento_rumore_e": 2.3,
-   "cfa_response": "sony_bayer_generic"
+   "cfa_response": "sony_bayer_generic",
+   "saturazione_e": 46000,
+   "saturazione_fonte": {
+    "esito": "dichiarato",
+    "come": "ZWO dichiara 46 ke- per l'ASI071MC.",
+    "conf": "media"
+   }
   },
   {
    "id": "imx585",
@@ -2286,7 +2310,13 @@
     "conf": "media"
    },
    "pavimento_rumore_e": 1.2,
-   "cfa_response": "sony_bayer_generic"
+   "cfa_response": "sony_bayer_generic",
+   "saturazione_e": 20000,
+   "saturazione_fonte": {
+    "esito": "dichiarato",
+    "come": "ZWO dichiara 20 ke- per l'ASI1600. Da notare: coincide con il valore che il motore usava come SEGNAPOSTO quando un sensore taceva. Per questa camera il ripiego era quindi casualmente giusto, e la posa non e' mai stata sbagliata; cio' che era sbagliato e' che venisse dichiarata assunta. Il pozzetto modesto e' coerente con il processo: e' l'unico sensore non Sony e non retroilluminato del catalogo, con 12 bit di convertitore.",
+    "conf": "media"
+   }
   }
  ],
  "sensors_note": "Catalogo per SENSORE, non per marca. Lo stesso silicio Sony compare sotto ZWO, QHY, Player One, ToupTek, Altair, RisingCam: cambiano elettronica, raffreddamento e implementazione, non il cuore fotometrico. La chiave e la COPPIA sensore + modo di lettura, perche il pixel non e una proprieta del silicio ma della lettura: l'IMX294 e l'IMX492 sono lo STESSO sensore, letto binnato 2x2 a 4,63 um o nativo a 2,315 um. Il motore risolve la coppia da solo, dalla geometria e dalla nomenclatura: l'utente non sceglie nessun modello. Regola dei dati: MISURA (metodo, riferimento e grandezza dichiarati senza ambiguita) batte MODELLO; quello che non e ne l'una ne l'altro e IGNOTO e si dichiara. I valori ereditati non hanno ruolo operativo: restano nei campi *_ereditato per memoria. NOTA SULLA SCALA: le curve QE restano tutte sulla scala dei costruttori, che e alta del 12-38% rispetto alle misure indipendenti raccolte in qe_misure. E una scelta deliberata: una scala uniformemente alta si semplifica nei RAPPORTI fra configurazioni, una scala mista no. L'unico posto dove non si semplificava — mono contro matrice sullo stesso sensore — e risolto per struttura, derivando la curva della matrice da quella del silicio per la trasmissione del colorante, ancorata alle misure EMVA.",

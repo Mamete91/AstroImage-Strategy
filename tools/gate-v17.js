@@ -288,6 +288,52 @@ H('7 · NESSUNA REGRESSIONE SU CIO CHE ERA GIA GIUSTO');
           / B.M.timeFactor(B.M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1}),'Ha',600)-1)<1e-9,true);
 }
 
+/* ═══ COPERTURA DEL POZZETTO — il controllo che non esisteva ═══
+   Il meccanismo che deriva il pozzetto dal sensore era verificato (sezione 2), ma
+   nessun file controllava se i DATI ci fossero: dieci camere su diciassette
+   cadevano ancora sul segnaposto da 20000 e-, e la posa consigliata usciva da li'
+   senza che nessuna verifica lo notasse. Il meccanismo giusto sui dati mancanti
+   da' un numero sbagliato con la stessa faccia di uno giusto. */
+console.log('\n\x1b[1m§ COPERTURA — quante camere hanno un pozzetto vero\x1b[0m');
+{
+  const senza = [], senzaSensore = [];
+  for (const c of B.DB.cameras) {
+    let m; try { m = B.M.gainModes(c); } catch (e) { continue; }
+    if (!m.some(x => x.assumed)) continue;
+    /* Il discriminante e' se il sensore si RISOLVE in catalogo, non se dichiara
+       una saturazione: altrimenti togliendo il dato la camera scivolerebbe nel
+       gruppo «non ha un sensore» e il controllo si assolverebbe da solo. Le due
+       reflex generiche dichiarano un sensore che non e' un pezzo identificabile
+       («CMOS colore APS-C») e per loro il segnaposto e' la risposta onesta. */
+    const cs = (function(){ try { return B.M.camSpec(c); } catch(e){ return null; } })();
+    (cs && cs.sensor ? senza : senzaSensore).push(c.name);
+  }
+  /* Una reflex generica non ha un sensore identificabile: il segnaposto e'
+     la risposta onesta, e l'interfaccia lo dichiara. Non e' un difetto. */
+  chk('nessuna camera con sensore riconosciuto resta sul segnaposto',
+    senza.length === 0, senza.length ? senza.join(', ') : B.DB.cameras.length - senzaSensore.length + ' camere coperte');
+  chk('e chi resta sul segnaposto e solo perche non ha un sensore',
+    senzaSensore.every(n => /generica|reflex|mirrorless/i.test(n)),
+    senzaSensore.length ? senzaSensore.join(', ') : 'nessuna');
+
+  /* Ogni sensore che una camera monta deve dichiarare la sua saturazione. */
+  const usati = new Set(B.DB.cameras.map(c => c.sensor).filter(Boolean));
+  const muti = [];
+  for (const s of B.DB.sensors) {
+    const suoi = [...usati].filter(u => (s.aka || []).concat([s.name, s.id]).some(a => a && String(u).indexOf(String(a)) >= 0)
+      || String(u).toLowerCase().indexOf(String(s.id).toLowerCase()) >= 0);
+    if (suoi.length && s.saturazione_e == null) muti.push(s.name);
+  }
+  chk('ogni sensore montato da una camera dichiara la propria saturazione',
+    muti.length === 0, muti.length ? muti.join(', ') : 'tutti dichiarati');
+
+  /* E chi la dichiara deve dire da dove viene, come ogni altro dato del progetto. */
+  const senzaFonte = B.DB.sensors.filter(s => s.saturazione_e != null &&
+    !(s.saturazione_fonte && s.saturazione_fonte.come && s.saturazione_fonte.esito)).map(s => s.name);
+  chk('e ogni pozzetto dichiarato porta la sua provenienza',
+    senzaFonte.length === 0, senzaFonte.join(', '));
+}
+
 console.log('\n'+(S.FAIL?`\x1b[31m${S.FAIL} verifiche fallite\x1b[0m su ${S.PASS+S.FAIL}`
   :`\x1b[32mtutte le verifiche del gate superate (${S.PASS})\x1b[0m`));
 process.exit(S.FAIL?1:0);

@@ -5150,7 +5150,16 @@ function evaluate(tg,dv,site,np,state,cov){
     if(B&&B>0) dMagV=moonExcessMag(site.sqm,nL2mag(B));
   }
   const critFilter=filterFor(critBand,dv.c);
-  const critFwhm=critFilter?critFilter.fwhm_nm:BB_NM;
+  /* LA LARGHEZZA DELLA FINESTRA CHE PORTA QUESTA BANDA, non il riassunto scalare
+     del filtro. Il budget del progetto era gia' passato a `bandWidth`; questa riga
+     era rimasta indietro, e le due meta' calcolavano la STESSA grandezza — il costo
+     dell'inquinamento sul canale che decide l'immagine — in due modi diversi.
+     Si vedeva solo dove scalare e finestra divergono, cioe' su un L-eNhance, che
+     riassume 10 nm ma sull'OIII ne apre 24: a SQM 17.8 usciva lpF 0.3804 contro
+     1/skyFactor 0.2102, il +81% sulla stessa cosa. Dove le due larghezze
+     coincidono — ogni altro filtro del catalogo — non cambia nulla.
+     Non e' nuova modellazione: `bandWidth` esiste gia' ed e' gia' la regola. */
+  const critFwhm=bandWidth(critFilter,critBand);
   const isNarrow=critFwhm<50;
   const stellar=!!(TG.archetypes[tg.archetype]||{}).stellar;
   /* Luna e lampioni non sono due cieli sovrapposti: sono due contributi allo STESSO
