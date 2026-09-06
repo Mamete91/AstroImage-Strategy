@@ -1678,12 +1678,6 @@
    "name": "Optolong L-QEF (quad-band)",
    "manufacturer": "Optolong",
    "band": "L",
-   "bands": [
-    "Hb",
-    "OIII",
-    "Ha",
-    "SII"
-   ],
    "peak_t": 0.9,
    "peak_t_source": "manufacturer-declared",
    "fwhm_source": "unknown",
@@ -1694,7 +1688,7 @@
    ],
    "blocking_od": "OD2-OD4",
    "curve_url": "https://optolong.com/cms/document/detail/id/286.html",
-   "spec_note": "Optolong dichiara quattro finestre sulle righe Hbeta, OIII, Halpha e SII con trasmissione >90%, blocco 300-1000 nm a OD2-OD4, e NON dichiara la larghezza delle finestre: la scheda riporta «FWHM: Quad bandpass filter». La curva ufficiale esiste ma non e' stata letta come numeri, quindi le larghezze restano non dichiarate e il motore assume banda larga, che e' l'ipotesi prudente. I 7 nm di alcuni rivenditori, e i 10/24 nm di altri — che sono le specifiche dell'L-eNhance — non sono stati registrati.",
+   "spec_note": "Optolong dichiara quattro finestre sulle righe Hbeta, OIII, Halpha e SII con trasmissione >90%, blocco 300-1000 nm a OD2-OD4, e NON dichiara la larghezza delle finestre: la scheda riporta «FWHM: Quad bandpass filter». La curva ufficiale esiste ma non e' stata letta come numeri, quindi le larghezze restano non dichiarate e il motore assume banda larga, che e' l'ipotesi prudente. I 7 nm di alcuni rivenditori, e i 10/24 nm di altri — che sono le specifiche dell'L-eNhance — non sono stati registrati. Non dichiara bands: le sue finestre descrivono cosa passa, ma un broadband multiband non puo SERVIRE Ha, OIII e SII come canali separati — su un sensore a colori quelle righe arrivano insieme, nella stessa posa. Dichiararle come bande servite faceva risultare percorribile una SHO con il solo L-QEF in ruota.",
    "windows": [
     {
      "lines": [

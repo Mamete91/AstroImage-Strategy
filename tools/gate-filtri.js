@@ -56,6 +56,7 @@ function motore(extra, owned, roles) {
     `return {derive,evaluate,prescribe,nightProfile,effFWHM,filterFor,bandSpec,rates,
      timeFactor,skyRateFor,filterWindows,windowFor,windowLambda,bandWidth,bandWidthNota,
      bandWidthFonte,selectivity,ownedFilters,dualPass,imageYield,planNights,exposurePlan,
+     refCfg,conRuotaDiRiferimento,
      subExposure,DB:DB,TG:TG,ruoli:r=>{ROLES=r||{};}};`)(...Object.values(ctx));
   M.ruoli(roles || {});
   return M;
@@ -390,6 +391,93 @@ H('G · CHI SCEGLIE IL FILTRO E CHI LO VALUTA DEVONO DIRE LA STESSA COSA');
     chk('e una banda stretta non diventa mai luminanza da sola (' + cam + ')', l === 'lum',
       'ruolo L automatico -> ' + l);
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+H('H · LE CONSEGUENZE DEI RUOLI, DOVE NON DEVONO ARRIVARE E DOVE SI');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* I ruoli sono una scelta di chi riprende. Devono arrivare dappertutto nel calcolo
+     della SUA configurazione, e non arrivare da nessuna parte nel RIFERIMENTO. */
+
+  /* 1 · IL RIFERIMENTO NON HA RUOLI. `conRuotaDiRiferimento` imponeva la ruota
+     dichiarata ma non i ruoli: bastava scegliere per la luminanza un filtro che il
+     riferimento possiede anche lui — un ha3 — e quella scelta entrava nel
+     DENOMINATORE di ogni ora prescritta. Misurato: collect da 247241 a 55.6 e fondo
+     cielo da 1.105 a 0.0075, cioe' il metro spostato di un fattore 4400 per un clic
+     in una tendina. */
+  const RUOTA = ['ha3', 'o3_3', 's2_3', 'lum', 'red', 'grn', 'blu', 'idas'];
+  const firme = new Set();
+  for (const roles of [{}, { L: 'idas' }, { L: 'ha3' }, { L: 'o3_3' }, { Ha: 'ha3' }]) {
+    const K = motore([], RUOTA, roles);
+    const r = K.refCfg();
+    const o = K.conRuotaDiRiferimento(() => ({ f: K.filterFor('L', r.dv.c), rr: K.rates(r.dv, 'L', r.sqm) }));
+    firme.add([(o.f || {}).id, o.rr.collect.toPrecision(12), o.rr.R_b.toPrecision(12)].join('|'));
+  }
+  chk('il riferimento non cambia con i ruoli di chi lo interroga', firme.size === 1,
+    firme.size + ' firme distinte su 5 combinazioni di ruoli');
+  /* Non vuota: il ruolo DEVE invece cambiare la configurazione dell'utente. */
+  const A = motore([], RUOTA, {}), B = motore([], RUOTA, { L: 'ha3' });
+  const dA = A.derive({ tel: 'rc8', red: 1, cam: 'asi2600mm', mnt: 'am5', bin: 1 });
+  chk('mentre la configurazione in uso cambia eccome, quindi la verifica non e vuota',
+    (A.filterFor('L', dA.c) || {}).id !== (B.filterFor('L', dA.c) || {}).id,
+    (A.filterFor('L', dA.c) || {}).id + ' senza ruolo, ' + (B.filterFor('L', dA.c) || {}).id + ' con');
+
+  /* 2 · SU UNA CAMERA A MATRICE IL VETRO DAVANTI AL SENSORE E' UNO SOLO. La scelta
+     valeva per la L e non per l'RGB, e la prescrizione descriveva un'acquisizione
+     impossibile: un filtro montato, due filtri nei conti. */
+  const K2 = motore([], ['lum', 'idas', 'red', 'grn', 'blu'], { L: 'idas' });
+  const osc = K2.derive({ tel: 'rc8', red: 1, cam: 'asi2600mc', mnt: 'am5', bin: 1 });
+  const mono = K2.derive({ tel: 'rc8', red: 1, cam: 'asi2600mm', mnt: 'am5', bin: 1 });
+  chk('su matrice il ruolo L governa anche il canale RGB: un vetro solo',
+    (K2.filterFor('L', osc.c) || {}).id === 'idas' &&
+    (K2.filterFor('RGB', osc.c) || {}).id === 'idas' &&
+    (K2.bandSpec('RGB', osc.c).filter || {}).id === 'idas',
+    'L → ' + (K2.filterFor('L', osc.c) || {}).id + ' · RGB → ' + (K2.filterFor('RGB', osc.c) || {}).id);
+  /* Su monocromatica invece i filtri si cambiano davvero, e L e RGB sono due pose
+     diverse: li' la scelta per la L non deve toccare il colore. */
+  chk('mentre su monocromatica restano due pose diverse, e il colore non segue la L',
+    (K2.filterFor('L', mono.c) || {}).id === 'idas' &&
+    (K2.filterFor('RGB', mono.c) || {}).id === 'grn',
+    'L → ' + (K2.filterFor('L', mono.c) || {}).id + ' · RGB → ' + (K2.filterFor('RGB', mono.c) || {}).id);
+
+  /* 3 · E IL DUAL CHE RACCOGLIE INSIEME e' quello montato, non il piu' selettivo
+     che possiedi. Prima la posa del canale che decide l'immagine veniva calcolata
+     per un filtro diverso da quello dichiarato. */
+  const RUOTAD = ['lult', 'lext', 'red', 'grn', 'blu'];
+  const senza = motore([], RUOTAD, {});
+  const conExt = motore([], RUOTAD, { L: 'lext' });
+  const o1 = senza.derive({ tel: 'rc8', red: 1, cam: 'asi2600mc', mnt: 'am5', bin: 1 });
+  chk('il dual montato e quello scelto, non il piu selettivo in ruota',
+    (senza.dualPass(o1.c) || {}).id === 'lult' && (conExt.dualPass(o1.c) || {}).id === 'lext',
+    'automatico → ' + (senza.dualPass(o1.c) || {}).id + ' · scelto lext → ' + (conExt.dualPass(o1.c) || {}).id);
+  chk('e la posa del gruppo lo segue', senza.bandSpec('Ha+OIII', o1.c).fwhm === 3 &&
+    conExt.bandSpec('Ha+OIII', o1.c).fwhm === 7,
+    'fwhm ' + senza.bandSpec('Ha+OIII', o1.c).fwhm + ' nm contro ' +
+    conExt.bandSpec('Ha+OIII', o1.c).fwhm + ' nm');
+
+  /* 4 · UN BROADBAND MULTIBAND NON SERVE LE RIGHE COME CANALI SEPARATI. L-QEF
+     dichiarava `bands: [Hb,OIII,Ha,SII]` — che sono le righe che PASSA — e cosi'
+     risultava fornire i canali Ha, OIII e SII: con il solo L-QEF in ruota la SHO
+     compariva senza filtri mancanti. Su un sensore a colori quelle righe arrivano
+     insieme, nella stessa posa, e non si separano. Le finestre restano dichiarate:
+     descrivono cosa passa, non cosa il filtro sa fare da solo. */
+  const K4 = motore([], ['lqef']);
+  const d4 = K4.derive({ tel: 'rc8', red: 1, cam: 'asi2600mc', mnt: 'am5', bin: 1 });
+  chk('un broadband multiband non fornisce Ha, OIII e SII come canali',
+    !K4.filterFor('Ha', d4.c) && !K4.filterFor('OIII', d4.c) && !K4.filterFor('SII', d4.c),
+    'Ha → ' + ((K4.filterFor('Ha', d4.c) || {}).id || 'nessuno'));
+  chk('ma serve il ruolo di banda larga, che e cio per cui e venduto',
+    (K4.filterFor('L', d4.c) || {}).id === 'lqef', 'L → ' + (K4.filterFor('L', d4.c) || {}).id);
+  chk('e le sue finestre restano leggibili riga per riga',
+    K4.filterWindows(K4.DB.filters.find(f => f.id === 'lqef')).length === 4,
+    'quattro finestre, e windowFor le trova ancora per banda');
+  const t4 = K4.TG.targets.find(x => /6888/.test(x.names.join(' ')));
+  const st4 = { ...SITO }; st4.fwhm = K4.effFWHM(1.6, 0.6);
+  const np4 = K4.nightProfile(new Date(2026, 8, 11), st4.lat, st4.lon);
+  const e4 = K4.evaluate(t4, d4, st4, np4, {}, 'full');
+  chk('e il motore dichiara quali canali gli mancano', (e4.missing || []).length > 0,
+    'mancanti: ' + JSON.stringify(e4.missing));
 }
 
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');

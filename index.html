@@ -2147,15 +2147,25 @@ const resetRefSub=()=>{ _refSub={}; };
    lancia, la ruota vera torna comunque al suo posto. */
 function conRuotaDiRiferimento(fn){
   const ruotaVera=OWNED.slice(), usoVero=(typeof USING!=='undefined')?USING:null;
+  /* E NEMMENO I RUOLI. La ruota veniva imposta, i RUOLI no: bastava scegliere per la
+     luminanza un filtro che il riferimento ha anche lui — un ha3, per dire — e quella
+     scelta entrava nel DENOMINATORE di ogni ora prescritta. Misurato: con il ruolo L
+     su ha3 il riferimento passava da collect 247241 a 55.6 e da 1.105 a 0.0075 di
+     fondo cielo, cioe' il metro si spostava di un fattore 4400 per un clic in una
+     tendina. Il riferimento e' una configurazione dichiarata nei dati, ruota
+     compresa: le preferenze di chi guarda non lo riguardano. */
+  const ruoliVeri=ROLES;
   try{
     const rif=(DB.reference_config&&DB.reference_config.filters)||DB.default_filters||[];
     OWNED.length=0; rif.forEach(x=>OWNED.push(x));
     if(typeof USING!=='undefined') USING=null;
+    ROLES={};
     return fn();
   }
   finally{
     OWNED.length=0; ruotaVera.forEach(x=>OWNED.push(x));
     if(typeof USING!=='undefined') USING=usoVero;
+    ROLES=ruoliVeri;
   }
 }
 function refSubFor(band){
@@ -5485,7 +5495,15 @@ function filterFor(band,cam){
   if(scelto) return scelto;
   const isBB=BB_BANDS.includes(band);
   if(cam.cfa_penalty&&isBB){
-    // su sensore a colori la matrice di Bayer fa gia' da RGB: basta non avere filtri
+    /* SU UNA CAMERA A MATRICE IL VETRO DAVANTI AL SENSORE E' UNO SOLO, e vale per
+       tutta la banda larga. Il ruolo «L» li' non e' una funzione fra le altre: e'
+       la domanda «che cosa hai avvitato stanotte». Prima la scelta valeva per la L
+       e non per l'RGB, e la prescrizione descriveva un'acquisizione impossibile —
+       un filtro montato, due filtri nei conti. Misurato: con il ruolo L su idas,
+       filterFor('L') dava idas e filterFor('RGB') dava lum, nella stessa posa. */
+    const montato=roleFilter('L');
+    if(montato) return montato;
+    // senza scelta: la matrice di Bayer fa gia' da RGB, quindi basta non avere filtri
     const lp=ownedFilters().filter(f=>f.band==='L').sort((a,b)=>primaIlTuo(a,b,'L'))[0];
     return lp||{id:'__none',name:'nessun filtro (Bayer)',band:'L',fwhm_nm:BB_NM,peak_t:1,lambda_nm:550};
   }
@@ -5504,7 +5522,15 @@ function filterFor(band,cam){
 }
 /* Un dual-band su sensore a colori raccoglie Ha e OIII nella stessa posa: il tempo
    della strada e' quello del canale piu' difficile, non la somma dei due. */
+/* IL DUAL CHE RACCOGLIE INSIEME. Su una camera a matrice il filtro montato e' uno,
+   quindi se la scelta di chi riprende e' un dual, e' QUEL dual che raccoglie — non
+   il piu' selettivo che possiede. Prima `dualPass` sceglieva per conto suo e la posa
+   del canale che decide l'immagine veniva calcolata per un filtro diverso da quello
+   dichiarato: con un L-Ultimate e un L-eXtreme in ruota e la scelta sull'eXtreme,
+   restava montato l'Ultimate. */
 function dualPass(cam){
+  const montato=(cam&&cam.cfa_penalty)?roleFilter('L'):null;
+  if(montato&&montato.dual) return montato;
   if(!cam.cfa_penalty) return null;
   const d=ownedFilters().filter(f=>f.dual&&f.bands&&f.bands.includes('Ha')&&f.bands.includes('OIII'))
     .sort((a,b)=>selectivity(a)-selectivity(b))[0];
