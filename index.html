@@ -435,6 +435,20 @@ button.fchip.off{opacity:.34;filter:grayscale(1);text-decoration:line-through;
   text-decoration-thickness:1.5px}
 button.fchip.off:hover{opacity:.6;filter:grayscale(.4)}
 
+/* LE CONFIGURAZIONI, una riga per ciascuna con la sua casella. Non si cancella
+   niente: quello che non spunti resta li' da vedere, e semplicemente non entra nella
+   prescrizione. E' la stessa grammatica dei filtri, che chi usa l'app conosce gia'. */
+.setrow{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:9px;
+  border:1px solid var(--line);margin-top:6px;background:var(--surface)}
+.setrow.on{border-color:var(--acc);background:var(--surface-2)}
+.setrow.cur{box-shadow:inset 3px 0 0 var(--acc2)}
+.setrow input{width:17px;height:17px;flex:none;accent-color:var(--acc);cursor:pointer}
+.setrow .sr-n{flex:1;min-width:0;font-size:12.5px}
+.setrow .sr-n b{font-weight:600}
+.setrow .sr-d{font-size:11px;color:var(--dim);margin-top:2px}
+.setrow.off .sr-n{opacity:.62}
+@media (hover:none),(max-width:560px){ .setrow{padding:10px 9px} .setrow input{width:20px;height:20px} }
+
 /* Il filtro sotto il canale: quale pezzo di vetro produce quei dati. */
 .fbox{margin-top:7px;display:flex;flex-direction:column;gap:3px}
 .fline{font-size:11px;line-height:1.45;color:var(--dim)}
@@ -1296,6 +1310,12 @@ td.archcell{max-width:120px}
           <label class="f">Camera<select id="cam"></select></label>
           <label class="f">Montatura<select id="mnt"></select></label>
         </div>
+        <div class="subhead" style="margin-top:16px">La mia strumentazione
+          <span class="muted" style="font-weight:400;text-transform:none;letter-spacing:0">
+            — spunta le configurazioni che possiedi davvero: solo quelle entrano nei
+            confronti e nei consigli</span></div>
+        <div id="setupList"></div>
+
         <div class="row" style="margin-top:12px">
           <button class="fn fn-cfg" id="btnFilters">Filtri…</button>
           <span id="filtSummary" class="small muted" style="align-self:center"></span>
@@ -2978,8 +2998,18 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov){
      come numero dai preset e come stringa da chi legge un campo di modulo, e
      per un confronto di stringhe 0.80 non e' 0.8: normalizzare qui evita che la
      configurazione attuale finisca fra le proprie alternative — e adesso che il
-     confronto la mostra come termine di paragone, sarebbe visibilmente sbagliato. */
-  const key=c=>`${c.tel}|${Number(c.red)}|${c.cam}|${Number(c.bin||1)}`;
+     confronto la mostra come termine di paragone, sarebbe visibilmente sbagliato.
+
+     LA MONTATURA FA PARTE DELLA CHIAVE. Non c'era, e finche' i candidati venivano
+     dal catalogo non si notava: nessuna coppia di preset differisce per la sola
+     montatura. Ma i candidati adesso sono le configurazioni dichiarate dall'utente,
+     e lo stesso tubo su due montature e' un caso normalissimo — la seconda spariva
+     dal confronto perche' la chiave la scambiava per quella in uso. Non e' la
+     stessa: la montatura porta il proprio errore di inseguimento, quindi un'altra
+     FWHM e un'altra resa. Misurato su NGC 7000, stesso RC8 e stessa 2600MM a bin 1:
+     CEM70G rms 0.70 -> resa 13.4%, AM5 rms 1.30 -> resa 13.5%. Due righe diverse,
+     e una non veniva mai mostrata. */
+  const key=c=>`${c.tel}|${Number(c.red)}|${c.cam}|${c.mnt}|${Number(c.bin||1)}`;
   const cur=key(cfg);
   for(const p of presets){
     for(const bin of [1,2]){
@@ -3073,7 +3103,38 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov){
      Le ore di progetto restano come spareggio: a parita' di fotografia
      ottenuta, si preferisce quella che costa meno. */
   out.sort((a,b)=>(b.P-a.P) || (a.projectH-b.projectH));
-  const res=out.slice(0,maxN||3);
+  /* IL TETTO NON DEVE CANCELLARE UNA CONFIGURAZIONE INTERA.
+
+     Ogni configurazione produce due righe, una per binning, e un taglio fatto sulle
+     righe le conta come se fossero sistemi diversi: misurato con cinque
+     configurazioni dichiarate e tetto cinque, ne comparivano TRE — due si prendevano
+     entrambe le righe e le altre due sparivano del tutto. Finche' i candidati
+     venivano dal catalogo era solo una sintesi discutibile; adesso che sono le
+     configurazioni dichiarate da chi usa l'app, significa nascondergli qualcosa che
+     possiede, e non dirlo.
+
+     Quindi si passa prima la riga migliore di OGNI configurazione, e solo dopo, se
+     resta posto, i binning alternativi. L'ordine per resa viene ripristinato alla
+     fine: la copertura decide CHI entra, non in che ordine si legge. */
+  const chiave=x=>`${x.cfg.tel}|${Number(x.cfg.red)}|${x.cfg.cam}|${x.cfg.mnt}`;
+  const migliori=[], altriBin=[], visto=new Set();
+  for(const x of out){ const k=chiave(x);
+    if(visto.has(k)) altriBin.push(x); else { visto.add(k); migliori.push(x); } }
+  const tetto=maxN||3;
+  const res=(migliori.length>=tetto ? migliori.slice(0,tetto)
+                                    : migliori.concat(altriBin).slice(0,tetto))
+    .sort((a,b)=>(b.P-a.P) || (a.projectH-b.projectH));
+  /* QUANTE NE RESTANO FUORI PER IL SOLO TETTO. Non e' un dettaglio contabile: chi
+     legge un elenco di tre righe non ha modo di sapere se erano tre o trenta, e un
+     taglio che non si dichiara si legge come «non c'era altro». */
+  res.tagliate=Math.max(0,out.length-res.length);
+  /* E se a restare fuori e' una CONFIGURAZIONE intera — capita solo dichiarandone
+     piu' del tetto — e' un'altra cosa e va detta a parte. */
+  res.configTagliate=Math.max(0,visto.size-new Set(res.map(chiave)).size);
+  /* E quante ne sono state VALUTATE, che e' la domanda a cui chi legge vuole
+     rispondere: «le hai guardate tutte?». Le escluse per filtri mancanti sono
+     un'altra cosa e viaggiano gia' a parte, in `escluse`. */
+  res.configValutate=visto.size;
   /* Si viaggia sull'array perche' i chiamanti si aspettano un array: cosi' chi non
      guarda `escluse` continua a funzionare come prima, e chi la guarda puo' dirlo. */
   res.escluse=escluse;
@@ -5715,8 +5776,7 @@ function start(){
   wireObjectList('rxTarget');
   $('btnAddTgt').onclick=()=>openTargetForm(null);
   $('btnFilters').onclick=()=>go('filtri');
-  $('preset').innerHTML=DB.presets.map(p=>`<option value="${p.id}">${esc(p.label)}</option>`).join('')
-    +`<option value="__custom">Configurazione personalizzata</option>`;
+  renderPresetSelect();
   renderGearSelects();
 
   /* LA CONFIGURAZIONE SI RICORDA, e non solo il binning.
@@ -5741,27 +5801,44 @@ function start(){
     $('cam').value=salvata.cam; $('mnt').value=salvata.mnt;
     readCfg(); syncRms();
   } else applyPreset(DB.presets[0]);
+
+  /* LA MIGRAZIONE: la regola sta in `setupDaMigrare`, qui c'e' solo la conseguenza.
+
+     Chi ha aggiunto strumentazione propria ha gia' dimostrato di sapere cosa
+     possiede, ma quella e' una lista di PEZZI, non una configurazione montata: non
+     basta a dedurne una, e infatti non la si deduce. */
+  if(SETUPS===null){
+    SETUPS=[];
+    const eredita=setupDaMigrare(salvata,DB.presets[0]);
+    if(eredita){ addSetup(eredita); CFG_SCELTA=true; }
+    else persistSetups();
+  }
   readSite();                       // ora #rms e' popolato: SITE va riletto
   $('bin').addEventListener('change',()=>{
     readCfg(); try{localStorage.setItem('ap_bin',String(CFG.bin))}catch(e){}
     readSite(); refresh();
   });
   $('preset').addEventListener('change',()=>{
-    const p=DB.presets.find(p=>p.id===$('preset').value);
+    const v=$('preset').value;
+    const mio=setupsAsPresets().find(x=>x.id===v);
+    const p=mio||DB.presets.find(x=>x.id===v);
     if(!p){ syncPreset(); return; }
+    CFG_SCELTA=true;                 // sceglierla dalla tendina e' una scelta
     applyPreset(p); refresh();
   });
   ['tel','cam','mnt'].forEach(id=>$(id).addEventListener('change',()=>{
     if($(id).value==='__add'){ openGearForm(id,null); $(id).value=LAST_GEAR[id]||''; return; }
     LAST_GEAR[id]=$(id).value;
     if(id==='tel') fillReducers($('tel').value);
+    CFG_SCELTA=true;                 // toccare una tendina e' una scelta
     readCfg();
     if(id==='mnt'||id==='tel') syncRms();
     readSite(); refresh();
   }));
   $('red').addEventListener('change',()=>{
     if($('red').value==='__addred'){ addReducer(); return; }
-    readCfg(); syncRms(); readSite(); refresh();
+    segnaScelta();                   // il riduttore fa parte della configurazione
+    syncRms(); readSite(); refresh();
   });
   $('btnGear').onclick=()=>openGearManager();
   ['sqm','hor','cnf'].forEach(id=>
@@ -6626,14 +6703,14 @@ function addReducer(){
   if(!(f>0.2&&f<3)){ gearMsg('bad','Fattore non riconosciuto. Attesi valori fra 0.2 e 3, per esempio <code>0.63x</code>.'); syncRed(); return; }
   if(t.reducers.some(r=>Math.abs(r.factor-f)<1e-6)){
     gearMsg('dim',`Il fattore ${f}x c'era già su ${esc(t.name)}.`);
-    $('red').value=String(f); readCfg(); refresh(); return;
+    $('red').value=String(f); segnaScelta(); refresh(); return;
   }
   const focal=Math.round(t.focal_mm*f);
   t.reducers.push({factor:f, label:(f<1?'riduttore ':'moltiplicatore ')+f+'x', focal_mm:focal, user:true});
   t.reducers.sort((a,b)=>b.factor-a.factor);
   if(!t.user) t.user_reducers=true;                 // il telescopio resta di catalogo, il riduttore e' tuo
   persistReducers(); fillReducers(t.id); $('red').value=String(f);
-  readCfg(); refresh();
+  segnaScelta(); refresh();
   gearMsg('ok',`${f}x aggiunto a ${esc(t.name)}: ${focal} mm. Resta salvato ed entra in progetti.json.`);
 }
 const syncRed=()=>{ const r=derive(CFG).r; $('red').value=String(r.factor); };
@@ -6666,6 +6743,17 @@ function applyPreset(p){
   $('red').value=String(p.reducer); $('cam').value=p.camera; $('mnt').value=p.mount;
   readCfg(); syncRms();
 }
+/* SCELTA O SUBITA, e non era distinguibile.
+
+   `readCfg` scrive `ap_cfg` a ogni lettura, compresa quella che l'avvio fa da solo
+   applicando un preset di catalogo. Dalla seconda apertura in poi la configurazione
+   del catalogo risultava quindi «salvata» esattamente come una scelta vera, e non
+   c'era modo di sapere se l'utente quel telescopio lo avesse voluto o subito.
+
+   E' la stessa distinzione che il sito fa gia' — «nessuno ha ancora scelto: il cielo
+   e' assunto» — e serve per la stessa ragione: un default non e' un possesso. */
+let CFG_SCELTA=false;
+const segnaScelta=()=>{ CFG_SCELTA=true; readCfg(); };
 function readCfg(){
   CFG={tel:$('tel').value,red:parseFloat($('red').value),cam:$('cam').value,mnt:$('mnt').value,
        bin:parseInt($('bin').value,10)||1};
@@ -6673,7 +6761,7 @@ function readCfg(){
      ritrovera' alla prossima apertura. Un solo punto, perche' ogni percorso che
      cambia la strumentazione — preset, tendine, riduttore, form dell'attrezzatura —
      passa comunque da qui. */
-  try{ localStorage.setItem('ap_cfg',JSON.stringify(CFG)); }catch(e){}
+  try{ localStorage.setItem('ap_cfg',JSON.stringify({...CFG,scelta:CFG_SCELTA})); }catch(e){}
   syncPreset();
 }
 /* Riporta l'RMS al valore di questa montatura: il tuo se l'hai scritto, altrimenti
@@ -6684,12 +6772,39 @@ function syncRms(){
   // scala nativa, non binnata: il binning non cambia l'errore di inseguimento
   $('rms').value=fmt(rmsForMount(CFG.mnt,derive(CFG).scale0),2);
 }
+/* LA TENDINA IN DUE GRUPPI: le tue configurazioni e gli esempi di catalogo.
+
+   Sono due cose diverse e finora sembravano una sola: sei voci tutte uguali, fra cui
+   la propria — se c'era — non si distingueva. Ora sopra c'e' quello che hai spuntato,
+   sotto il catalogo, che resta consultabile perche' provare un telescopio che non hai
+   e' legittimo: quello che non deve succedere e' che l'app te lo consigli come tuo.
+   Una configurazione che possiedi non compare due volte: se e' tua, e' nel gruppo
+   tuo e basta. */
+let PRESET_SIG='';
+function renderPresetSelect(){
+  const sel=$('preset'); if(!sel) return;
+  const miei=setupsAsPresets();
+  const cat=DB.presets.filter(q=>!isMine({tel:q.telescope,red:q.reducer,cam:q.camera,mnt:q.mount}));
+  const sig=[...miei,...cat].map(x=>x.id+''+x.label).join('');
+  if(sig===PRESET_SIG) return;              // niente da ridisegnare: la tendina e' gia' quella
+  PRESET_SIG=sig;
+  const opt=x=>`<option value="${esc(x.id)}">${esc(x.label)}</option>`;
+  sel.innerHTML=
+    (miei.length?`<optgroup label="Le mie configurazioni">${miei.map(opt).join('')}</optgroup>`:'')
+    +`<optgroup label="${miei.length?'Esempi di catalogo':'Configurazioni di esempio'}">${
+        cat.map(opt).join('')}</optgroup>`
+    +`<option value="__custom">Configurazione personalizzata</option>`;
+  if(CFG) syncPreset();
+}
 /* Il preset non e' uno stato separato: e' un'etichetta per una combinazione.
    Se la combinazione corrente coincide con un preset lo mostra, altrimenti dice
-   che sei su una configurazione tua. Prima restava fermo e mentiva. */
+   che sei su una configurazione tua. Prima restava fermo e mentiva.
+   Le tue vengono cercate per prime: la stessa combinazione puo' avere due nomi, e
+   se e' tua vince il tuo. */
 function syncPreset(){
-  const m=DB.presets.find(p=>p.telescope===CFG.tel&&p.camera===CFG.cam&&
-    p.mount===CFG.mnt&&Math.abs(p.reducer-CFG.red)<1e-6);
+  const eq=q=>q.telescope===CFG.tel&&q.camera===CFG.cam&&
+    q.mount===CFG.mnt&&Math.abs(Number(q.reducer)-CFG.red)<1e-6;
+  const m=setupsAsPresets().find(eq)||DB.presets.find(eq);
   $('preset').value=m?m.id:'__custom';
 }
 function readSite(){
@@ -6988,6 +7103,7 @@ function detectLocation(){
 function refresh(){
   const dv=derive(CFG);
   RXDV=dv;                          // il riepilogo LEGGE questa, non la ricalcola
+  renderSetups();                   // la lista segue la configurazione in uso
   const fwhm=effFWHM(SITE.seeing,SITE.rms);
   const samp=samplingVerdict(dv.scale,fwhm);
   const degr=fwhm/Math.max(0.4,SITE.seeing);
@@ -7341,6 +7457,137 @@ const setStrat=id=>{ RXSTRAT=id; try{localStorage.setItem('ap_strat',id)}catch(e
   syncStrat(); refresh(); };
 const syncStrat=()=>{ const m={resa:'rxStratResa',equilibrio:'rxStratEq',dinamica:'rxStratDin'};
   const el=document.getElementById(m[RXSTRAT]); if(el) el.checked=true; };
+
+/* LE CONFIGURAZIONI CHE POSSIEDI DAVVERO.
+
+   Questo programma nasce per una comunita', non per la strumentazione di chi lo
+   scrive. Il catalogo pero' porta sei «preset» — RC8, Tecnosky 115, Askar 71F, due
+   camere, due montature — che sono l'attrezzatura di UNA persona, e il confronto fra
+   configurazioni li usava come se fossero i tuoi. Chi non ha un RC8 si sentiva dire
+   che con l'RC8 verrebbe meglio, e non aveva modo di toglierlo.
+
+   Una configurazione personale e' una cosa concreta che hai montato: tubo, riduttore,
+   camera, montatura. NON si deduce da un prodotto cartesiano dei pezzi in catalogo —
+   tre tubi per due camere per due montature farebbero dodici combinazioni di cui
+   nessuna e' «un tuo setup». Si dichiara, e resta.
+
+   Il binning non ne fa parte: non e' strumentazione, e' una decisione della serata, e
+   il motore continua a esplorarlo per ogni candidato.
+
+   Il riduttore invece si': cambia la focale, e «80ED nativo» e «80ED con il riduttore»
+   sono due configurazioni diverse che vale la pena confrontare. */
+let SETUPS=(()=>{ try{ const v=JSON.parse(localStorage.getItem('ap_setups')||'null');
+  return Array.isArray(v)?v:null; }catch(e){ return null; } })();
+const setupKey=c=>`${c.tel}|${Number(c.red)}|${c.cam}|${c.mnt}`;
+const mySetups=()=>SETUPS||[];
+const haveSetups=()=>mySetups().length>0;
+const isMine=c=>mySetups().some(x=>setupKey(x)===setupKey(c));
+function persistSetups(){
+  try{ localStorage.setItem('ap_setups',JSON.stringify(SETUPS||[])); }catch(e){}
+}
+/* L'etichetta di una configurazione la si costruisce dai nomi veri, non la si chiede:
+   nessuno ha voglia di battezzare il proprio telescopio per usare un'app. */
+function setupLabel(c){
+  const nome=(k,id)=>{ const l=gearList(k)||[]; const x=l.find(y=>y.id===id); return x?x.name:id; };
+  const red=Number(c.red);
+  return `${nome('tel',c.tel)}${Math.abs(red-1)>1e-6?' '+red+'x':''} + ${nome('cam',c.cam)} + ${nome('mnt',c.mnt)}`;
+}
+function addSetup(c){
+  if(!c||!c.tel||!c.cam||!c.mnt) return false;
+  const nuovo={tel:c.tel,red:Number(c.red),cam:c.cam,mnt:c.mnt};
+  if(!SETUPS) SETUPS=[];
+  if(SETUPS.some(x=>setupKey(x)===setupKey(nuovo))) return false;
+  SETUPS.push(nuovo); persistSetups(); return true;
+}
+function delSetup(k){
+  if(!SETUPS) return;
+  SETUPS=SETUPS.filter(x=>setupKey(x)!==k); persistSetups();
+}
+/* CHE COSA SI EREDITA DA UN'INSTALLAZIONE PRECEDENTE.
+
+   Chi apre l'app dopo questo aggiornamento ha un `ap_cfg` salvato ma nessuna
+   dichiarazione di possesso, e il vecchio formato non registrava se quella
+   configurazione fosse stata scelta o subita. Un appiglio pero' c'e', ed e'
+   sufficiente: se la configurazione salvata DIFFERISCE dal default che l'app
+   applicava da sola, allora e' stata scelta per forza — nessun altro percorso
+   poteva scriverla. Se coincide con il default non si puo' sapere, e nel dubbio non
+   si dichiara niente: meglio chiedere che consacrare un RC8 a chi non l'ha mai visto.
+
+   Sta qui, come funzione pura di due argomenti e non come sei righe dentro l'avvio,
+   perche' e' una regola e le regole si verificano: tools/gate-setup.js la estrae da
+   questo file e la interroga sui casi limite. Dentro `init` non sarebbe raggiungibile
+   da nessuna prova.
+
+   Il riduttore conta: stesso tubo con e senza spianatore sono due configurazioni. */
+function setupDaMigrare(salvata,d0){
+  if(!salvata||!salvata.tel||!salvata.cam||!salvata.mnt) return null;
+  const c={tel:salvata.tel,red:Number(salvata.red),cam:salvata.cam,mnt:salvata.mnt};
+  if(!(c.red>0)) return null;
+  if(salvata.scelta===true) return c;          // il formato nuovo lo dice, e basta quello
+  const comeDefault = d0 && c.tel===d0.telescope && c.cam===d0.camera && c.mnt===d0.mount
+                   && Math.abs(c.red-Number(d0.reducer))<1e-6;
+  return comeDefault ? null : c;
+}
+
+/* Le configurazioni personali nella forma che `fitAlternatives` si aspetta: la
+   funzione e' gia' generalista — riceve l'elenco come parametro e non sa niente del
+   catalogo — quindi basta darle il contenuto giusto. */
+const setupsAsPresets=()=>mySetups().map(c=>({
+  id:'mio:'+setupKey(c), label:setupLabel(c), mine:true,
+  telescope:c.tel, reducer:Number(c.red), camera:c.cam, mount:c.mnt}));
+
+/* LA LISTA DELLE CONFIGURAZIONI.
+
+   Mostra tre cose insieme, e la distinzione fra loro e' tutto il punto di questa
+   sezione: quella che stai usando adesso, quelle che hai gia' spuntato come tue, e
+   quelle di catalogo — che restano visibili come esempi e NON entrano in nessun
+   consiglio finche' non le spunti. Cosi' chi non ha un RC8 continua a vederlo (e
+   puo' chiedersi cosa cambierebbe) senza sentirselo consigliare come se fosse suo. */
+function renderSetups(){
+  const box=$('setupList'); if(!box) return;
+  const cur=CFG?{tel:CFG.tel,red:Number(CFG.red),cam:CFG.cam,mnt:CFG.mnt}:null;
+  const righe=[];
+  const visti=new Set();
+  /* UN NOME SOLO PER OGNI RIGA, e composto dai nomi veri dell'attrezzatura.
+
+     Prima le righe che coincidevano con una configurazione di catalogo prendevano la
+     sua etichetta breve — «RC8 nativo + 2600MM + CEM70G» — e le altre il nome
+     composto: due convenzioni una sotto l'altra nella stessa lista, e le abbreviazioni
+     del catalogo hanno senso solo per chi il catalogo lo conosce. Peggio ancora, la
+     riga avrebbe cambiato nome nel momento in cui la spuntavi.
+     Il nome composto funziona per tutte, comprese le configurazioni fatte con
+     attrezzatura aggiunta a mano, che nel catalogo non c'e' e un'etichetta non ce
+     l'ha. Le etichette brevi restano dove sono nate: nel gruppo «esempi di catalogo»
+     della tendina, che e' il catalogo e puo' chiamarsi come vuole. */
+  const riga=(c,{corrente,catalogo})=>{
+    const k=setupKey(c); if(visti.has(k)) return; visti.add(k);
+    const on=isMine(c);
+    righe.push(`<label class="setrow${on?' on':' off'}${corrente?' cur':''}">
+      <input type="checkbox" ${on?'checked':''} onchange="toggleSetup(${jsAttr(k)},this.checked)">
+      <span class="sr-n"><b>${esc(setupLabel(c))}</b>
+        <div class="sr-d">${corrente?'in uso adesso · ':''}${
+          on?'entra nei confronti':catalogo?'esempio di catalogo — non entra nei consigli'
+             :'non spuntata: fuori dai consigli'}</div></span></label>`);
+  };
+  if(cur) riga(cur,{corrente:true});
+  for(const c of mySetups()) riga(c,{});
+  for(const p of DB.presets)
+    riga({tel:p.telescope,red:Number(p.reducer),cam:p.camera,mnt:p.mount},{catalogo:true});
+  renderPresetSelect();             // le spunte cambiano anche cosa c'e' nella tendina
+  box.innerHTML=righe.join('')+
+    (haveSetups()?'':`<p class="small muted" style="margin-top:8px">Non hai ancora
+      spuntato niente: l'app non ti proporra' configurazioni che non hai. Spunta quella
+      che stai usando — o quelle di catalogo che possiedi davvero — e da due in su
+      comparira' il confronto.</p>`);
+}
+/* Spuntare non significa creare, e togliere la spunta non significa cancellare: la
+   riga resta dov'e', cambia solo se il motore la puo' proporre. */
+function toggleSetup(k,on){
+  const daChiave=kk=>{ const [tel,red,cam,mnt]=kk.split('|');
+    return {tel,red:Number(red),cam,mnt}; };
+  if(on) addSetup(daChiave(k)); else delSetup(k);
+  renderSetups(); refresh();
+}
 
 /* LA TECNICA, che e' una scelta e non un verdetto.
 
@@ -7830,7 +8077,22 @@ function renderRx(np){
       livello-obiettivo, e sta a te decidere se vale la nottata.</div>`;
 
   const altBlock = (()=>{
-    const alts=fitAlternatives(t,CFG,SITE,np,STATE,hours,DB.presets,3,rotFor(t),covIntent());
+    /* IL CONFRONTO OPERATIVO GUARDA SOLO LE TUE CONFIGURAZIONI.
+
+       Qui passava `DB.presets`, cioe' sei combinazioni di catalogo che sono la
+       strumentazione di una persona sola, uguali per chiunque apra l'app. Il
+       risultato era che a chi non ha un RC8 veniva detto che con l'RC8 verrebbe
+       meglio — e non aveva modo di toglierlo di mezzo.
+       `fitAlternatives` era gia' generalista: riceve l'elenco come parametro e del
+       catalogo non sa niente. Bastava darle il contenuto giusto. */
+    /* IL TETTO SEGUE QUANTE NE HAI DICHIARATE. Tre andava bene quando i candidati
+       venivano dal catalogo — sei configurazioni per due binning, dodici righe, e
+       «le tre migliori» era la sintesi giusta. Adesso l'elenco sono le TUE
+       configurazioni: tagliarne una significa nascondere a chi legge una cosa che
+       possiede. Il tetto quindi cresce con le dichiarazioni, e resta a tre per chi
+       ne ha poche, cosi' il caso normale non cambia aspetto. */
+    const alts=fitAlternatives(t,CFG,SITE,np,STATE,hours,setupsAsPresets(),
+      Math.max(3,mySetups().length),rotFor(t),covIntent());
     /* I tre assi in chiaro accanto a ogni riga. La classifica e' il loro
        prodotto, e chi legge deve poter vedere QUALE ha deciso invece di fidarsi
        di un numero solo: su una planetaria decide la risoluzione, su M31 la
@@ -7854,6 +8116,26 @@ function renderRx(np){
        Ora si mostra anche quando la resa migliore supera la tua di RESA_GAP. */
     const guadagno = meglio.length ? meglio[0].P - mio.P : 0;
     const perResa = !sottoSoglia && guadagno > RESA_GAP;
+
+    /* CON UNA CONFIGURAZIONE SOLA NON C'E' NIENTE DA CONFRONTARE, ed e' la risposta
+       giusta: meglio una sezione in meno che un consiglio su un telescopio che non
+       hai. Ma il giorno dell'aggiornamento quasi nessuno avra' ancora dichiarato le
+       proprie configurazioni, e la sezione sparirebbe senza spiegazione — sembrerebbe
+       una funzione tolta. Quindi al suo posto si dice che cosa manca e come averla. */
+    if(!alts.length){
+      /* Chi non ha spuntato niente riceve comunque una riga, sempre: e' l'unico modo
+         di sapere perche' il confronto non c'e'. Chi ha gia' dichiarato le proprie
+         configurazioni la riceve solo quando servirebbe davvero. */
+      if(!haveSetups()) return `<p class="small muted" style="margin-top:14px"><b>Spunta
+        la tua strumentazione per confrontare le configurazioni.</b> In
+        <b>Strumentazione</b> trovi l'elenco: spunta quelle che possiedi davvero, e da
+        due in su l'app ti dice quale rende di più su questo soggetto. Finché non lo
+        fai non ti propone strumenti che non hai.</p>`;
+      if(!sottoSoglia) return '';
+      return `<p class="small muted" style="margin-top:14px">Non hai altre
+        configurazioni spuntate con cui confrontare questa. Puoi aggiungerne da
+        <b>Strumentazione</b>: il confronto compare da due in su.</p>`;
+    }
     if(!sottoSoglia && !perResa) return '';
     if(!alts.length) return !sottoSoglia ? '' : `<p class="small muted" style="margin-top:14px">Nessun'altra
       configurazione fra le tue porta questo oggetto al livello-obiettivo in
@@ -7861,7 +8143,7 @@ function renderRx(np){
       qui sopra è la più sensata con queste ore.</p>`;
     const rigaMia=`<div class="altrow" style="opacity:.85">
       <span class="pill p-dim">quella che hai</span>
-      <span class="n"><b>${esc((DB.presets.find(q=>q.telescope===CFG.tel&&String(q.reducer)===String(CFG.red)&&q.camera===CFG.cam)||{}).label||'la tua configurazione')}</b>${(CFG.bin||1)>1?` a <b>bin ${CFG.bin}</b>`:''}
+      <span class="n"><b>${esc(isMine(CFG)?setupLabel(CFG):'la configurazione in uso')}</b>${(CFG.bin||1)>1?` a <b>bin ${CFG.bin}</b>`:''}
         <span class="muted">— ${fmt(dv.scale,2)}″/px, campo ${fmt(dv.fovX,0)}′×${fmt(dv.fovY,0)}′</span>
         <div class="small" style="margin-top:2px">
           ${asse(mio.c,'soggetto','Quanta parte del soggetto entra nell\'immagine.')} &middot;
@@ -7893,6 +8175,26 @@ function renderRx(np){
             <b data-tip="Il prodotto dei tre: la frazione della fotografia ottenibile che questo sistema consegna davvero. L'elenco è ordinato su questo.">resa fotografica ${Math.round(x.P*100)}%</b></div></span>
         <button class="chip fn fn-cfg" onclick="rxApply('${x.preset.id}',${x.bin})">usa questa</button>
       </div>`).join('')}
+      ${(()=>{
+        /* CHE COSA E STATO CONFRONTATO, detto per intero.
+
+           L'elenco mostra le configurazioni che rendono PIU' di quella in uso, ed e'
+           la sintesi giusta — ma chi ha dichiarato cinque configurazioni e ne vede
+           due non ha modo di sapere se le altre tre sono state guardate e battute,
+           o semplicemente saltate. Sono state guardate: qui lo si dice, con i numeri
+           che stanno insieme. Le escluse per filtri mancanti hanno il loro blocco
+           poco piu' sotto e non si contano qui. */
+        const viste=alts.configValutate||0;
+        if(!viste) return '';
+        const mostrate=new Set((meglio.length?meglio:alts).map(x=>
+          `${x.cfg.tel}|${Number(x.cfg.red)}|${x.cfg.cam}|${x.cfg.mnt}`)).size;
+        const coda = mostrate<viste
+          ? ` — qui compaiono <b>${mostrate}</b>: le altre rendono meno di quella che hai`
+          : '';
+        return `<p class="small muted" style="margin-top:6px">Confrontate
+          <b>${viste}</b> ${viste===1?'tua configurazione':'delle tue configurazioni'},
+          ciascuna al binning che le rende di più${coda}.</p>`;
+      })()}
       ${(meglio.length?meglio:alts).some(x=>x.rotPropria)?`<p class="small muted" style="margin-top:8px">
         Ogni sistema è valutato <b>alla rotazione che gli conviene</b>, segnata accanto al nome:
         girare la camera non costa niente e l’angolo migliore cambia da un’ottica all’altra —
@@ -8925,8 +9227,16 @@ function rxDiagHtml(pr,e,dv,t){
 }
 function rxPick(name){ $('rxTarget').value=name; persistRx(); refresh();
   const b=$('rxClear'); if(b) b.hidden=false; }
+/* «USA QUESTA» DEVE SAPER RISOLVERE ANCHE LE TUE.
+
+   I candidati del confronto adesso vengono da `ap_setups` e hanno id `mio:...`, che
+   in `DB.presets` non esistono: il pulsante trovava `undefined` e usciva in silenzio
+   — premuto, non faceva niente e non lo diceva. E' lo stesso difetto del veto
+   silenzioso gia' corretto altrove: se non si puo' fare, si dice. */
 function rxApply(presetId,bin){
-  const p=DB.presets.find(x=>x.id===presetId); if(!p) return;
+  const p=setupsAsPresets().find(x=>x.id===presetId)||DB.presets.find(x=>x.id===presetId);
+  if(!p) return;
+  CFG_SCELTA=true;                   // adottare una configurazione dal confronto e' una scelta
   applyPreset(p); $('bin').value=String(bin);
   readCfg(); try{localStorage.setItem('ap_bin',String(bin))}catch(e){}
   syncRms(); readSite(); refresh();

@@ -301,6 +301,69 @@ differenza. Prima della correzione fallirebbe; dopo, no.
 
 ---
 
+## Fuori dall'audit: il confronto proponeva la strumentazione dell'autore
+
+Non era una voce dell'audit iniziale. È arrivata da una segnalazione, con circa
+cento persone che già usavano il programma: *«come faccio a eliminare i setup già
+presenti? continua a dirmi che con l'RC8 è meglio ma non ho un RC8»*.
+
+**Il difetto, misurato.** Il confronto fra configurazioni chiamava
+`fitAlternatives(t, CFG, SITE, np, STATE, hours, DB.presets, 3, …)`, e `DB.presets`
+sono sei combinazioni di catalogo — la strumentazione di **una** persona, identica
+per chiunque apra l'app. Misurato su NGC 7000 a 16 h da un RC8: **11 candidati, 8
+dei quali con un tubo diverso dal proprio**, senza alcun modo di escluderli. Non
+era un difetto di calcolo: `fitAlternatives` è sempre stata generalista e del
+catalogo non sa niente. Era un difetto di *che cosa* le veniva dato in pasto.
+
+**La correzione.** Una primitiva nuova, `ap_setups`, contiene le configurazioni
+dichiarate da chi usa l'app — tubo, riduttore, camera, montatura: una
+configurazione **intera**, non un elenco di pezzi da incrociare. Il confronto legge
+solo quella. Il catalogo resta visibile come esempio, perché chiedersi cosa
+cambierebbe con un tubo che non si ha è legittimo, ma non entra in nessun consiglio
+finché non lo si spunta. Con zero dichiarazioni: **0 candidati**, e al loro posto
+una riga che spiega perché.
+
+**Il modello è la spunta, non la cancellazione.** Togliere la spunta non cancella
+niente: la riga resta dov'è, e semplicemente esce dalle logiche di prescrizione.
+
+**Scelto ≠ subito.** `readCfg` scriveva `ap_cfg` a ogni lettura, compresa quella
+che l'avvio fa da solo applicando un preset: dalla seconda apertura la
+configurazione di catalogo risultava «salvata» come una scelta vera. Ora `ap_cfg`
+porta `scelta`, e la regola di migrazione vive in `setupDaMigrare(salvata, d0)`,
+funzione pura che `tools/gate-setup.js` **estrae da `index.html`** e interroga sui
+casi limite: una configurazione diversa dal default era per forza una scelta e si
+eredita; una identica al default non si sa, e nel dubbio non si dichiara niente.
+
+**Tre difetti derivati, trovati misurando e corretti.**
+
+| dove | che cosa | misura |
+|---|---|---|
+| `rxApply` | risolveva solo id di catalogo, e i candidati adesso hanno id `mio:…`: il pulsante «usa questa» premuto non faceva **niente**, in silenzio | configurazione invariata dopo il clic |
+| chiave di esclusione in `fitAlternatives` | non conteneva la **montatura**: lo stesso tubo su due montature veniva scambiato per quello in uso e spariva | NGC 7000, RC8+2600MM bin 1: CEM70G rms 0,70″ resa 13,4% · AM5 rms 1,30″ resa 13,5% — due righe diverse, una mai mostrata |
+| tetto dei candidati | contava le **righe**, e ogni configurazione ne produce due (un binning per riga): con cinque dichiarate ne comparivano tre | 5 dichiarate → 3 visibili; ora la riga migliore di ogni configurazione passa prima dei binning alternativi, e il tetto segue le dichiarazioni |
+
+**Il gate.** `tools/gate-setup.js`, 42 verifiche in sei sezioni. Provato contro sé
+stesso rimettendo i difetti: rimettere `DB.presets` nella chiamata lo fa cadere in
+3 punti, rendere il default un possesso in 1, togliere la montatura dalla chiave in
+2. Verifica anche che nessun **pezzo** non dichiarato entri — non solo il tubo, ma
+camera, montatura e riduttore, uno per uno — e che non nasca nessuna combinazione
+incrociando i pezzi di due configurazioni diverse.
+
+**Una verifica sostituita, non indebolita.** `test.js` asseriva «le alternative
+proposte sono davvero fattibili», e reggeva **per caso**: il terzo posto era
+occupato dallo stesso RC8 a un altro binning. Il motore ha smesso da tempo di
+scartare chi resta sotto la soglia — è la chiusura di D-4 — quindi quell'asserzione
+contraddiceva una decisione già presa. Al suo posto tre invarianti vere: la
+migliore alternativa è fattibile, l'elenco è ordinato per resa, ogni riga dichiara
+il proprio livello.
+
+**Che cosa NON è stato toccato.** `reference_config` resta: non è la strumentazione
+dell'autore travestita da standard, è l'**unità di misura** delle ore delle schede
+— ogni `useful` in `targets.json` è espresso su Tecnosky 115 + 0,80× + 2600MM a SQM
+21,3. Toglierlo renderebbe quelle ore senza significato.
+
+---
+
 ## Che cosa non è nell'audit ed è stato fatto lo stesso
 
 Non riaprire: modello fotometrico per camera e modalità, pozzetto derivato,
@@ -309,4 +372,4 @@ banda, penalità lunare, finestre dei dual-band, mono/OSC, saturazione per
 fotosito. E sul lato prescrizione: strada scientifica, filtri posseduti e
 accesi, invarianza della prescrizione rispetto alla strategia, riparto delle ore,
 `CRIT_WEIGHT` dichiarato, `refSub` reso deterministico, `source`/`confidence` sui
-budget.
+budget, e le configurazioni dichiarate da chi usa l'app (`ap_setups`).

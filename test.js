@@ -673,7 +673,25 @@ const alts=M.fitAlternatives(t6888b,{tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g
 console.log('      configurazioni tue in cui invece entra:');
 alts.forEach(a=>console.log(`        ${a.preset.label} bin ${a.bin} → ${a.pr.level} (${a.pr.spent.toFixed(1)}h, campionamento ${a.samp})`));
 chk('trova almeno una configurazione alternativa che ci sta',alts.length>0,true);
-chk('le alternative proposte sono davvero fattibili',alts.every(a=>a.pr.level!=='insufficiente'),true);
+/* QUI C'ERA «le alternative proposte sono davvero fattibili», e passava per caso.
+
+   Il motore ha smesso da tempo di scartare chi resta sotto la soglia — quando
+   NIENTE arriva al livello-obiettivo, sapere quale sistema ci va piu' vicino e'
+   proprio l'informazione che serve, e ogni riga dichiara il proprio livello. Quella
+   verifica reggeva solo perche' il terzo posto era occupato dallo STESSO RC8 a un
+   altro binning: adesso che ogni configurazione entra una volta sola prima che se ne
+   ripeta una, quel posto va a un telescopio diverso, che e' sotto soglia.
+   Al suo posto le tre invarianti che valgono davvero. */
+chk('la migliore alternativa e fattibile',alts[0].pr.level!=='insufficiente',true);
+chk('e l elenco e ordinato per resa decrescente',
+  alts.every((a,i)=>i===0||alts[i-1].P>=a.P-1e-12),true);
+chk('ogni riga porta il proprio livello, quindi nessuna e ingannevole',
+  alts.every(a=>typeof a.pr.level==='string'&&a.pr.level.length>0),true);
+chk('e nessuna configurazione occupa due righe finche ce n e una mai mostrata',
+  (()=>{ const k=a=>[a.cfg.tel,Number(a.cfg.red),a.cfg.cam,a.cfg.mnt].join('|');
+         const viste=new Set(); let doppia=false;
+         for(const a of alts){ if(viste.has(k(a))) doppia=true; viste.add(k(a)); }
+         return !doppia || viste.size>=3; })(),true);
 
 console.log('\n--- gruppi di costo: il dual-band non si paga due volte ---');
 const dvOsc=M.derive({tel:'askar71f',red:0.75,cam:'asi2600mc',mnt:'am5',bin:1});
