@@ -380,6 +380,120 @@ H('E · LA TECNICA LA PUÒ SCEGLIERE CHI RIPRENDE');
     cadute + ' cali su 119 passi');
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+H('F · NESSUN CANDIDATO VALIDO SPARISCE, E CHI SPARISCE LO DICE');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* `fitAlternatives` scartava un candidato con `if(e2.missing.length) continue;`,
+     e `e2.missing` sono — lo dice il commento che le calcola — le bande della STRADA
+     DI DEFAULT per cui non hai un filtro. Ma `prescribe` sceglie fra le strade che la
+     tua ruota permette: un candidato la cui strada di default chiede il SII poteva
+     avere una prescrizione HOO perfettamente eseguibile, e spariva lo stesso.
+
+     Con la ruota completa non succede mai, ed e' la ragione per cui nessuna verifica
+     se ne accorgeva: tutte girano con `DB.default_filters`. Serve provarlo con un
+     corredo parziale, che e' la norma. */
+  const pure2 = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8')
+    .split('<script>')[1].split('</script>')[0]
+    .split('/* =====================================================================\n   UI')[0];
+  const CIT2 = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'cities.json'), 'utf8'));
+  const CAT2 = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'catalog.json'), 'utf8'));
+  const TG2 = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'targets.json'), 'utf8'));
+  require(path.join(ROOT, 'tools', 'lib', 'enrich.js')).enrich(TG2, CAT2.objects, ROOT);
+  const conRuota = ruota => {
+    const RU = ruota.slice();
+    const ctx2 = { DB, TG: TG2, CAT: CAT2.objects, CITIES: CIT2.cities, OWNED: RU,
+      console, Math, Date, Object, JSON, isFinite, parseFloat, parseInt, Number, window: {} };
+    return new Function(...Object.keys(ctx2), pure2 + `return {derive,evaluate,prescribe,
+      nightProfile,effFWHM,fitAlternatives,projectPanels};`)(...Object.values(ctx2));
+  };
+  const stF = { lat: 46.0167, lon: 10.3333, sqm: 20.8, seeing: 1.6, rms: 0.6, horizonMin: 20, clearFrac: 0.35 };
+  const CFGF = { tel: 'askar71f', red: 0.75, cam: 'asi2600mc', mnt: 'am5', bin: 1 };
+  const conta = Mx => {
+    const npF = Mx.nightProfile(D, stF.lat, stF.lon);
+    stF.fwhm = Mx.effFWHM(1.6, 0.6);
+    let inCl = 0, esc = 0, senzaMotivo = 0;
+    for (const t of TG2.targets) for (const cov of ['full', 'framing']) {
+      let a; try { a = Mx.fitAlternatives(t, CFGF, stF, npF, {}, 20, DB.presets, 99, 0, cov); }
+      catch (e) { continue; }
+      inCl += a.length;
+      for (const x of (a.escluse || [])) { esc++; if (!x.manca || !x.manca.length) senzaMotivo++; }
+    }
+    return { inCl, esc, senzaMotivo };
+  };
+
+  /* 1 · con la ruota completa non cambia niente, e nessuno resta fuori. */
+  const piena = conta(conRuota(DB.default_filters));
+  chk('con la ruota completa nessun candidato resta fuori', piena.esc === 0,
+    piena.inCl + ' in classifica');
+
+  /* 2 · IL CANDIDATO VALIDO CHE PRIMA SPARIVA. Con il solo dual-band la strada di
+     default di molte schede chiede il SII, che non hai: il veto vecchio li toglieva
+     tutti, mentre la prescrizione che ne esce e' HOO ed e' eseguibile. */
+  const Mdual = conRuota(['lult', 'idas']);
+  const dual = conta(Mdual);
+  /* Il termine di paragone e' il VETO VECCHIO ricostruito qui: quanti candidati
+     sarebbero rimasti scartando su `e2.missing`, cioe' sulla strada di default.
+     Una soglia assoluta non direbbe niente; questo confronto si', ed e' il difetto. */
+  const npDual = Mdual.nightProfile(D, stF.lat, stF.lon);
+  stF.fwhm = Mdual.effFWHM(1.6, 0.6);
+  let vecchio = 0;
+  for (const t of TG2.targets) for (const cov of ['full', 'framing'])
+    for (const pz of DB.presets) for (const bin of [1, 2]) {
+      let dv2; try { dv2 = Mdual.derive({ tel: pz.telescope, red: pz.reducer, cam: pz.camera, mount: pz.mount, mnt: pz.mount, bin }); } catch (e) { continue; }
+      let e2; try { e2 = Mdual.evaluate(t, dv2, stF, npDual, {}, cov); } catch (e) { continue; }
+      if (!(e2.missing || []).length) vecchio++;
+    }
+  console.log('       solo dual-band: ' + dual.inCl + ' in classifica ora, ' + vecchio +
+    ' col veto vecchio, ' + dual.esc + ' esclusi dichiarati');
+  chk('il veto vecchio toglieva candidati che ora restano', dual.inCl > vecchio,
+    '+' + (dual.inCl - vecchio) + ' recuperati');
+  /* La prova che sono VALIDI: la loro prescrizione non ha niente di mancante. */
+  const npD = Mdual.nightProfile(D, stF.lat, stF.lon);
+  stF.fwhm = Mdual.effFWHM(1.6, 0.6);
+  /* Serve un bersaglio la cui strada di DEFAULT chiede un filtro che non hai: e'
+     esattamente il caso in cui il veto vecchio scattava pur essendoci una strada
+     percorribile. Con il solo dual-band sono NGC 7635, Sh2-155, IC 1805, IC 1396. */
+  const cres2 = TG2.targets.find(x => /7635/.test(x.names.join(' ')));
+  const aD = Mdual.fitAlternatives(cres2, CFGF, stF, npD, {}, 20, DB.presets, 99, 0, 'full');
+  chk('e ogni candidato in classifica ha una prescrizione davvero eseguibile',
+    aD.every(x => !(x.pr.missing || []).length), aD.length + ' su ' + cres2.names[0]);
+  /* E la strada di default di quella scheda chiedeva davvero qualcosa che non hai:
+     e' il caso in cui il veto vecchio scattava. */
+  const eD = Mdual.evaluate(cres2, Mdual.derive(CFGF), stF, npD, {}, 'full');
+  chk('mentre la strada di default chiedeva un filtro che non hai',
+    (eD.missing || []).length > 0, cres2.names[0] + ': manca ' + (eD.missing || []).join(','));
+
+  /* 3 · IL CANDIDATO DAVVERO INESEGUIBILE resta fuori, e con il motivo scritto. */
+  chk('chi resta fuori e escluso perche la sua PRESCRIZIONE non e eseguibile',
+    dual.esc > 0 && dual.senzaMotivo === 0,
+    dual.esc + ' esclusi, tutti con il motivo');
+  /* Su un bersaglio solo gli esclusi possono essere zero, e l'asserzione
+     passerebbe a vuoto: si raccolgono su tutto il catalogo. */
+  const escTutti = [];
+  for (const t of TG2.targets) for (const cov of ['full', 'framing']) {
+    let a; try { a = Mdual.fitAlternatives(t, CFGF, stF, npDual, {}, 20, DB.presets, 99, 0, cov); }
+    catch (e) { continue; }
+    for (const x of (a.escluse || [])) escTutti.push(x);
+  }
+  chk('ci sono davvero esclusi da esaminare', escTutti.length > 0, escTutti.length + ' su tutto il catalogo');
+  chk('e ognuno dichiara che cosa gli manca e su quale strada',
+    escTutti.length > 0 && escTutti.every(x => x.manca && x.manca.length && x.road),
+    escTutti.length ? escTutti[0].preset.label + ' → manca ' + escTutti[0].manca.join(',') +
+      ' sulla strada ' + escTutti[0].road : 'nessuno');
+
+  /* 4 · il veto non guarda piu' la strada di default: verificato sul sorgente,
+     perche' e' un ritorno indietro di una riga. */
+  const src2 = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  /* Il codice, non il commento che lo racconta: il difetto e' descritto qui sopra
+     fra apici inversi, e una regex ingenua ci ricascava. */
+  chk('il veto non si fonda piu su e2.missing',
+    !/[^`]if\(e2\.missing\.length\) continue;/.test(src2) &&
+    /pr\.missing&&pr\.missing\.length/.test(src2), 'si fonda su pr.missing');
+  chk('e l interfaccia dichiara chi non compare',
+    /alts\.escluse&&alts\.escluse\.length/.test(src2));
+}
+
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
 if (ko) process.exitCode = 1;
 module.exports = { ok, ko };

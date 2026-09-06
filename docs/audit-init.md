@@ -32,12 +32,12 @@ difetti.
 | **D-1** | rumore fotonico del soggetto mai nella varianza | 🔴 aperta | **alta** | medio |
 | **D-2** | sovra e sottocampionamento trattati uguali | 🟢 chiusa | — | — |
 | **D-3** | convenzioni non dichiarate come tali | 🟡 metà | media | medio |
-| **D-4** | candidati sotto soglia scartati | 🟡 metà | **alta** | piccolo |
+| **D-4** | candidati sotto soglia scartati | 🟢 chiusa | — | — |
 | **D-5** | ogni candidato eredita la rotazione attuale | 🟢 chiusa | — | — |
 | **D-6** | fallback che scattano in silenzio | 🟡 metà | media | medio |
 | **D-7** | codice e dati mai raggiunti | 🟡 metà | media | piccolo |
 
-Sei chiuse, sette a metà, una aperta. **C-6, C-1, C-5, D-2 e D-5 chiuse**; il resto
+Sette chiuse, sei a metà, una aperta. **C-6, C-1, C-5, D-2, D-5 e D-4 chiuse**; il resto
 è fermo al `4da529f`. La sequenza dell'audit resta
 `C-1 → C-2 → C-3 → C-6 → C-4/D-6 → C-5/D-2 → C-7/D-1`.
 
@@ -235,12 +235,37 @@ solo commento. Le tredici dichiarate lo sono bene, e `CRIT_WEIGHT` è il modello
 da seguire: costante nominata, effetto misurato dal motore stesso, riga in
 interfaccia con entrambi i numeri. Lo strato più muto è quello del punteggio.
 
-### D-4 · la strada è aperta, il confronto fra setup no
-`roadChoices` offre tutte le strade con la penalità in chiaro, `fillBudget` non
-scarta più, `feasibility` non emette veti. Ma `index.html:2954` contiene ancora
-`if (e2.missing.length) continue;` — un **veto binario e silenzioso** dentro
-`fitAlternatives`. Peggio: si fonda su `e2.missing`, cioè la strada di *default*,
-non su quella davvero prescritta.
+### ~~D-4~~ · chiusa
+`roadChoices`, `fillBudget` e `feasibility` erano già a posto. Restava un **veto
+binario e silenzioso** dentro `fitAlternatives`: `if (e2.missing.length) continue;`
+— e `e2.missing` sono, come dice il commento che le calcola, «le bande richieste
+dalla **strada di default** per cui non hai un filtro». Ma `prescribe` sceglie fra
+le strade che la tua ruota permette: un candidato la cui strada di default chiede
+il SII poteva avere una prescrizione HOO perfettamente eseguibile, e spariva lo
+stesso.
+
+È lo stesso difetto già corretto nella prescrizione principale — il commento a
+`filtNote` lo descrive parola per parola — sopravvissuto qui.
+
+**Con la ruota completa non succede mai**, ed è la ragione per cui nessuna verifica
+se ne accorgeva: girano tutte con `default_filters`. Con un corredo parziale, che è
+la norma:
+
+| ruota | in classifica prima | dopo | recuperati |
+|---|---|---|---|
+| completa | 598 | 598 | +0 |
+| senza SII | 414 | 506 | +92 |
+| **solo dual-band** | **54** | **306** | **+252** |
+| solo Ha + L | 138 | 230 | +92 |
+
+Con il solo dual-band — la configurazione più diffusa che esista — il confronto
+passava da 54 candidati a 306.
+
+Il veto ora si fonda su `pr.missing`, la prescrizione davvero richiesta. E chi
+resta fuori non sparisce: `fitAlternatives` restituisce `escluse` con il filtro
+mancante e la strada, e la pagina lo dice — *«Non compaiono 5 configurazioni,
+perché con la ruota di adesso la prescrizione che ne uscirebbe non è eseguibile…
+Non è lo strumento a mancare, è il filtro»*.
 
 ### D-6 · nessun ripiego del motore dichiara di essere scattato
 **Sei `catch` nel motore, zero su sei dichiarano.** Fra i ripieghi numerici, nove

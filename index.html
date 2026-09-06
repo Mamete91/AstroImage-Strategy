@@ -2969,6 +2969,11 @@ function mountRms(mountId,scale){
    L'ordinamento non cambia — cambia cosa costa ciascun candidato. */
 function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov){
   const out=[];
+  /* Le configurazioni che una prescrizione ce l'hanno, ma non eseguibile con i
+     filtri che possiedi. Restano fuori dalla classifica — consigliare un sistema
+     che non puoi usare stanotte non e' un consiglio — ma escono dalla funzione,
+     perche' sparire senza motivo e' peggio che non comparire. */
+  const escluse=[];
   /* La chiave che esclude la configurazione gia' in uso. Il riduttore arriva
      come numero dai preset e come stringa da chi legge un campo di modulo, e
      per un confronto di stringhe 0.80 non e' 0.8: normalizzare qui evita che la
@@ -2985,7 +2990,6 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov){
       const rms2=mountRms(p.mount,dv2.scale0);
       const site2={...site,rms:rms2,fwhm:effFWHM(site.seeing,rms2)};
       const e2=evaluate(tg,dv2,site2,np,state,cov);
-      if(e2.missing.length) continue;
       /* Ogni configurazione porta la propria geometria: un tubo corto copre il
          soggetto in un campo dove uno lungo ne chiede venti, e il confronto deve
          vedere il sistema intero — profondita' E copertura — non mezzo sistema. */
@@ -3003,6 +3007,28 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov){
       const rot2=br2?br2.rot:(rot||0);
       const pp2=projectPanels(tg,dv2,cov,rot2);
       const pr=prescribe(e2,hours,dv2,pp2.panels);
+      /* IL VETO GUARDA LA PRESCRIZIONE VERA, non la strada di default.
+
+         Qui c'era `if(e2.missing.length) continue;`, e `e2.missing` e' — lo dice il
+         commento che lo calcola — «le bande richieste dalla STRADA DI DEFAULT per
+         cui non hai un filtro». Ma `prescribe` sceglie fra le strade che la tua
+         ruota permette: un candidato la cui strada di default chiede il SII poteva
+         avere una prescrizione HOO perfettamente eseguibile, e spariva lo stesso.
+         E' lo stesso difetto gia' corretto nella prescrizione principale — il
+         commento a `filtNote` lo descrive parola per parola — sopravvissuto qui.
+
+         MISURATO su tutte le configurazioni, tutti i bersagli e le due coperture:
+         con la ruota completa nessun candidato viene scartato, ed e' la ragione per
+         cui nessuna verifica se ne accorgeva. Con un corredo parziale — che e' la
+         norma — su una ruota senza SII sparivano 96 candidati e 48 avevano una
+         prescrizione senza niente di mancante; con il solo dual-band, 128 su 276.
+
+         Chi resta davvero fuori non sparisce in silenzio: si raccoglie, con cio'
+         che gli manca, e chi disegna la pagina lo dice. */
+      if(pr.missing&&pr.missing.length){
+        escluse.push({preset:p,bin,dv:dv2,manca:pr.missing.slice(),road:pr.road.id});
+        continue;
+      }
       /* Non si scarta piu' chi resta sotto la soglia. Adesso una prescrizione
          c'e' comunque, e la resa lo colloca in fondo da sola invece di
          nasconderlo: quando NIENTE arriva al livello-obiettivo, sapere quale
@@ -3047,7 +3073,11 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov){
      Le ore di progetto restano come spareggio: a parita' di fotografia
      ottenuta, si preferisce quella che costa meno. */
   out.sort((a,b)=>(b.P-a.P) || (a.projectH-b.projectH));
-  return out.slice(0,maxN||3);
+  const res=out.slice(0,maxN||3);
+  /* Si viaggia sull'array perche' i chiamanti si aspettano un array: cosi' chi non
+     guarda `escluse` continua a funzionare come prima, e chi la guarda puo' dirlo. */
+  res.escluse=escluse;
+  return res;
 }
 
 /* Un oggetto di catalogo senza scheda curata non e' un vicolo cieco.
@@ -7869,6 +7899,25 @@ function renderRx(np){
         su questo soggetto giudicarli tutti allo stesso angolo li avrebbe confrontati per
         quello che non sono. Dove l’angolo di posizione del soggetto non è noto la rotazione
         non cambia niente e il segno non compare.</p>`:''}
+      ${(alts.escluse&&alts.escluse.length)?(()=>{
+        /* CHI NON COMPARE, E PERCHE'. Una configurazione la cui prescrizione chiede
+           un filtro che non hai non e' un consiglio, e resta fuori dalla classifica.
+           Ma sparire senza motivo e' peggio che non comparire: chi legge deve poter
+           capire che l'elenco e' corto per la ruota, non per lo strumento. */
+        const perManca={};
+        for(const x of alts.escluse){ const k=x.manca.join(' e ');
+          (perManca[k]=perManca[k]||new Set()).add(x.preset.label); }
+        const voci=Object.entries(perManca).map(([k,v])=>
+          `<b>${esc([...v].join(', '))}</b> — ti servirebbe ${esc(k)}`);
+        /* Il plurale si conta sulle CONFIGURAZIONI, non sui gruppi: cinque nomi
+           raccolti sotto un solo filtro mancante restano cinque. */
+        const quante=Object.values(perManca).reduce((a,v)=>a+v.size,0);
+        return `<p class="small muted" style="margin-top:8px">${quante>1
+            ?`Non compaiono <b>${quante}</b> configurazioni`
+            :'Non compare una configurazione'}, perché con la ruota di adesso la
+          prescrizione che ne uscirebbe non è eseguibile: ${voci.join(' · ')}.
+          Non è lo strumento a mancare, è il filtro.</p>`;
+      })():''}
       <p class="small muted" style="margin-top:8px">Ordinati sulla <b>resa</b>: quanto del
       soggetto entra, per quanta profondità, a quale dettaglio. Sono tre cose distinte e
       restano scritte una per una — su una planetaria decide il dettaglio, su una nebulosa
