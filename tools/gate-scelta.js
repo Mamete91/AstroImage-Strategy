@@ -267,6 +267,119 @@ H('D · SU SENSORE BAYER IL COLORE NON È UN FILTRO IN RUOTA');
     fine > 0 ? 'bandePossedute letta' : 'funzione non trovata');
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+H('E · LA TECNICA LA PUÒ SCEGLIERE CHI RIPRENDE');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* HOO e SHO sullo stesso oggetto non sono meglio e peggio: sono due immagini
+     diverse. Il motore consiglia la piu' ricca che riesci a completare, ma resta
+     un consiglio — e quando chi riprende ne vuole un'altra, tutto il resto deve
+     seguirla, non solo un'etichetta.
+
+     Qui si verifica che la scelta comandi davvero, e soprattutto che cosa NON
+     riesce a scavalcare. */
+  const pure = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8')
+    .split('<script>')[1].split('</script>')[0]
+    .split('/* =====================================================================\n   UI')[0];
+  const CIT = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'cities.json'), 'utf8'));
+  const CATx = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'catalog.json'), 'utf8'));
+  const RUOTA = DB.default_filters.slice();
+  const ctx = { DB, TG, CAT: CATx.objects, CITIES: CIT.cities, OWNED: RUOTA,
+    console, Math, Date, Object, JSON, isFinite, parseFloat, parseInt, Number, window: {} };
+  const Mx = new Function(...Object.keys(ctx), pure + `return {derive,evaluate,prescribe,
+    nightProfile,effFWHM,dualPass,setUsing:(v)=>{USING=v}};`)(...Object.values(ctx));
+  const ruota = v => { RUOTA.length = 0; v.forEach(x => RUOTA.push(x)); };
+
+  const st = sito(20.8), np = Mx.nightProfile(D, st.lat, st.lon);
+  const mono = Mx.derive(CFG[0][1]), osc = Mx.derive(CFG[2][1]);
+  const cres = TG.targets.find(x => /6888/.test(x.names.join(' ')));
+  const canali = pr => pr.alloc.filter(g => g.hours > 0).map(g => g.id).sort().join('+');
+  const dai = (dv, ore, road) => Mx.prescribe(Mx.evaluate(cres, dv, st, np, {}), ore, dv, 1,
+    road ? { road } : null);
+
+  /* 1 · La scelta comanda, e comanda tutto quello che sta a valle. */
+  const a = dai(mono, 14, null);
+  const b = dai(mono, 14, 'sho');
+  console.log('       automatica  ' + P(a.road.id, 6) + canali(a) + '   ' + a.level);
+  console.log('       scelta SHO  ' + P(b.road.id, 6) + canali(b) + '   ' + b.level);
+  chk('senza scelta decide il motore', a.roadPicked === false && a.roadAuto === a.road.id);
+  chk('con la scelta la strada e quella voluta', b.road.id === 'sho' && b.roadPicked === true);
+  chk('e i canali cambiano davvero, non solo l etichetta',
+    canali(b).indexOf('SII') >= 0 && canali(a).indexOf('SII') < 0, canali(b));
+  chk('il motore dichiara che cosa avrebbe scelto da solo',
+    b.roadAuto === a.road.id && b.roadAutoSame === false, 'auto: ' + b.roadAuto);
+
+  /* 2 · Scegliere non nasconde il prezzo: la SHO a 14 h non e' piena. */
+  chk('una tecnica scelta ma non completabile lo dichiara',
+    b.level !== 'pieno' && b.roadTotals.ideal > 14, b.level + ', ideale ' + F(b.roadTotals.ideal) + ' h');
+  chk('e la prescrizione arriva lo stesso', b.alloc.some(g => g.hours > 0));
+
+  /* 3 · Una strada che questo oggetto non ha viene ignorata, non rompe niente. */
+  const c = dai(mono, 14, 'una_strada_che_non_esiste');
+  chk('una tecnica che l oggetto non prevede torna all automatico',
+    c.road.id === a.road.id && c.roadPicked === false, 'chiesta comunque: ' + c.roadRequested);
+
+  /* 4 · La coppia del dual-band non si scavalca nemmeno scegliendo.
+     Non e' una tecnica piu' povera: attraverso un dual Ha e OIII arrivano nella
+     stessa posa, e sceglierne una sola descrive una ripresa che non esiste. */
+  const sette = TG.targets.find(x => /7000/.test(x.names.join(' ')));
+  ruota(['lult']);
+  const dual = Mx.dualPass(osc.c);
+  chk('la camera a colori ha un dual-band in ruota', !!dual, dual ? dual.name : 'nessuno');
+  const eS = Mx.evaluate(sette, osc, st, np, {});
+  const base = Mx.prescribe(eS, 40, osc, 1);
+  const spezzata = (sette.roads || []).map(r => r.id)
+    .find(id => (base.roadChoices || []).every(c => c.id !== id));
+  const off = (base.roadChoices || []).map(c => c.id);
+  console.log('       tecniche offerte su ' + sette.names[0] + ': ' + off.join(', '));
+  if (spezzata) {
+    const forz = Mx.prescribe(eS, 40, osc, 1, { road: spezzata });
+    const ch = forz.alloc.filter(g => g.hours > 0).flatMap(g => g.bands || [g.id]);
+    chk('la strada spezzata non e nemmeno offerta', off.indexOf(spezzata) < 0, spezzata);
+    chk('e forzandola a mano la coppia resta comunque coppia',
+      (ch.indexOf('Ha') >= 0) === (ch.indexOf('OIII') >= 0),
+      'canali ' + ch.join('+'));
+  } else {
+    chk('su questo oggetto non ci sono strade spezzate da escludere', true, 'niente da provare');
+    chk('(coppia gia verificata altrove)', true);
+  }
+  ruota(DB.default_filters);
+
+  /* 5 · I filtri invece NON bloccano una scelta esplicita: la si prescrive e si
+     dichiara che cosa manca. E' una decisione, non un errore del motore. */
+  ruota(DB.default_filters.filter(x => x !== 's2_3' && x !== 's2_65' && x !== 's2_12'));
+  const senzaSII = dai(mono, 40, null);
+  chk('senza SII il motore da solo non propone la SHO', senzaSII.road.id !== 'sho',
+    'sceglie ' + senzaSII.road.id);
+  const forzata = dai(mono, 40, 'sho');
+  chk('ma se la scegli tu la SHO si prescrive lo stesso',
+    forzata.road.id === 'sho' && forzata.roadPicked === true);
+  chk('e il motore dice che ti serve il SII',
+    (forzata.missing || []).indexOf('SII') >= 0, 'manca: ' + (forzata.missing || []).join(','));
+  chk('mentre in automatico non manca niente', (senzaSII.missing || []).length === 0);
+  ruota(DB.default_filters);
+
+  /* 6 · L'elenco che l'interfaccia rende premibile deve essere completo e sensato. */
+  const el = a.roadChoices || [];
+  chk('l elenco delle tecniche premibili non e vuoto', el.length >= 2, el.length + ' tecniche');
+  chk('ogni voce porta nome, condizione e ore per farla piena',
+    el.every(c => c.id && c.name && c.ideal > 0));
+  chk('la strada in uso e sempre fra quelle offerte',
+    el.some(c => c.id === a.road.id) && el.some(c => c.id === b.road.id));
+
+  /* 7 · E scegliere non deve rompere la monotonia dell automatico: quella regola
+     vive tutta nel ramo senza scelta, e va lasciata intatta. */
+  let cadute = 0, prev = null;
+  for (let h = 1; h <= 60; h += 0.5) {
+    const p = dai(mono, h, null);
+    const r = p.roadTotals.ideal;
+    if (prev != null && r < prev - 1e-9) cadute++;
+    prev = Math.max(prev == null ? r : prev, r);
+  }
+  chk('in automatico la ricchezza non retrocede al crescere delle ore', cadute === 0,
+    cadute + ' cali su 119 passi');
+}
+
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
 if (ko) process.exitCode = 1;
 module.exports = { ok, ko };

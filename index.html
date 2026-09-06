@@ -372,6 +372,36 @@ label.f > input, label.f > select{text-transform:none;font-size:14px;letter-spac
 .sc-s{margin-top:6px;font-size:10.5px;color:var(--dim2);line-height:1.35}
 @media (max-width:560px){ .sc-n{font-size:18px} .stratcard{padding:9px 11px} }
 
+/* LA TECNICA. Stessa grammatica delle tre modalita' — sono decisioni sorelle,
+   prese nello stesso momento — ma piu' basse: qui non c'e' un numero grande da
+   leggere, c'e' un nome e una condizione. */
+.roadgrid{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.roadcard{display:block;width:100%;text-align:left;cursor:pointer;font:inherit;color:var(--fg);
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+  transition:border-color .15s,background .15s}
+.roadcard:hover{border-color:var(--dim2)}
+.roadcard:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.roadcard.on{border-color:var(--acc);background:var(--surface-2)}
+.roadcard.auto{border-style:dashed}
+/* Quella che l'automatico ha preso si segnala con un bordo tenue, non con
+   l'accento: acceso resta il riquadro che comanda, che li' e' «Sceglie il motore». */
+.roadcard.now{border-color:var(--dim2)}
+.rc-h{display:flex;align-items:center;gap:6px;justify-content:space-between;font-size:13px}
+.rc-w{font-size:11px;color:var(--acc2,var(--dim));margin-top:3px;font-style:italic}
+.rc-n{font-size:11.5px;color:var(--dim);margin-top:5px;font-variant-numeric:tabular-nums}
+/* Una tecnica che la ruota non copre resta premibile: e' una scelta, non un errore. */
+.roadcard.lack{opacity:.82}
+@media (hover:none),(max-width:560px){ .roadcard{padding:11px 12px} }
+
+/* Nella scheda le stesse tecniche sono gia' raccontate con pro e contro: li' il
+   riquadro diventa premibile senza cambiare aspetto, perche' il testo e' il
+   contenuto e il clic e' un di piu'. */
+button.road{display:block;width:100%;text-align:left;font:inherit;color:inherit;
+  background:none;cursor:pointer}
+button.road:hover{border-color:var(--dim2)}
+button.road:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.road .rc-pick{font-size:11px;color:var(--acc);margin-top:6px;font-weight:600}
+
 /* I riquadri dei filtri sono interruttori: quello spento resta leggibile — devi
    poterlo ritrovare per riaccenderlo — ma e' inequivocabilmente fuori uso. */
 button.fchip{cursor:pointer;font:inherit;font-size:11px;font-weight:700;
@@ -2493,7 +2523,7 @@ function expectFor(tg,refHours){
    `panels` arriva da chi chiama quando conosce la rotazione della camera;
    altrimenti si prende quella che evaluate() ha gia' calcolato sulla geometria
    del bersaglio. Con un oggetto che sta in un campo vale 1 e non cambia nulla. */
-function prescribe(e,hours,dv,panels){
+function prescribe(e,hours,dv,panels,opts){
   const P=Math.max(1,Math.round(panels||e.panels||1));
   const hoursTot=hours;
   hours=hours/P;                    // le ore che restano a ciascun pannello
@@ -2558,7 +2588,9 @@ function prescribe(e,hours,dv,panels){
   const split =x=>{const c=x.parts; const a=!!(c.Ha&&c.Ha.useful>0), b=!!(c.OIII&&c.OIII.useful>0);
                    return a!==b;};
   let coppiaImposta=false;
+  const spezzate=[];                    // escluse perche' descrivono una ripresa che non esiste
   if(dual && candF.some(paired) && candF.some(split)){
+    for(const x of candF) if(split(x)) spezzate.push(x);
     candF=candF.filter(x=>!split(x));
     coppiaImposta=true;
   }
@@ -2604,9 +2636,40 @@ function prescribe(e,hours,dv,panels){
   const perRicchezza=(a,b)=>(b.ideal-a.ideal)||(a.i-b.i);
   cand.forEach((c,i)=>{ if(c.i==null) c.i=i; });
   const completabili=cand.filter(c=>hours>=c.ideal-1e-9);
-  const chosen=completabili.length
+  const auto=completabili.length
     ? completabili.slice().sort(perRicchezza)[0]
     : cand.slice().sort((a,b)=>(a.ideal-b.ideal)||(a.i-b.i))[0];
+
+  /* LA STRADA LA PUOI SCEGLIERE TU.
+
+     Quella automatica resta il consiglio — la piu' ricca che riesci a completare —
+     ma non e' un verdetto: HOO e SHO sullo stesso oggetto non sono meglio e peggio,
+     sono due immagini diverse, e chi riprende puo' volerne una anche quando le ore
+     suggeriscono l'altra. La scelta entra qui, dopo il criterio automatico e prima
+     di ogni altro conto, cosi' tutto il resto — ripartizione, posa, notti, piano,
+     esportazione — segue la strada scelta senza sapere che qualcuno l'ha scelta.
+
+     COSA RESTA VINCOLANTE, anche scegliendo. La coppia di un dual-band non si
+     separa: attraverso un L-Ultimate Ha e OIII arrivano nella stessa posa, e una
+     strada che ne pianifica una sola descrive un'acquisizione che non esiste.
+     Quelle strade sono gia' fuori da `cand`, e non si vanno a ripescare.
+
+     COSA INVECE NON BLOCCA. Se la strada che vuoi chiede un filtro che non hai, la
+     si prescrive lo stesso e si dichiara che cosa manca: e' una scelta esplicita,
+     non un errore del motore, e chi la fa merita di vedere che cosa comporterebbe.
+     E' la stessa regola del «non ci sta» — il motore prescrive, poi dice. */
+  /* Il ripiego su `cand0` serve a onorare una scelta che i FILTRI non coprono: e'
+     una decisione esplicita e merita di essere vista. Non deve pero' riaprire le
+     strade tolte dalla regola della coppia, che non sono una tecnica piu' povera
+     ma la stessa ripresa raccontata male: attraverso un dual-band Ha e OIII
+     arrivano nella stessa posa, e sceglierne una sola non e' una scelta. */
+  const scegliibili=cand0.filter(x=>spezzate.indexOf(x)<0);
+  const voluta=opts&&opts.road?String(opts.road):null;
+  let chosen=auto, roadPicked=false;
+  if(voluta&&voluta!=='auto'){
+    const q=cand.find(x=>x.r.id===voluta)||scegliibili.find(x=>x.r.id===voluta);
+    if(q){ if(q.i==null) q.i=cand.length; chosen=q; roadPicked=true; }
+  }
 
   /* Il canale per le sole stelle senza filtro cade qui, prima del riempimento:
      non ha senso assegnargli ore, e la strada resta valida senza. */
@@ -2739,6 +2802,15 @@ function prescribe(e,hours,dv,panels){
 
   return {level,road:chosen.r,roadTotals:{ideal:chosen.ideal,acc:chosen.acc,floor:chosen.floor},
           roads:cand,alt:roads.filter(x=>!x.distinct),
+          /* Chi ha scelto la strada, e quale avrebbe scelto il motore da solo.
+             Serve all'interfaccia per dire «stai scegliendo tu» senza ricalcolare
+             niente, e per mostrare che cosa consiglierebbe l'automatico. */
+          roadPicked,roadAuto:auto.r.id,roadRequested:voluta||null,
+          roadAutoSame:auto.r.id===chosen.r.id,
+          /* Le strade che la scheda offre e che con questa ruota si possono
+             davvero percorrere: e' l'elenco che l'interfaccia rende cliccabile. */
+          roadChoices:scegliibili.map(x=>({id:x.r.id,name:x.r.name,when:x.r.when,
+            ideal:x.ideal,floor:x.floor,manca:mancantiDi(x)})),
           /* La ruota che hai, e che cosa ha deciso. `missing` e' vuoto ogni volta
              che una strada percorribile esiste; `filterLimited` dice che la scelta
              e' stata ristretta dai filtri e non dalle ore; `blocked` elenca che
@@ -7064,6 +7136,30 @@ const setStrat=id=>{ RXSTRAT=id; try{localStorage.setItem('ap_strat',id)}catch(e
 const syncStrat=()=>{ const m={resa:'rxStratResa',equilibrio:'rxStratEq',dinamica:'rxStratDin'};
   const el=document.getElementById(m[RXSTRAT]); if(el) el.checked=true; };
 
+/* LA TECNICA, che e' una scelta e non un verdetto.
+
+   HOO e SHO sullo stesso oggetto non sono meglio e peggio: sono due immagini
+   diverse. Il motore consiglia la piu' ricca che riesci a completare, ma chi
+   riprende puo' volerne un'altra — e allora tutto il resto deve seguirla:
+   ripartizione, posa, notti, piano, esportazione.
+
+   Lo stato e' per BERSAGLIO, e non poteva essere altrimenti: la SHO esiste su
+   NGC 6888 e non su M31, e portarsi dietro una scelta da un oggetto all'altro
+   vorrebbe dire applicarla dove non significa niente. Su un oggetto che non ha
+   quella strada il motore la ignora e torna a scegliere da solo. */
+let RXROAD=(()=>{ try{ const v=JSON.parse(localStorage.getItem('ap_road')||'{}');
+  return (v&&typeof v==='object')?v:{}; }catch(e){ return {}; } })();
+const roadFor=id=>(id&&RXROAD[id])||null;
+const setRoad=(tgId,id)=>{
+  if(!tgId) return;
+  if(!id||id==='auto') delete RXROAD[tgId]; else RXROAD[tgId]=id;
+  /* Non si tiene una cronologia: solo le scelte vive, e non troppe. */
+  const k=Object.keys(RXROAD);
+  if(k.length>60) delete RXROAD[k[0]];
+  try{ localStorage.setItem('ap_road',JSON.stringify(RXROAD)); }catch(e){}
+  refresh();
+};
+
 /* L'RGB PER LE SOLE STELLE, e va detto ovunque compaia.
 
    In molte schede a banda stretta l'RGB non porta nessuna quota del soggetto:
@@ -7252,6 +7348,8 @@ function resetBande(){
 let RXCOV=null;                   // l'ultima copertura risolta: soggetto e progetto
 let RXNIGHT=null;                 // la notte risolta: la usano barra, scheda e piano
 let RXPR=null, RXDV=null;         // ultima prescrizione e ultima catena derivata.
+let RXTG=null;                    // il bersaglio a cui si riferiscono: serve a chi
+                                  // deve offrire una scelta che vale solo per lui.
                                   // Esistono perche' il riepilogo laterale LEGGA i
                                   // valori gia' calcolati invece di richiamare il
                                   // motore: due punti di chiamata sono due punti in
@@ -7266,7 +7364,7 @@ function renderRx(np){
      mancante — e legarla alla risoluzione lasciava la barra della richiesta
      precedente. Quando la notte si sposta, si ridisegna una seconda volta con
      quella vera: due render sono niente, una barra bugiarda no. */
-  RXNIGHT=null; RXPR=null; RXCOV=null; RXAVAIL=0; showAvail(null); renderPreview(null);
+  RXNIGHT=null; RXPR=null; RXTG=null; RXCOV=null; RXAVAIL=0; showAvail(null); renderPreview(null);
   $('rxCtx').innerHTML=rxContext();
   /* La carta della configurazione vive in Strumentazione, non piu' nella home. */
   const cc=$('cfgCtx'); if(cc) cc.innerHTML=cfgContext();
@@ -7368,7 +7466,8 @@ function renderRx(np){
      mix quanta profondita' quelle notti depositano davvero, e si riprescrive su
      quel numero. La seconda passata e' quella che conta; la prima serve solo a
      sapere di che cosa si sta parlando. */
-  const pr0=prescribe(e,hours,dv,ppRx.panels);
+  const scelta=roadFor(t.id);
+  const pr0=prescribe(e,hours,dv,ppRx.panels,{road:scelta});
   {
     /* LA SCALA CHE NON FINIVA MAI — chiedi due notti, te ne chiede tre; gliene dai
        tre, te ne chiede quattro, all'infinito.
@@ -7407,9 +7506,9 @@ function renderRx(np){
       : RXAVAIL;
   }
   const pr=RXCAP>0&&Math.abs(RXCAP-hours)>1e-6
-    ? prescribe(e,RXCAP,dv,ppRx.panels) : pr0;
+    ? prescribe(e,RXCAP,dv,ppRx.panels,{road:scelta}) : pr0;
   RXCOV=ppRx;
-  RXPR=pr;
+  RXPR=pr; RXTG=t;
   renderPreview(t,dv);            // il campo che questa configurazione inquadra
   showAvail(t,RN,NN,pr);                          // idem: il riepilogo la legge da qui
   const L=RXLVL[pr.level];
@@ -8164,6 +8263,56 @@ function rxStrategyHtml(expo,dv,pr,panels){
     <div class="sc-t">Strategia di acquisizione
       <span class="muted">— stessa prescrizione, stessa fisica: cambia solo la posa e quanto ti costa</span></div>
     <div class="stratgrid">${STRATEGIES.map(card).join('')}</div>
+  </div>`+rxRoadHtml(pr);
+}
+
+/* LE TECNICHE FRA CUI SCEGLIERE, accanto alle tre modalita' perche' e' li' che
+   sta la decisione: le modalita' dicono COME riprendi, questa dice CHE COSA. La
+   scheda dell'oggetto le racconta gia' con pro e contro; qui si possono premere. */
+function rxRoadHtml(pr){
+  if(!pr||!pr.roadChoices||pr.roadChoices.length<2) return '';
+  const t=RXTG;                         // il bersaglio a cui la prescrizione si riferisce
+  if(!t) return '';
+  const card=c=>{
+    /* Acceso vuol dire «l'hai scelta tu», non «e' quella in uso»: altrimenti in
+       automatico si accendono due riquadri insieme — quello del motore e quello
+       della strada che il motore ha preso — e non si capisce piu' chi decide.
+       Quella scelta dall'automatico si segnala, non si accende. */
+    const on=pr.roadPicked&&pr.road.id===c.id;
+    const presa=!pr.roadPicked&&pr.road.id===c.id;
+    const manca=c.manca&&c.manca.length?c.manca.join(' e '):null;
+    /* «Ti servirebbe» non impedisce di premere: la scelta e' tua, e vedere che
+       cosa comporterebbe e' esattamente il motivo per cui la si prova. */
+    return `<button class="roadcard${on?' on':''}${presa?' now':''}${manca?' lack':''}"
+       onclick="setRoad(${jsAttr(t.id)},${jsAttr(c.id)})" aria-pressed="${on?'true':'false'}"
+       data-tip="${esc(c.when||'')}">
+      <div class="rc-h"><b>${esc(c.name)}</b>${
+        on?'<span class="pill p-ok">scelta tua</span>'
+          :presa?'<span class="pill p-dim">la prende il motore</span>':''}</div>
+      <div class="rc-w">${esc(c.when||'')}</div>
+      <div class="rc-n">${fmt(c.ideal,1)} h per farla piena${
+        manca?` <span class="p-bad">· ti servirebbe ${esc(manca)}</span>`:''}</div>
+    </button>`;
+  };
+  const auto=pr.roadChoices.find(c=>c.id===pr.roadAuto);
+  return `<div class="stratbox">
+    <div class="sc-t">Tecnica di ripresa
+      <span class="muted">— quali canali riprendi: cambia l’immagine, non la fisica</span></div>
+    <div class="roadgrid">
+      <button class="roadcard auto${pr.roadPicked?'':' on'}"
+        onclick="setRoad(${jsAttr(t.id)},'auto')" aria-pressed="${pr.roadPicked?'false':'true'}"
+        data-tip="${esc('Il motore prende la tecnica piu\u2019 ricca che riesci a completare con le ore che hai. '+
+          'E\u2019 un consiglio, non un verdetto: se ne vuoi un\u2019altra, prendila.')}">
+        <div class="rc-h"><b>Sceglie il motore</b>${pr.roadPicked?'':'<span class="pill p-ok">in uso</span>'}</div>
+        <div class="rc-w">la piu’ ricca che le ore permettono</div>
+        <div class="rc-n">ora sarebbe <b>${esc(auto?auto.name:pr.roadAuto)}</b></div>
+      </button>
+      ${pr.roadChoices.map(card).join('')}
+    </div>
+    ${pr.roadPicked&&!pr.roadAutoSame
+      ? `<div class="sc-s">Stai scegliendo tu: con queste ore il motore prenderebbe
+          <b>${esc(auto?auto.name:pr.roadAuto)}</b>. La prescrizione qui sotto segue la tua.</div>`
+      : ''}
   </div>`;
 }
 
@@ -8640,11 +8789,23 @@ function openSheet(i){
         <div class="small muted" style="opacity:.75">fonte: ${l.source}</div>
       </div></div>`).join('');
 
-  const roads=t.roads.map(r=>`<div class="road${r.default?' def':''}">
-      <h5>${r.name}${r.default?' <span class="pill p-ok">default</span>':''}</h5>
+  /* Le tecniche della scheda sono premibili: leggere il pro e il contro e poi
+     doverli ritrovare altrove per sceglierli era un passaggio in piu' senza
+     ragione. Il clic porta la scelta nella strategia, che e' dove vive. */
+  const sceltaOra=roadFor(t.id);
+  const roads=t.roads.map(r=>{
+    const on=sceltaOra===r.id;
+    return `<button class="road${r.default?' def':''}${on?' on':''}" type="button"
+      onclick="setRoad(${jsAttr(t.id)},${jsAttr(on?'auto':r.id)})"
+      aria-pressed="${on?'true':'false'}">
+      <h5>${r.name}${r.default?' <span class="pill p-ok">default</span>':''}${
+        on?' <span class="pill p-ok">scelta tua</span>':''}</h5>
       <div class="when">${r.when}</div>
       <div class="pc"><b>Pro:</b> ${r.pro}</div>
-      <div class="pc"><b>Contro:</b> ${r.contro}</div></div>`).join('');
+      <div class="pc"><b>Contro:</b> ${r.contro}</div>
+      <div class="rc-pick">${on?'premi di nuovo per tornare alla scelta del motore'
+                              :'premi per riprendere con questa tecnica'}</div></button>`;
+  }).join('');
 
   const st=STATE[t.id]||{hours:{}};
   const chans=Object.entries(e.budget).filter(([b,v])=>v.useful>0||v.note).map(([b,v])=>{
