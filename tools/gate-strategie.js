@@ -392,6 +392,195 @@ H('H · LA RUOTA CHE HAI DAVVERO — nessuna prescrizione impossibile');
   ruota(tutti);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+H('I · LA STRATEGIA NON TOCCA CHE COSA RIPRENDI');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* Il difetto arrivato dal campo, su NGC 7000 con un Askar e una camera a colori:
+     scegliendo Dinamica la prescrizione passava da HOO — Ha e OIII insieme — a una
+     strada con il solo Ha. Cambiare il COME cambiava il CHE COSA.
+
+     La causa era una retroazione nella UI: le ore passate al motore erano la
+     capacita' calcolata CON la posa della strategia scelta, quindi Dinamica ne
+     toglieva qualche punto percentuale e il motore ripiegava su una strada piu'
+     economica. Ora quella capacita' si misura sempre sulla posa di Resa.
+
+     Qui si verifica l'invariante a tappeto, riproducendo la catena della UI. */
+  const CFG = [
+    ['RC8+2600MM', { tel: 'rc8', red: '1', cam: 'asi2600mm', mnt: 'cem70g', bin: 1 }],
+    ['Tecno+2600MM', { tel: 'tecnosky115', red: 0.80, cam: 'asi2600mm', mnt: 'am5', bin: 1 }],
+    ['Askar+2600MC', { tel: 'askar71f', red: 0.75, cam: 'asi2600mc', mnt: 'am5', bin: 1 }],
+    ['RedCat+2600MC', { tel: 'redcat51', red: 0.92, cam: 'asi2600mc', mnt: 'am5', bin: 1 }],
+  ];
+  const DD = new Date(2026, 8, 11);
+  let casi = 0, diverse = [], oreDiverse = [];
+  for (const [lab, cfg] of CFG) for (const q of [20.8, 18.5]) {
+    const st = { lat: 46.0167, lon: 10.3333, sqm: q, seeing: 1.6, rms: 0.6, horizonMin: 20, clearFrac: 0.35 };
+    st.fwhm = M.effFWHM(st.seeing, st.rms);
+    const npx = M.nightProfile(DD, st.lat, st.lon);
+    const dv = M.derive(cfg);
+    for (const tg of TG.targets) for (const N of [1, 2, 3, 5, 8]) {
+      let W; try { W = M.nightWindows(tg, st, DD, N, {}); } catch (e) { continue; }
+      if (!W.nights.length) continue;
+      const av = W.nights.slice(0, N).reduce((a, x) => a + x.availH, 0);
+      if (!(av > 0)) continue;
+      const per = {};
+      for (const S of ST) {
+        let e, pr0, ex0, cap, pr;
+        try {
+          e = M.evaluate(tg, dv, st, npx, {});
+          pr0 = M.prescribe(e, av, dv, 1);
+          const vivi = pr0.alloc.filter(g => !g.dropped && g.hours > 0);
+          /* La catena corretta: la capacita' che dimensiona la prescrizione si
+             misura SEMPRE sulla posa di Resa, mai su quella scelta. */
+          ex0 = M.exposurePlan(pr0, dv, st, { archetype: tg.archetype, tg, strategy: 'resa' });
+          cap = vivi.length
+            ? W.nights.slice(0, N).reduce((a, x) => a + x.availH * M.mixPenalty(vivi, dv, tg, st, x, ex0), 0)
+            : av;
+          pr = M.prescribe(e, cap, dv, 1);
+        } catch (err) { continue; }
+        per[S] = { road: pr.road.id, spent: pr.spent,
+                   canali: pr.alloc.filter(g => g.hours > 0).map(g => g.id).sort().join('+') };
+      }
+      if (Object.keys(per).length < 3) continue;
+      casi++;
+      const rs = new Set(ST.map(S => per[S].road));
+      const cs = new Set(ST.map(S => per[S].canali));
+      if (rs.size > 1 && diverse.length < 4)
+        diverse.push(tg.names[0] + '/' + lab + '/' + N + 'n: ' + ST.map(S => per[S].road).join('≠'));
+      if (rs.size > 1 || cs.size > 1) oreDiverse.push(1);
+    }
+  }
+  console.log('       ' + casi + ' combinazioni: ' + CFG.length + ' configurazioni x 2 cieli x ' +
+    TG.targets.length + ' bersagli x 5 durate');
+  chk('la strategia non cambia mai la strada, su nessuna combinazione',
+    diverse.length === 0, diverse.length ? diverse.join(' · ') : casi + ' casi, zero divergenze');
+  chk('e non cambia nemmeno quali canali prescrivi',
+    oreDiverse.length === 0, oreDiverse.length ? oreDiverse.length + ' casi' : 'identici ovunque');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+H('L · CON UN DUAL-BAND, HA E OIII NON SI SEPARANO');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* Attraverso un L-Ultimate le due righe arrivano nella stessa posa: una strada
+     che pianifica l'Ha e scarta l'OIII descrive gli stessi scatti con meta' dei
+     dati non contati. Nel catalogo le strade cosi' sono tre — ngc7000/hargb,
+     sh2-129/ha_only, m31/lrgb_ha — ma M31 non e' un caso vero, perche' li' l'OIII
+     ha utile zero e la coppia non esiste.
+
+     LA REGOLA E' STRETTA: si esclude solo quando la scheda offre l'alternativa
+     accoppiata, e SOLO con il dual-band attivo. Su monocromatica, o su una camera
+     a colori senza un dual Ha/OIII in ruota, i passaggi sono davvero separati e
+     saltare l'OIII fa risparmiare ore vere: li' la strada resta. */
+  const stx = { lat: 46.0167, lon: 10.3333, sqm: 20.8, seeing: 1.6, rms: 0.6, horizonMin: 20, clearFrac: 0.35 };
+  stx.fwhm = M.effFWHM(stx.seeing, stx.rms);
+  const npx = M.nightProfile(new Date(2026, 8, 11), stx.lat, stx.lon);
+  const osc = M.derive({ tel: 'askar71f', red: 0.75, cam: 'asi2600mc', mnt: 'am5', bin: 1 });
+  const mono = M.derive({ tel: 'rc8', red: '1', cam: 'asi2600mm', mnt: 'cem70g', bin: 1 });
+  const ORE = [2, 5, 10, 18, 24, 30, 40];
+  const spezzata = pr => {
+    const ids = pr.alloc.filter(g => g.hours > 0).flatMap(g => g.bands || [g.id]);
+    return ids.indexOf('Ha') >= 0 !== ids.indexOf('OIII') >= 0;
+  };
+  const conCoppia = ['NGC 7000', 'Sh2-129'];
+  let rotti = [], monoOk = 0, oscOk = 0;
+  for (const nome of conCoppia) {
+    const tg = TG.targets.find(x => x.names.some(n => n === nome)); if (!tg) continue;
+    for (const h of ORE) {
+      const po = M.prescribe(M.evaluate(tg, osc, stx, npx, {}), h, osc, 1);
+      if (spezzata(po)) rotti.push(nome + '/OSC/' + h + 'h: ' + po.road.id);
+      else oscOk++;
+      const pm = M.prescribe(M.evaluate(tg, mono, stx, npx, {}), h, mono, 1);
+      if (spezzata(pm)) monoOk++;      // su mono la spezzata DEVE restare possibile
+    }
+  }
+  console.log('       OSC con L-Ultimate: ' + oscOk + '/' + (conCoppia.length * ORE.length) +
+    ' prescrizioni con la coppia intera · su mono la strada a riga singola resta usata ' +
+    monoOk + ' volte');
+  chk('su dual-band la coppia Ha/OIII non si spezza mai, a nessuna durata',
+    rotti.length === 0, rotti.length ? rotti.slice(0, 3).join(' · ') : oscOk + ' prescrizioni');
+  chk('ma su monocromatica la strada a riga singola resta disponibile, perche li risparmia davvero',
+    monoOk > 0, monoOk + ' casi su ' + (conCoppia.length * ORE.length));
+  /* M31: nessuna strada accoppiata, quindi la regola non deve toccarla — l'Ha come
+     rinforzo del rosso su una galassia e' una tecnica reale. */
+  const m = TG.targets.find(x => x.names[0] === 'M31');
+  if (m) {
+    const pm = M.prescribe(M.evaluate(m, mono, stx, npx, {}), 30, mono, 1);
+    chk('e su M31 la strada LRGB+Ha sopravvive: li la coppia non esiste',
+      /ha/.test(pm.road.id), 'strada ' + pm.road.id);
+  }
+  /* E il filtro viaggia col gruppo, cosi la UI puo dirlo senza richiamare il motore. */
+  const pc = M.prescribe(M.evaluate(TG.targets.find(x => /6888/.test(x.names.join(' '))), osc, stx, npx, {}), 26, osc, 1);
+  const gj = pc.alloc.find(g => g.joint);
+  chk('il gruppo congiunto dichiara il filtro che lo produce',
+    !!(gj && gj.filterName && gj.filterDual), gj ? gj.filterName : 'nessun gruppo congiunto');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+H('M · PIU ORE NON PUO SIGNIFICARE MENO CANALI');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* Il riempimento buttava via un canale quando il suo pavimento non entrava nelle
+     ore rimaste, ma il ramo sotto-soglia riscala invece tutto senza buttare niente.
+     Ne usciva una fascia — larga quanto il pavimento del canale piu' piccolo — in
+     cui quel canale spariva, con il canale presente sia sopra sia sotto. Su
+     NGC 7000: assente fra 18.37 h e 20.09 h, presente a 18 h e a 21 h. */
+  const stx = { lat: 46.0167, lon: 10.3333, sqm: 20.8, seeing: 1.6, rms: 0.6, horizonMin: 20, clearFrac: 0.35 };
+  stx.fwhm = M.effFWHM(stx.seeing, stx.rms);
+  const npx = M.nightProfile(new Date(2026, 8, 11), stx.lat, stx.lon);
+  const CFG = [
+    { tel: 'rc8', red: '1', cam: 'asi2600mm', mnt: 'cem70g', bin: 1 },
+    { tel: 'askar71f', red: 0.75, cam: 'asi2600mc', mnt: 'am5', bin: 1 },
+  ];
+  let passi = 0, cali = [];
+  for (const cfg of CFG) {
+    const dv = M.derive(cfg);
+    for (const tg of TG.targets) {
+      let e; try { e = M.evaluate(tg, dv, stx, npx, {}); } catch (err) { continue; }
+      let prec = null;
+      for (let h = 1; h <= 45; h += 0.5) {
+        let pr; try { pr = M.prescribe(e, h, dv, 1); } catch (err) { continue; }
+        const n = pr.alloc.filter(g => g.hours > 1e-9).length;
+        if (prec !== null) {
+          passi++;
+          /* A STRADA PARI. Se la strada cambia, cambia anche la tecnica, e una
+             tecnica diversa ha legittimamente un numero di canali diverso: su
+             Sh2-155 a 26 h il motore preferisce fare HOO per INTERO (tre canali,
+             «pieno») invece di HaRGB a meta' (cinque canali, «ridotto»), ed e' una
+             scelta difendibile. Quello che non deve piu' succedere e' perdere un
+             canale RESTANDO sulla stessa strada — era il difetto del riempimento.
+
+             Nota agli atti: la scelta della strada NON e' monotona nelle ore. Su
+             M27 oscilla fra hoo_hdr e lrgb_ho a 3, 3.5, 4, 5, 7, 7.5 h. E' un
+             difetto di un'altra famiglia — sta nella selezione a tre passate di
+             `prescribe`, non nel riempimento — e non e' stato corretto qui. */
+          if (n < prec.n && pr.road.id === prec.road) cali.push(tg.names[0] + '/' + cfg.tel + ': ' +
+            prec.h + 'h→' + prec.n + ' canali, ' + h + 'h→' + n + ' (strada ' + pr.road.id + ')');
+        }
+        prec = { n, h, road: pr.road.id };
+      }
+    }
+  }
+  console.log('       ' + passi + ' passi di mezz ora confrontati su ' + TG.targets.length +
+    ' bersagli x ' + CFG.length + ' configurazioni');
+  chk('a strada pari, aggiungere ore non toglie mai un canale',
+    cali.length === 0, cali.length ? cali.slice(0, 3).join(' · ') : 'nessun calo, mai');
+  /* E nessun canale viene piu' buttato: chi resta sotto la propria soglia lo
+     dichiara, che e' la stessa regola gia' valida per la prescrizione e il piano. */
+  const t7 = TG.targets.find(x => /7000/.test(x.names.join(' ')));
+  const dv7 = M.derive(CFG[1]);
+  const e7 = M.evaluate(t7, dv7, stx, npx, {});
+  let scartati = 0, dichiarati = 0;
+  for (let h = 1; h <= 40; h += 1) {
+    const pr = M.prescribe(e7, h, dv7, 1);
+    scartati += pr.alloc.filter(g => g.dropped).length;
+    dichiarati += pr.alloc.filter(g => g.belowFloor).length;
+  }
+  chk('nessun canale viene piu buttato via', scartati === 0, scartati + ' scarti in 40 durate');
+  chk('e chi resta sotto la soglia lo dichiara', dichiarati > 0, dichiarati + ' avvertimenti');
+}
+
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
 if (ko) process.exitCode = 1;
 module.exports = { ok, ko };

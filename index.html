@@ -372,6 +372,11 @@ label.f > input, label.f > select{text-transform:none;font-size:14px;letter-spac
 .sc-s{margin-top:6px;font-size:10.5px;color:var(--dim2);line-height:1.35}
 @media (max-width:560px){ .sc-n{font-size:18px} .stratcard{padding:9px 11px} }
 
+/* Il filtro sotto il canale: quale pezzo di vetro produce quei dati. */
+.fbox{margin-top:7px;display:flex;flex-direction:column;gap:3px}
+.fline{font-size:11px;line-height:1.45;color:var(--dim)}
+.fline b{color:var(--fg);font-weight:600;margin-right:5px}
+
 /* «solo stelle»: un marcatore, non una decorazione. Compare accanto a ogni RGB che
    in quella scheda non porta segnale del soggetto — nella prescrizione, nel piano
    delle notti, nella tabella della posa e nel riepilogo — perche' e' l'informazione
@@ -2358,12 +2363,40 @@ function costGroups(parts,dual){
 function fillBudget(groups,hours){
   const pri=groups.slice().sort((a,b)=>
     ((b.critical?1:0)-(a.critical?1:0)) || ((b.share||0)-(a.share||0)) || (a.floor-b.floor));
+  /* PIU' ORE, MENO CANALI — l'assurdita' che questo blocco produceva.
+
+     Il giro dei pavimenti buttava via un canale quando il suo pavimento non
+     entrava nelle ore rimaste. Sembra prudente e non lo e', perche' il ramo
+     sotto-soglia di `prescribe` — quello che scatta quando nemmeno il critico
+     arriva al proprio pavimento — riscala invece tutto in proporzione e non butta
+     niente. Il risultato era una fascia, larga esattamente quanto il pavimento del
+     canale piu' piccolo, in cui quel canale spariva: su NGC 7000 fra 18.37 h e
+     20.09 h l'RGB non c'era, mentre a 18 h e a 21 h c'era. Piu' ore, meno canali.
+
+     Un pavimento e' la soglia stimata per il livello-obiettivo, non un permesso di
+     esistere: e' la stessa cosa che avevamo gia' stabilito per la prescrizione
+     intera e per il piano delle notti. Quindi qui non si butta piu' niente. Ogni
+     canale riceve almeno una quota proporzionale al proprio pavimento, e chi resta
+     sotto lo dichiara — `belowFloor` esiste gia' e la UI lo scrive.
+
+     `dropped` resta nella firma, e resta VUOTO: i chiamanti che lo leggono
+     continuano a funzionare, e il livello «parziale» semplicemente non si presenta
+     piu' come un canale sparito ma come un canale sotto la sua soglia. */
   const got={}, dropped=[];
   let left=hours;
-  for(const g of pri){
-    if(left>=g.floor-1e-9 && g.floor>0){ got[g.id]=g.floor; left-=g.floor; }
-    else if(g.floor<=0){ got[g.id]=0; }
-    else { got[g.id]=0; dropped.push(g.id); }
+  const conFloor=pri.filter(g=>g.floor>0);
+  const sommaFloor=conFloor.reduce((a,g)=>a+g.floor,0);
+  if(sommaFloor>hours+1e-9 && sommaFloor>0){
+    /* Non ci stanno tutti i pavimenti: si spartisce in proporzione ai pavimenti,
+       cosi' i rapporti fra i canali restano quelli della strada. */
+    const k=hours/sommaFloor;
+    for(const g of pri) got[g.id]=g.floor>0?g.floor*k:0;
+    left=0;
+  } else {
+    for(const g of pri){
+      if(g.floor>0){ got[g.id]=g.floor; left-=g.floor; }
+      else got[g.id]=0;
+    }
   }
   /* Due fasi, e l'ordine conta. Prima tutti verso il proprio "utile", con il
      canale critico che pesa di più: sotto budget è lì che l'ora rende. Solo
@@ -2458,7 +2491,35 @@ function prescribe(e,hours,dv,panels){
   const cand0=roads.filter(x=>x.distinct);
   const cand0Perc=cand0.filter(x=>mancantiDi(x).length===0);
   const filterLimited=cand0Perc.length>0&&cand0Perc.length<cand0.length;
-  const cand=cand0Perc.length?cand0Perc:cand0;
+  let candF=cand0Perc.length?cand0Perc:cand0;
+
+  /* CON UN DUAL-BAND, HA E OIII NON SI SEPARANO. Mai.
+
+     Attraverso un L-Ultimate le due righe arrivano nella STESSA posa — il motore
+     lo sa gia', `costGroups` le unisce in un gruppo unico che costa max(Ha,OIII) —
+     e allora una strada che pianifica l'Ha e non l'OIII descrive un'acquisizione
+     che non esiste: sono gli stessi scatti, con meta' dei dati non contati. Su
+     NGC 7000 il motore ci finiva sotto le 31 h e prescriveva «solo Ha», che non e'
+     una tecnica: e' la stessa ripresa raccontata peggio.
+
+     LA REGOLA E' STRETTA APPOSTA: si esclude una strada spezzata solo quando la
+     scheda ne offre una ACCOPPIATA per lo stesso soggetto. Se non c'e' alternativa
+     la spezzata resta, ed e' il caso di M31 `lrgb_ha` — l'Ha come rinforzo del
+     rosso su una galassia e' una tecnica reale, e su una galassia dell'OIII non
+     importa niente a nessuno.
+
+     E su MONOCROMATICA non si applica: li' i filtri sono due pezzi di vetro
+     distinti, saltare l'OIII fa risparmiare ore vere, e HaRGB e' una scelta
+     legittima. La regola vive tutta dentro `if(dual)`. */
+  const paired=x=>{const c=x.parts; return !!(c.Ha&&c.OIII&&c.Ha.useful>0&&c.OIII.useful>0);};
+  const split =x=>{const c=x.parts; const a=!!(c.Ha&&c.Ha.useful>0), b=!!(c.OIII&&c.OIII.useful>0);
+                   return a!==b;};
+  let coppiaImposta=false;
+  if(dual && candF.some(paired) && candF.some(split)){
+    candF=candF.filter(x=>!split(x));
+    coppiaImposta=true;
+  }
+  const cand=candF;
   const byIdeal=cand.slice().sort((a,b)=>b.ideal-a.ideal);
 
   let chosen=null;
@@ -2483,7 +2544,18 @@ function prescribe(e,hours,dv,panels){
   const groups=costGroups(chosen.parts,dual);
   const critG=groups.find(g=>g.critical)||groups[0];
   const fill=fillBudget(groups,hours);
-  const critDropped=fill.dropped.includes(critG.id);
+  /* «SOTTO IL PAVIMENTO», non «buttato via».
+
+     Prima questi due stati si leggevano da `fill.dropped`, perche' un canale che
+     non arrivava al proprio pavimento veniva rimosso. Adesso non si rimuove piu'
+     niente — resta con una quota proporzionale — quindi la stessa domanda si fa
+     ai valori: il canale che decide l'immagine e' sotto la sua soglia? qualcun
+     altro lo e'? Le due risposte producono gli stessi due livelli di prima,
+     `insufficiente` e `parziale`, con lo stesso significato: e' sparito il
+     buttare via, non l'avvertimento. */
+  const sottoSoglia=g=>(g.floor||0)>0 && (fill.got[g.id]||0) < g.floor-1e-9;
+  const critDropped=sottoSoglia(critG);
+  const qualcunoSotto=groups.some(sottoSoglia);
 
   /* Il livello lo decide l'esito del riempimento, non una soglia stabilita prima.
      Il caso che conta davvero è "parziale": ore che non bastano per tutta la
@@ -2492,7 +2564,7 @@ function prescribe(e,hours,dv,panels){
      quello che perdona" — ed è la situazione più frequente sul campo. */
   let level;
   if(critDropped) level='insufficiente';
-  else if(fill.dropped.length) level='parziale';
+  else if(qualcunoSotto) level='parziale';
   else if(hours>=chosen.ideal-1e-9) level='pieno';
   else if(hours>=chosen.acc-1e-9) level='ridotto';
   else level='minimo';
@@ -2520,11 +2592,30 @@ function prescribe(e,hours,dv,panels){
              return groups.map(g=>{ const h=Math.max(0,g.useful||0)*q;
                return {...g,hours:h,dropped:false,
                        belowFloor:(g.floor||0)>0&&h<g.floor-1e-9}; }); })()
-    : groups.map(g=>({...g,
-        hours:(fill.got[g.id]||0),
-        dropped:((fill.got[g.id]||0)<=0 && g.floor>0),
-        belowFloor:false})))
+    /* `belowFloor` va calcolato anche qui, e prima non serviva: il riempimento o
+       dava a un canale almeno il suo pavimento, o lo buttava. Da quando non butta
+       piu' niente — spartisce in proporzione quando i pavimenti non ci stanno —
+       questo ramo produce anche valori sotto soglia, e cablare `false` sarebbe una
+       bugia proprio dove l'avvertimento serve. */
+    : groups.map(g=>{ const h=fill.got[g.id]||0;
+        return {...g, hours:h, dropped:(h<=0 && g.floor>0),
+                belowFloor:(g.floor||0)>0 && h<g.floor-1e-9}; }))
     .sort((a,b)=>((b.critical?1:0)-(a.critical?1:0))||(b.hours-a.hours));
+  /* QUALE FILTRO PRODUCE QUESTO CANALE — deciso qui, dove il motore gia' c'e'.
+
+     Il riepilogo laterale non puo' chiamare `bandSpec`: la regola dell'app e' che
+     il riepilogo LEGGE valori gia' calcolati e non richiama il motore, perche' due
+     punti di chiamata sono due punti in cui i numeri possono divergere. Il nome del
+     filtro viaggia quindi con il gruppo, calcolato una volta sola.
+
+     Su una camera a colori con un dual-band il gruppo «Ha+OIII» ha un filtro solo —
+     l'L-Ultimate — e questa e' anche la spiegazione visibile del perche' quei due
+     canali non si separano: sono lo stesso pezzo di vetro. */
+  for(const g of alloc){
+    let f=null;
+    try{ const sp=bandSpec(g.id,dv.c); f=sp&&sp.filter?sp.filter:null; }catch(err){}
+    if(f&&f.id!=='__none'){ g.filterName=f.name; g.filterDual=!!f.dual; g.filterFwhm=f.fwhm_nm; }
+  }
   const spent=alloc.reduce((a,g)=>a+g.hours,0);
   const needed=critDropped?critG.floor:0;
   /* Quante ore mancano al canale che decide l'immagine per arrivare alla sua
@@ -2551,6 +2642,9 @@ function prescribe(e,hours,dv,panels){
              e' stata ristretta dai filtri e non dalle ore; `blocked` elenca che
              cosa si aprirebbe comprando che cosa. */
           missing,filterLimited,blocked:bloccate,starsDropped,
+          /* Vero quando una strada a riga singola e' stata scartata perche' con il
+             tuo dual-band sarebbe la stessa ripresa della strada accoppiata. */
+          coppiaImposta,
           alloc,spent,unused:Math.max(0,hours-spent),critGroup:critG.id,needed,short,
           expect:exp,nights,weeks,hours,
           /* `spent` e `hours` restano PER PANNELLO — e' cosi' che li usano posa,
@@ -3833,10 +3927,29 @@ function exposureStrategies(dv,site,band,opts){
      terzo numero diverso sarebbe la falsa precisione che questo motore esiste per
      togliere. Per quel caso c'e' la curva: qualunque posa, col suo prezzo. */
   const tDi=isFinite(resa.tStar)?Math.min(tEq,snapExp(resa.tStar)||tEq):tEq;
+  /* DUE COSTI, NON UNO, perche' rispondono a due domande diverse.
+
+       costInt   quanta INTEGRAZIONE in piu' serve per la stessa profondita'.
+                 Dipende dal solo rumore di lettura: (eff_resa/eff)² − 1.
+       cost      quanto ORLOGIO in piu' serve. Aggiunge la quota di notte che se
+                 ne va in scarichi e assestamenti: (merit_resa/merit)² − 1.
+
+     Tenerli distinti non e' pedanteria, e' una correzione: le schede gonfiavano
+     le ore con `cost` — che contiene gia' lo scarico — e poi passavano il risultato
+     a `subPlan`, che lo scarico lo aggiunge di nuovo a ogni fotogramma. Contato due
+     volte. Sono 0.35 punti percentuali su NGC 7000, poco, ma sbagliato.
+
+     E c'e' un fraintendimento che questa distinzione toglie: la NOTTE non si
+     allunga. Stanotte sono le ore che sono, con qualunque posa; fra 36 e 42
+     fotogrammi ballano quarantotto secondi di scarico. Quello che cresce e'
+     l'integrazione TOTALE necessaria ad arrivare alla stessa profondita', cioe'
+     quante notti servono — non quanto dura una notte. */
   const mk=(id,sec)=>{
     const e=sec===resa.sec?resa:val(sec);
     const cost=Math.pow(resa.merit/Math.max(1e-9,e.merit),2)-1;
-    return Object.assign({},e,{strategy:id,cost,sameAs:sec===resa.sec&&id!=='resa'?'resa':null});
+    const costInt=Math.pow(resa.eff/Math.max(1e-9,e.eff),2)-1;
+    return Object.assign({},e,{strategy:id,cost,costInt,
+      sameAs:sec===resa.sec&&id!=='resa'?'resa':null});
   };
   const out={resa:mk('resa',resa.sec),
              equilibrio:mk('equilibrio',Math.max(EXP_GRID[0],tEq)),
@@ -3848,7 +3961,8 @@ function exposureStrategies(dv,site,band,opts){
      rende la scelta libera invece che limitata a tre bottoni. */
   out.curve=grid.map(t=>{ const e=t===resa.sec?resa:val(t);
     return {sec:e.sec,merit:e.merit,eff:e.eff,duty:e.duty,binding:e.binding,
-            cost:Math.pow(resa.merit/Math.max(1e-9,e.merit),2)-1}; });
+            cost:Math.pow(resa.merit/Math.max(1e-9,e.merit),2)-1,
+            costInt:Math.pow(resa.eff/Math.max(1e-9,e.eff),2)-1}; });
   return out;
 }
 const STRATEGIES=[
@@ -6869,10 +6983,26 @@ function renderRx(np){
        I due conti devono essere lo stesso conto. Quindi si costruisce la posa gia'
        sulla prima passata e la si passa a `mixPenalty`, che e' la stessa funzione
        che il piano usera' dopo. */
+    /* LA STRATEGIA NON DEVE CAMBIARE LA STRADA. Mai.
+
+       Qui c'era una retroazione che rompeva l'invariante piu' importante di tutto
+       questo lavoro. `RXCAP` veniva calcolato con la posa della strategia SCELTA:
+       Dinamica costa qualche punto percentuale, quindi meno ore, quindi `prescribe`
+       ripiegava su una strada piu' economica. Su NGC 7000 con un Askar e una camera
+       a colori significava passare da HOO — Ha e OIII insieme, come si riprende
+       davvero — a una strada con il solo Ha. Cambiare il COME riprendi cambiava il
+       CHE COSA riprendi, ed e' esattamente cio' che le tre modalita' non devono
+       fare.
+
+       La capacita' che dimensiona la PRESCRIZIONE si misura quindi sempre sulla
+       posa di RESA, che e' il riferimento per definizione. Il costo della strategia
+       resta dov'e' giusto che sia: nel piano, dove si converte profondita' in ore
+       di orologio, e dove semmai fa crescere il numero di notti — con il suo
+       avviso, senza toccare una sola ora della prescrizione. */
     const vivi=pr0.alloc.filter(g=>!g.dropped&&g.hours>0);
     let expo0=null;
     try{ expo0=exposurePlan(pr0,dv,SITE,Object.assign({},OPSET,
-      {panels:ppRx.panels,archetype:t.archetype,tg:t,strategy:RXSTRAT})); }catch(err){}
+      {panels:ppRx.panels,archetype:t.archetype,tg:t,strategy:'resa'})); }catch(err){}
     RXCAP=vivi.length
       ? WA.nights.slice(0,NN).reduce((a,x)=>a+x.availH*mixPenalty(vivi,dv,t,SITE,x,expo0),0)
       : RXAVAIL;
@@ -7578,16 +7708,16 @@ function rxStrategyHtml(expo,dv,pr,panels){
     /* Ogni scheda ricostruisce il piano di pose CON LA SUA posa: il numero di
        fotogrammi, l'integrazione e il tempo di orologio escono dal modello, non
        da una stima. `subPlan` porta gia' dentro scarico e assestamento. */
-    const ex2={}; let costo=0,k=0,comeResa=true,comeEq=true;
+    const ex2={}; let costo=0,costoInt=0,k=0,comeResa=true,comeEq=true;
     for(const b of bande){
       const alt=expo[b].ex.alt; if(!alt) continue;
       const e=alt[st.id]||alt.resa;
-      ex2[b]={ex:e}; costo+=e.cost||0; k++;
+      ex2[b]={ex:e}; costo+=e.cost||0; costoInt+=e.costInt!=null?e.costInt:(e.cost||0); k++;
       if(e.sec!==alt.resa.sec) comeResa=false;
       if(e.sec!==alt.equilibrio.sec) comeEq=false;
     }
     if(!k) return '';
-    const cAvg=costo/k;
+    const cAvg=costo/k, cIntAvg=costoInt/k;
     /* IL COSTO SI APPLICA PRIMA DI CONTARE LE POSE, non dopo.
 
        `subPlan` ricava i fotogrammi dalle ore della prescrizione, e quelle non
@@ -7597,7 +7727,9 @@ function rxStrategyHtml(expo,dv,pr,panels){
        chiede piu' INTEGRAZIONE, perche' ogni secondo deposita meno profondita'.
        Le ore si scalano quindi di (1+costo), e da li' escono pose, integrazione e
        orologio — che e' esattamente quello che si andra' a fare sul campo. */
-    const bl2=blocchi.map(g=>Object.assign({},g,{h:g.h*(1+cAvg)}));
+    /* Si gonfia con il costo della sola LETTURA: lo scarico lo aggiunge `subPlan`
+       a ogni fotogramma, e metterlo anche qui lo conterebbe due volte. */
+    const bl2=blocchi.map(g=>Object.assign({},g,{h:g.h*(1+cIntAvg)}));
     const sp=subPlan(bl2,ex2,Object.assign({},OPSET,{panels}));
     const pose=sp.subs.reduce((a,x)=>a+x.n,0);
     const c=cAvg;
@@ -8450,9 +8582,25 @@ function renderSummary(){
   /* --- i canali decisi dal motore --- */
   if(pr&&pr.alloc&&pr.alloc.length){
     const keep=pr.alloc.filter(g=>!g.dropped), out=pr.alloc.filter(g=>g.dropped);
+    /* CON QUALE FILTRO, detto sotto ogni canale.
+
+       Su una camera a colori con un dual-band, «Ha+OIII» non e' un modo di dire:
+       e' UN filtro, l'L-Ultimate, e le due righe arrivano nella stessa posa.
+       Vederlo scritto e' anche la spiegazione di perche' quei due canali non si
+       separano mai — sono lo stesso pezzo di vetro. Il nome viene da `bandSpec`,
+       che il filtro lo sceglie gia' per calcolare la posa: qui si legge soltanto. */
     const soli=keep.filter(g=>isStarsOnly(g,pr)).map(g=>g.id);
+    /* Solo lettura. Il nome del filtro arriva gia'' attaccato al gruppo, deciso una
+       volta sola dal motore: qui non si calcola niente e non si richiama nulla. */
+    const righeF=keep.filter(g=>g.filterName).map(g=>
+      `<span class="fline"><b>${esc(g.id)}</b> ${esc(g.filterName)}${
+        g.filterDual?' <span class="pill p-dim" style="font-size:9px" data-tip="'+esc(
+          'Un filtro solo per due righe: attraverso un dual-band Ha e OIII arrivano nella stessa '+
+          'posa, e la matrice di Bayer li separa fra i pixel rossi e quelli blu-verdi. E\u2019 la '+
+          'ragione fisica per cui questi due canali non si riprendono separatamente.')+'">un filtro, due righe</span>':''}</span>`);
     h+=sumBlock('Canali previsti',
-      `<div class="sumchips">${keep.map(g=>fchip(g.id)).join('')||SUM_DASH}</div>`,
+      `<div class="sumchips">${keep.map(g=>fchip(g.id)).join('')||SUM_DASH}</div>`+
+      (righeF.length?`<div class="fbox">${righeF.join('')}</div>`:''),
       [soli.length?`${soli.join(', ')}: solo per il colore delle stelle, non per il soggetto`:'',
        out.length?`Sotto soglia, esclusi: ${out.map(g=>esc(g.id)).join(', ')}`:'']
         .filter(Boolean).join(' · '));
