@@ -54,7 +54,7 @@ const ctx = { DB, TG, CAT: CAT.objects, CITIES: CIT.cities, OWNED: RUOTA,
   console, Math, Date, Object, JSON, isFinite, parseFloat, parseInt, Number, window: {} };
 const M = new Function(...Object.keys(ctx), pure + `return {derive,rates,bandSpec,skyRateFor,
   qeAt,camSpec,mosaicFrac,oscEfficiency,dualPass,filterFor,evaluate,prescribe,
-  nightProfile,effFWHM,bandThroughput};`)(...Object.values(ctx));
+  nightProfile,effFWHM,bandThroughput,lpPenalty,throughputFor};`)(...Object.values(ctx));
 
 let ok = 0, ko = 0;
 const chk = (what, cond, extra) => {
@@ -258,6 +258,100 @@ H('F · NIENTE SI È ROTTO A VALLE');
 }
 
 ruota(DB.default_filters);
+
+// ═══════════════════════════════════════════════════════════════════════════
+H('G · UN FOTOSITO VEDE UNA FINESTRA, IL MOSAICO LE VEDE TUTTE');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* La distinzione che la prima stesura di questa correzione aveva sbagliato, e che
+     e' venuta fuori solo mettendo il rimedio sotto attacco.
+
+     Le due finestre di un dual raccolgono nello stesso istante, ma non sullo stesso
+     silicio: su una matrice di Bayer i fotositi rossi vedono la finestra dell'Ha e i
+     blu-verdi quella dell'OIII. Per la media sul mosaico — la fotometria per
+     arcsec², il rapporto segnale-rumore — le due si SOMMANO. Per la SATURAZIONE no:
+     a saturare e' un fotosito vero, e quel fotosito ne vede una sola, quindi conta
+     la finestra piu' illuminata.
+
+     Sommarle anche per pixel gonfiava il tasso di 1.27x sull'L-eNhance e di 1.66x
+     sui dual simmetrici, e da li' accorciava la posa consigliata. Il modello
+     precedente sbagliava nel verso opposto — prendeva la finestra dell'Ha, la meno
+     illuminata — quindi il difetto non e' che «prima era giusto»: era sbagliato
+     prima e sbagliato dopo, in due direzioni diverse. */
+  for (const [id, nome] of [['lult', 'L-Ultimate 3/3'], ['lext', 'L-eXtreme 7/7'], ['lenh', 'L-eNhance 10/24']]) {
+    soloIl(id);
+    const sp = M.bandSpec('Ha+OIII', OSC.c);
+    if (!sp.sub || sp.sub.length < 2) { chk(nome + ': ha due finestre', false); continue; }
+    const perPixel = M.skyRateFor(OSC, 'Ha+OIII', SQM, { spec: sp });
+    const mosaico = M.skyRateFor(OSC, 'Ha+OIII', SQM, { spec: sp, mosaic: true });
+    const r = sp.sub.map(x => M.qeAt(OSC.c, x.lam) * x.T * x.fwhm * 10);
+    const atteso = Math.max.apply(null, r) / r.reduce((a, b) => a + b, 0);
+    console.log('       ' + P(nome, 18) + 'per pixel / mosaico ' + F(perPixel / mosaico, 3) +
+      '   atteso ' + F(atteso, 3));
+    chk(nome + ': per pixel vale la finestra piu illuminata, non la somma',
+      Math.abs(perPixel / mosaico - atteso) < 0.005, F(perPixel / mosaico, 3));
+    chk(nome + ': e per pixel si raccoglie meno che sul mosaico',
+      perPixel < mosaico - 1e-12);
+
+    /* Su monocromatica la distinzione non esiste: ogni pixel vede entrambe. */
+    const spM = M.bandSpec('Ha+OIII', MONO.c);
+    const pm = M.skyRateFor(MONO, 'Ha+OIII', SQM, { spec: spM });
+    const mm = M.skyRateFor(MONO, 'Ha+OIII', SQM, { spec: spM, mosaic: true });
+    chk(nome + ': su monocromatica per pixel e mosaico coincidono',
+      Math.abs(pm - mm) / mm < 1e-9, F(pm / mm, 3));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+H('H · LA LARGHEZZA CHE CONTA È QUELLA DELLA BANDA CHIESTA');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* Due punti in cui il riassunto scalare del filtro sopravviveva alla correzione.
+
+     Il primo: scegliere fra due filtri per la finestra PIU' LARGA sembrava prudente
+     ed era sbagliato. Con un L-eNhance e un Ha da 12 nm in ruota, per la banda Ha
+     conta la finestra dell'Ha — 10 nm sull'eNhance — non i suoi 24 nm sul blu.
+
+     Il secondo, e vale di piu': `lpPenalty` trasforma la larghezza in ORE, e a
+     differenza di `timeFactor` non si semplifica contro la configurazione di
+     riferimento, perche' la stessa larghezza compare ai due lati del rapporto. Li'
+     l'errore sopravvive intero fino al numero di ore prescritte. */
+  ruota(['lenh', 'ha12']);
+  const perHa = M.filterFor('Ha', OSC.c);
+  chk('per l Ha vince la finestra da 10 nm dell eNhance, non un Ha da 12',
+    perHa && perHa.id === 'lenh', perHa ? perHa.name : 'nessuno');
+
+  ruota(['lenh', 'o3_12']);
+  const perO3 = M.filterFor('OIII', OSC.c);
+  chk('per l OIII vince invece l OIII da 12, non i 24 nm dell eNhance',
+    perO3 && perO3.id === 'o3_12', perO3 ? perO3.name : 'nessuno');
+
+  /* La larghezza che arriva alle ore e' quella della finestra della banda. */
+  soloIl('lenh');
+  const wHa = M.bandSpec('Ha', OSC.c).fwhm, wO3 = M.bandSpec('OIII', OSC.c).fwhm;
+  console.log('       eNhance: banda Ha ' + F(wHa, 1) + ' nm, banda OIII ' + F(wO3, 1) + ' nm');
+  chk('le due bande dello stesso filtro hanno larghezze diverse', Math.abs(wHa - wO3) > 10);
+  const pHa = M.lpPenalty(18.5, wHa), pO3 = M.lpPenalty(18.5, wO3);
+  console.log('       penalita da inquinamento a SQM 18.5: Ha ' + F(pHa, 3) + '   OIII ' + F(pO3, 3));
+  chk('e da cielo inquinato la finestra larga e penalizzata di piu', pO3 < pHa,
+    'rapporto ' + F(pHa / pO3, 3));
+
+  /* La prova che quella larghezza arriva davvero fino alle ore. */
+  const st = { lat: 46.0167, lon: 10.3333, sqm: 18.5, seeing: 1.6, rms: 0.6, horizonMin: 20, clearFrac: 0.35 };
+  st.fwhm = M.effFWHM(st.seeing, st.rms);
+  const np = M.nightProfile(new Date(2026, 8, 11), st.lat, st.lon);
+  const t = TG.targets.find(x => /7000/.test(x.names.join(' '))) || TG.targets[0];
+  const e = M.evaluate(t, OSC, st, np, {});
+  const bO3 = e.budget && e.budget.OIII, bHa = e.budget && e.budget.Ha;
+  if (bO3 && bHa) {
+    console.log('       ' + t.names[0] + ' a SQM 18.5: fattore cielo Ha ' + F(bHa.skyFactor, 3) +
+      '   OIII ' + F(bO3.skyFactor, 3));
+    chk('il fattore cielo distingue le due bande dello stesso vetro',
+      Math.abs(bHa.skyFactor - bO3.skyFactor) > 1e-6,
+      Math.abs(bHa.skyFactor - bO3.skyFactor) > 1e-6 ? 'distinti' : 'ANCORA IL RIASSUNTO SCALARE');
+  } else chk('il bilancio espone il fattore cielo per banda', false, 'budget non leggibile');
+  ruota(DB.default_filters);
+}
 
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
 if (ko) process.exitCode = 1;

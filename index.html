@@ -3639,6 +3639,13 @@ const windowStrength=(w,band)=>(w&&w.lines||[])
    e nemmeno una media. E' il numero che conta quando si sceglie fra due filtri,
    perche' e' li' che entra piu' cielo. Sull'L-eNhance vale 24 nm, non i 10
    dell'Ha con cui il catalogo lo riassume. */
+/* La larghezza che una BANDA vede attraverso un filtro: quella della finestra che
+   la porta. Su un L-eNhance l'Ha passa da 10 nm e l'OIII da 24, e chiedere «quanto
+   e' larga» senza dire quale banda non ha una risposta sola. */
+const bandWidth=(f,band)=>{
+  const w=f?windowFor(f,band):null;
+  return w?w.fwhm_nm:(f?f.fwhm_nm:BB_NM);
+};
 function selectivity(f){
   if(!f) return Infinity;
   const w=filterWindows(f);
@@ -3768,7 +3775,30 @@ function bandThroughput(dv,sp,kind){
   }
   return wsum>0?tot/wsum:0;
 }
-const specQE=(dv,sp)=>sp.lines.reduce((a,l)=>a+qeAt(dv.c,l),0)/sp.lines.length;
+/* IL TASSO CHE VEDE UN SINGOLO FOTOSITO, che non e' quello medio sul mosaico.
+
+   Le due finestre di un dual raccolgono nello stesso istante, ma non sullo stesso
+   silicio: su una matrice di Bayer i fotositi rossi vedono la finestra dell'Ha e i
+   blu-verdi quella dell'OIII. Per la media sul mosaico — la fotometria per arcsec²,
+   il rapporto segnale-rumore — le due si SOMMANO, ciascuna pesata da quanti fotositi
+   la guardano. Per la SATURAZIONE no: a saturare e' un fotosito vero, e quel
+   fotosito ne vede una sola. Conta quindi la peggiore, cioe' la finestra piu'
+   illuminata, non la somma.
+
+   Su una monocromatica la distinzione non esiste: li' ogni pixel vede davvero
+   entrambe le finestre, e la somma e' giusta anche per il singolo pixel. */
+function throughputFor(dv,sp,kind,perPixel){
+  if(perPixel&&dv.c.cfa_penalty&&sp.sub&&sp.sub.length>1){
+    const line=(kind==='signal')&&sp.narrow;
+    let peggiore=0;
+    for(const x of sp.sub){
+      const r=qeAt(dv.c,x.lam)*x.T*(line?(x.ls!=null?x.ls:1):x.fwhm*10);
+      if(r>peggiore) peggiore=r;
+    }
+    return peggiore;
+  }
+  return bandThroughput(dv,sp,kind)*sp.windows;
+}
 
 /* Elettroni al secondo di FONDO CIELO nel pixel come lo leggi (binning incluso).
    Nota che il binning si semplifica: il fondo cresce con bin², il rumore di
@@ -3783,23 +3813,38 @@ const specQE=(dv,sp)=>sp.lines.reduce((a,l)=>a+qeAt(dv.c,l),0)/sp.lines.length;
      - MOSAICO (o.mosaic): la media sul mosaico, che serve alla fotometria per
        arcsec². La corregge oscEfficiency() a valle, quindi qui NON si applica
        OSC_BB: applicarlo due volte era esattamente il difetto da cui parte tutto. */
-/* LIMITE NOTO E MISURATO, non corretto qui. Il fondo cielo si ricava dall'SQM, che
-   e' una brillanza in banda V, e lo si assume PIATTO in lunghezza d'onda: lo stesso
-   numero di fotoni per angstrom a 500 nm e a 656. Non e' vero, e il motore possiede
-   gia' il dato per saperlo — `skyColour()`, tarata su Benn & Ellison, che pero' oggi
-   usa soltanto la Luna. Rispetto alla V, il cielo per angstrom vale circa 2.26 a
-   656 nm (li' cadono le righe del sodio e l'airglow rosso) e circa 0.67 a 493 nm.
-   Applicarlo cambierebbe le due finestre di un dual in versi opposti e in buona
-   parte si compensa: misurato sull'L-eNhance vale circa il 12% sul fondo totale e
-   una decina di secondi sulla posa. E' quindi una correzione di secondo ordine
-   rispetto a quella delle finestre, ed e' un lavoro a se': va fatta su TUTTE le
-   bande insieme, non su un filtro. */
+/* LIMITE NOTO E MISURATO, non corretto qui, e piu' grande di quanto sembri.
+
+   Il fondo cielo si ricava dall'SQM, che e' una brillanza in banda V, e lo si assume
+   PIATTO in lunghezza d'onda: lo stesso numero di fotoni per angstrom a 500 nm e a
+   656. Non e' vero, e il motore possiede gia' il dato per saperlo — `skyColour()`,
+   tarata su Benn & Ellison e normalizzata alla V (a 550 nm vale 0.993) — ma oggi
+   quella tabella la consulta soltanto la Luna.
+
+   Rispetto alla V il cielo per angstrom vale 2.26 a 656 nm e 0.70 a 500: la finestra
+   rossa di un dual sta dove il cielo e' luminoso — li' cadono l'airglow rosso e le
+   righe del sodio — e quella blu in uno dei tratti piu' scuri del visibile.
+
+   Misurato sul gruppo Ha+OIII, applicarlo cambierebbe il fondo di
+       L-Ultimate 3/3    +32.2%
+       L-eXtreme  7/7    +31.5%
+       L-eNhance 10/24    +1.6%
+   Sui dual simmetrici NON e' una correzione di secondo ordine, ed e' bene non
+   raccontarsela: vale quasi un terzo del fondo. E' piccola solo sull'L-eNhance, e
+   per una ragione fisica precisa — la sua finestra larga raccoglie molto, ma
+   raccoglie dove il cielo e' scuro, e questo compensa quasi esattamente il peso
+   della finestra rossa.
+
+   Non si fa qui perche' non e' un lavoro su un filtro: la stessa assunzione piatta
+   regge L, R, G, B e tutte le bande strette, e correggerne una sola introdurrebbe
+   un'incoerenza peggiore del difetto. Va fatta su tutte insieme, con la sua
+   regressione. */
 function skyRateFor(dv,band,sqm,opts){
   const o=opts||{};
   const sp=o.spec||bandSpec(band,dv.c);
   const osc=(o.mosaic||!dv.c.cfa_penalty||sp.narrow)?1:OSC_BB;
   return PHOT_V0*Math.pow(10,-0.4*sqm)*(dv.Aeff/100)*Math.pow(dv.scale,2)
-         *bandThroughput(dv,sp,'sky')*sp.windows*osc;
+         *throughputFor(dv,sp,'sky',!o.mosaic)*osc;
 }
 /* Elettroni al secondo nel pixel centrale di una stella di magnitudine V=m.
    Qui il binning NON aiuta: a saturare è il fotosito vero, e il fotosito vero
@@ -3810,7 +3855,8 @@ function starPeakRate(dv,band,mag,fwhm,opts){
   const sp=o.spec||bandSpec(band,dv.c);
   const osc=(dv.c.cfa_penalty&&!sp.narrow)?OSC_BB:1;
   const tot=PHOT_V0*Math.pow(10,-0.4*mag)*(dv.Aeff/100)
-            *bandThroughput(dv,sp,'sky')*sp.windows*osc;
+            /* Una stella satura UN fotosito: qui il conto e' sempre per pixel. */
+            *throughputFor(dv,sp,'sky',true)*osc;
   const peak=Math.min(1,Math.pow(dv.scale0/Math.max(0.5,fwhm),2)*4*Math.LN2/Math.PI);
   return tot*peak;
 }
@@ -4796,10 +4842,12 @@ function filterFor(band,cam){
     return ownedFilters().find(f=>f.band==='G');
   }
   const c=ownedFilters().filter(f=>f.band===band||(f.bands&&f.bands.includes(band)));
-  /* Fra due filtri vince il piu' selettivo, e la selettivita' e' quella della
-     finestra PIU' LARGA: un L-eNhance si riassume a 10 nm ma lascia entrare 24 nm
-     di cielo sul blu, e va confrontato per quelli. */
-  return c.length?c.sort((a,b)=>selectivity(a)-selectivity(b))[0]:null;
+  /* Fra due filtri vince il piu' selettivo SU QUESTA BANDA, non in assoluto: conta
+     la finestra che porta la banda chiesta. Ordinare per la finestra piu' larga
+     sembrava piu' prudente ed era sbagliato — con un L-eNhance e un Ha da 12 nm in
+     ruota, per l'Ha avrebbe scelto il 12 nm invece della finestra da 10 dell'eNhance,
+     cioe' un quinto di cielo in piu' del necessario. */
+  return c.length?c.sort((a,b)=>bandWidth(a,band)-bandWidth(b,band))[0]:null;
 }
 /* Un dual-band su sensore a colori raccoglie Ha e OIII nella stessa posa: il tempo
    della strada e' quello del canale piu' difficile, non la somma dei due. */
@@ -4979,7 +5027,12 @@ function evaluate(tg,dv,site,np,state,cov){
   for(const [b,v] of Object.entries(tg.budget)){
     const f=timeFactor(dv,b,tsubFor(b));
     const ff=filterFor(b,dv.c);
-    const sf=1/Math.max(1e-6,lpPenalty(site.sqm,ff?ff.fwhm_nm:BB_NM));
+    /* LA LARGHEZZA CHE CONTA E' QUELLA DELLA FINESTRA DI QUESTA BANDA. Qui la
+       larghezza diventa ORE — `lpPenalty` non si semplifica contro la
+       configurazione di riferimento come fa `timeFactor`, perche' la stessa fwhm
+       compare ai due lati del rapporto — e il riassunto scalare del filtro dava
+       10 nm anche all'OIII di un L-eNhance, che di nm ne ha 24. */
+    const sf=1/Math.max(1e-6,lpPenalty(site.sqm,bandWidth(ff,b)));
     const useful=v.useful*f*sf, floor=v.floor*f*sf;
     budget[b]={...v, floor, useful, saturates:v.saturates?v.saturates*f*sf:0,
                factor:f, skyFactor:sf,
