@@ -33,11 +33,11 @@ difetti.
 | **D-2** | sovra e sottocampionamento trattati uguali | 🟢 chiusa | — | — |
 | **D-3** | convenzioni non dichiarate come tali | 🟡 metà | media | medio |
 | **D-4** | candidati sotto soglia scartati | 🟡 metà | **alta** | piccolo |
-| **D-5** | ogni candidato eredita la rotazione attuale | 🔴 aperta | **alta** | medio |
+| **D-5** | ogni candidato eredita la rotazione attuale | 🟢 chiusa | — | — |
 | **D-6** | fallback che scattano in silenzio | 🟡 metà | media | medio |
 | **D-7** | codice e dati mai raggiunti | 🟡 metà | media | piccolo |
 
-Cinque chiuse, sette a metà, due aperte. **C-6 e C-1 chiuse in `cdf2aa5`, C-5 e D-2 subito dopo**; il resto
+Sei chiuse, sette a metà, una aperta. **C-6, C-1, C-5, D-2 e D-5 chiuse**; il resto
 è fermo al `4da529f`. La sequenza dell'audit resta
 `C-1 → C-2 → C-3 → C-6 → C-4/D-6 → C-5/D-2 → C-7/D-1`.
 
@@ -61,23 +61,45 @@ estratto in `sFotFor(tg, arch, band)` e portato ai sei chiamanti, che hanno già
 il bersaglio in ambito. Prima però va **deciso e dichiarato** quale brillanza
 rappresenti l'oggetto: il picco, la media, o la superficie che si sta inseguendo.
 
-### D-5 · ogni candidato eredita la rotazione attuale
+### ~~D-5~~ · chiusa
 
-`fitAlternatives` riceve **una sola** rotazione e la applica a tutti i candidati:
-quella corrente del bersaglio. `bestRotation` non compare mai lì dentro — il suo
-unico uso è sul setup già scelto. Il confronto fra strumenti è quindi falsato in
-modo sistematico.
+`fitAlternatives` riceveva **una sola** rotazione — quella corrente del bersaglio —
+e la applicava a tutti. Girare la camera non costa niente: è un gesto meccanico
+che si fa una volta montando. Giudicare un'ottica all'angolo di un'altra non era
+prudenza, era un errore di misura.
 
-Misura su M31 (190′×60′, PA 35), rotazione corrente 90°:
+Misurato su M31 (190′×60′, PA 35), rotazione ereditata 90°:
 
-| candidato | pannelli ereditati | pannelli propri | fattore |
+| candidato | ereditata | propria | |
 |---|---|---|---|
-| RC8 nativo | 20 (4×5) | 14 (2×7) @16° | ×1,43 |
-| RC8 0.80× | 16 (4×4) | 8 (4×2) @114° | **×2,00** |
+| Tecnosky 115 0.80× | 4 pannelli | **2** @115° | ×2,00 |
+| RC8 0.80× | 12 pannelli | **8** @115° | ×1,50 |
+| Tecnosky 115 nativo | 6 pannelli | 4 @20° | ×1,50 |
 
-Un candidato che chiede metà dei pannelli viene confrontato come se ne
-chiedesse il doppio. Va calcolata la rotazione **per candidato** e dichiarata
-nella riga, altrimenti il confronto diventa onesto ma incomprensibile.
+La resa del Tecnosky con riduttore passa da 69 % a 94 %: era penultimo, ora è
+primo.
+
+**Due obiettivi, non uno.** `bestRotation` minimizza i *pannelli*, ed è giusto in
+copertura completa. In inquadratura libera i pannelli sono uno per definizione:
+lì ruotare serve a far entrare più soggetto, e l'obiettivo è la *copertura*.
+`bestRotationFor` sceglie l'obiettivo in base al modo — misurato su M31, la
+copertura dell'Askar passa dal 78 % al 99 %.
+
+**Il caso negativo è la maggioranza**: 118 oggetti su 169 non hanno un angolo di
+posizione, e lì non c'è niente da ottimizzare — l'ingombro è isotropo per
+convenzione dichiarata, la funzione restituisce `null` e si resta sull'angolo
+ereditato. Verificato su NGC 6888: nessun candidato inventa una rotazione, tutti
+seguono l'angolo passato, e la resa è identica fra due angoli diversi.
+
+**E va detto**: ogni riga porta l'angolo a cui quel sistema è stato giudicato, con
+una nota che spiega perché sono diversi. Senza, il confronto sarebbe onesto e
+incomprensibile — chi monta la camera dritta otterrebbe altri numeri.
+
+**C-3 non è stato necessario.** La correzione è contenuta in `fitAlternatives`
+perché `projectPanels`, `coveredSpan` e `imageYield` sono già consapevoli della
+rotazione, e `prescribe` riceve il numero di pannelli già ruotato. Il residuo di
+C-3 — `evaluate()` che non riceve la rotazione — tocca la tabella e la scheda,
+non la classifica, e resta aperto.
 
 ---
 

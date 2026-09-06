@@ -2989,14 +2989,30 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov){
       /* Ogni configurazione porta la propria geometria: un tubo corto copre il
          soggetto in un campo dove uno lungo ne chiede venti, e il confronto deve
          vedere il sistema intero — profondita' E copertura — non mezzo sistema. */
-      const pp2=projectPanels(tg,dv2,cov,rot||0);
+      /* OGNI CANDIDATO CON LA PROPRIA ROTAZIONE. Prima ne arrivava UNA sola —
+         quella corrente del bersaglio — e valeva per tutti: un sistema che con la
+         camera girata al proprio angolo chiede due riquadri veniva confrontato
+         come se ne chiedesse sei. Misurato su M31, dove il PA e' noto: il
+         Tecnosky 115 con riduttore passa da 6 pannelli a 2 (x3.00), l'RC8 con
+         riduttore da 15 a 8. Ruotare la camera non costa niente — e' un gesto
+         meccanico che si fa una volta montando — quindi giudicare un sistema
+         all'angolo di un altro non e' prudenza, e' un errore di misura.
+         Dove il PA non e' noto la funzione non trova niente da guadagnare e si
+         resta sull'angolo ereditato: e' la maggioranza dei casi, ed e' giusto. */
+      const br2=bestRotationFor(tg,dv2,cov,5);
+      const rot2=br2?br2.rot:(rot||0);
+      const pp2=projectPanels(tg,dv2,cov,rot2);
       const pr=prescribe(e2,hours,dv2,pp2.panels);
       /* Non si scarta piu' chi resta sotto la soglia. Adesso una prescrizione
          c'e' comunque, e la resa lo colloca in fondo da sola invece di
          nasconderlo: quando NIENTE arriva al livello-obiettivo, sapere quale
          sistema ci va piu' vicino e' proprio l'informazione che serve. */
-      const yl=imageYield(tg,dv2,site2,pr,cov,rot||0);
+      const yl=imageYield(tg,dv2,site2,pr,cov,rot2);
       out.push({cfg:c,preset:p,bin,dv:dv2,pr,ev:e2,rms:rms2,panels:pr.panels,
+        /* L'angolo a cui questo candidato e' stato giudicato, e se e' il suo o
+           quello ereditato. Senza dirlo il confronto sarebbe onesto e
+           incomprensibile: chi monta la camera dritta otterrebbe altri numeri. */
+        rot:rot2,rotPropria:!!br2,rotEreditata:rot||0,
         /* I tre assi restano esposti uno per uno: chi legge deve poter dire
            quale ha deciso, non fidarsi di un numero solo. */
         yield:yl,cover:yl.c,depth:yl.d,resol:yl.r,P:yl.P,
@@ -4906,6 +4922,33 @@ function bestRotation(tg,dv,step){
   }
   if(!best||best.panels>=n0) return null;      // niente da guadagnare: nessun consiglio
   return {...best,from:n0,saved:n0-best.panels,ratio:n0/best.panels};
+}
+
+/* LA ROTAZIONE CHE UN CANDIDATO USEREBBE DAVVERO, e dipende dalla domanda.
+
+   `bestRotation` minimizza i PANNELLI, ed e' la risposta giusta quando si vuole il
+   soggetto intero: meno riquadri sono meno ore. In inquadratura libera pero' il
+   riquadro e' uno per definizione e i pannelli non si muovono: li' ruotare serve a
+   far entrare piu' soggetto nello stesso campo, e l'obiettivo e' la COPERTURA.
+   Misurato su M31: con un RC8 nativo la copertura passa dall'8.7% al 14.5%
+   ruotando di 35 gradi, e a rotazione zero quel sistema veniva giudicato per meno
+   della meta' di quello che consegna.
+
+   Dove l'angolo di posizione del soggetto non e' noto — 118 oggetti su 169 — non
+   c'e' niente da ottimizzare: l'ingombro e' isotropo per convenzione dichiarata, e
+   la funzione restituisce null, che il chiamante legge come «tieni quella che hai». */
+function bestRotationFor(tg,dv,cov,step){
+  if(!tg||tg.pa_deg==null||!isFinite(tg.pa_deg)) return null;
+  if(coverageOf(cov)!==COV_FRAMING) return bestRotation(tg,dv,step);
+  const st=step||5;
+  const base=coveredSpan(tg,dv,cov,0).c;
+  let best=null;
+  for(let rot=0; rot<180; rot+=st){
+    const c=coveredSpan(tg,dv,cov,rot).c;
+    if(!best||c>best.c+1e-9) best={rot,c};
+  }
+  if(!best||best.c<=base+1e-9) return null;    // niente da guadagnare
+  return {rot:best.rot,cover:best.c,from:base,ratio:best.c/Math.max(base,1e-9)};
 }
 
 /* ---------- estinzione e fondo cielo ---------- */
@@ -7807,7 +7850,11 @@ function renderRx(np){
       ${rigaMia}
       ${(meglio.length?meglio:alts).map(x=>`<div class="altrow">
         <span class="pill ${x.pr.level==='pieno'||x.pr.level==='ridotto'?'p-ok':'p-warn'}">${RXLVL[x.pr.level].k}</span>
-        <span class="n"><b>${esc(x.preset.label)}</b>${x.bin>1?` a <b>bin ${x.bin}</b>`:''}
+        <span class="n"><b>${esc(x.preset.label)}</b>${x.bin>1?` a <b>bin ${x.bin}</b>`:''}${
+          x.rotPropria?` <span class="pill p-dim" data-tip="${esc(
+            'Questo sistema e’ giudicato alla rotazione che gli conviene, non alla tua: '+
+            'girare la camera non costa niente e ogni ottica ha il proprio angolo migliore su '+
+            'questo soggetto. Montandola dritta otterresti numeri diversi.')}">a ${x.rot}°</span>`:''}
           <span class="muted">— ${fmt(x.dv.scale,2)}″/px, campo ${fmt(x.dv.fovX,0)}′×${fmt(x.dv.fovY,0)}′</span>
           <div class="small" style="margin-top:2px">
             ${asse(x.cover,'soggetto','Quanta parte del bersaglio entra nell\'immagine. Satura al 100%: inquadrare più cielo del soggetto non aggiunge niente.')} &middot;
@@ -7816,6 +7863,12 @@ function renderRx(np){
             <b data-tip="Il prodotto dei tre: la frazione della fotografia ottenibile che questo sistema consegna davvero. Con questo ordino.">resa ${Math.round(x.P*100)}%</b></div></span>
         <button class="chip fn fn-cfg" onclick="rxApply('${x.preset.id}',${x.bin})">usa questa</button>
       </div>`).join('')}
+      ${(meglio.length?meglio:alts).some(x=>x.rotPropria)?`<p class="small muted" style="margin-top:8px">
+        Ogni sistema è valutato <b>alla rotazione che gli conviene</b>, segnata accanto al nome:
+        girare la camera non costa niente e l’angolo migliore cambia da un’ottica all’altra —
+        su questo soggetto giudicarli tutti allo stesso angolo li avrebbe confrontati per
+        quello che non sono. Dove l’angolo di posizione del soggetto non è noto la rotazione
+        non cambia niente e il segno non compare.</p>`:''}
       <p class="small muted" style="margin-top:8px">Ordinati sulla <b>resa</b>: quanto del
       soggetto entra, per quanta profondità, a quale dettaglio. Sono tre cose distinte e
       restano scritte una per una — su una planetaria decide il dettaglio, su una nebulosa

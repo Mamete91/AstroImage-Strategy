@@ -26,7 +26,7 @@ const M=new Function(...Object.keys(ctx),pure+`return {derive,refCfg,timeFactor,
   roadChannels,roadSum,costGroups,accessibleH,moonPenalty,lpPenalty,filterFor,skyColour,
   lpExcessFlux,moonExcessFlux,moonExcessMag,mixPenalty,balanceSessions,
   exposureStrategies,refSubFor,STRATEGIES,strategyOf,EXP_GRID,subPlan,resolutionFidelity,
-  dualPass,BAND_LAMBDA,BB_NM,leakOf,kExt,mosaicPanels,binOptions,binAdvice,expectFor,
+  dualPass,BAND_LAMBDA,BB_NM,leakOf,kExt,mosaicPanels,binOptions,binAdvice,bestRotation,expectFor,
   cfaFraction,bandSpec,skyRateFor,subExposure,exposurePlan,objectSatTime,subPlan,
   fitAlternatives,framing,projectPanels,COV_FULL,COV_FRAMING,
   coveredSpan,resolutionFidelity,imageYield,PIX_FWHM};`)

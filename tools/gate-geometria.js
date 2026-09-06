@@ -394,5 +394,90 @@ H('C-5 · IL CONFRONTO FRA STRUMENTI SI MOSTRA QUANDO C È DA DIRLO');
   chk('e non era il livello a poterlo segnalare', pr.level !== 'insufficiente', pr.level);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+H('D-5 · OGNI CANDIDATO CON LA PROPRIA ROTAZIONE');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* `fitAlternatives` riceveva UNA rotazione — quella corrente del bersaglio — e la
+     applicava a tutti i candidati. Un sistema che con la camera girata al proprio
+     angolo chiede due riquadri veniva confrontato come se ne chiedesse sei: girare
+     la camera non costa niente, e' un gesto meccanico che si fa una volta montando,
+     quindi giudicare un'ottica all'angolo di un'altra non e' prudenza, e' un errore
+     di misura. Su M31, dove il PA e' noto, il divario arriva a tre volte. */
+  const m31 = TG.targets.find(x => /M31|Andromeda/i.test(x.names.join(' ')));
+  chk('M31 ha un angolo di posizione su cui ruotare', m31 && m31.pa_deg != null,
+    m31 ? 'PA ' + m31.pa_deg + '°, ' + m31.size_arcmin.join("'x") + "'" : 'scheda assente');
+
+  const stR = { lat: 46.0167, lon: 10.3333, sqm: 20.8, seeing: 1.6, rms: 0.6, horizonMin: 20, clearFrac: 0.35 };
+  stR.fwhm = M.effFWHM(stR.seeing, stR.rms);
+  const npR = M.nightProfile(new Date(2026, 8, 11), stR.lat, stR.lon);
+  const CFGR = { tel: 'askar71f', red: 0.75, cam: 'asi2600mc', mnt: 'am5', bin: 1 };
+
+  /* IL CASO DI REGRESSIONE. Non e' tautologico: si confronta cio' che il motore
+     produce ora con cio' che produrrebbe imponendo a tutti la rotazione ereditata,
+     che e' esattamente il comportamento precedente, ricostruito qui. */
+  const alts = M.fitAlternatives(m31, CFGR, stR, npR, {}, 30, DB.presets, 6, 90, 'full');
+  chk('il confronto restituisce candidati su M31', alts.length > 0, alts.length + ' candidati');
+  const conPropria = alts.filter(a => a.rotPropria);
+  chk('e ciascuno porta la rotazione con cui e stato giudicato',
+    alts.every(a => a.rot != null && typeof a.rotPropria === 'boolean'));
+  chk('su un soggetto allungato con PA noto la rotazione propria si usa davvero',
+    conPropria.length > 0, conPropria.length + ' su ' + alts.length +
+    ' — angoli ' + [...new Set(conPropria.map(a => a.rot))].sort((x, y) => x - y).join('°, ') + '°');
+  chk('e non e la rotazione ereditata mascherata',
+    conPropria.some(a => a.rot !== 90), 'ereditata era 90°');
+
+  /* Quanti pannelli chiederebbero gli stessi candidati all'angolo ereditato. */
+  let guadagno = 0, dove = '';
+  for (const a of conPropria) {
+    const ered = M.projectPanels(m31, a.dv, 'full', 90).panels;
+    const suoi = M.projectPanels(m31, a.dv, 'full', a.rot).panels;
+    if (ered / Math.max(suoi, 1) > guadagno) { guadagno = ered / Math.max(suoi, 1); dove = a.preset.label + ' ' + ered + '→' + suoi; }
+  }
+  console.log('      M31: il divario massimo fra rotazione ereditata e propria vale x' +
+    Number(guadagno).toFixed(2) + '  (' + dove + ')');
+  chk('e su M31 la rotazione propria risparmia pannelli veri', guadagno >= 1.5,
+    'x' + Number(guadagno).toFixed(2) + ' — ' + dove);
+
+  /* In inquadratura libera i pannelli sono uno per definizione: li' la rotazione
+     deve ottimizzare la COPERTURA, non il conteggio. Obiettivo diverso, stessa voce. */
+  const altsF = M.fitAlternatives(m31, CFGR, stR, npR, {}, 30, DB.presets, 6, 90, 'framing');
+  const conF = altsF.filter(a => a.rotPropria);
+  chk('anche in inquadratura libera ogni candidato ha il suo angolo',
+    conF.length > 0, conF.length + ' su ' + altsF.length);
+  let megCop = 0;
+  for (const a of conF) {
+    const ered = M.coveredSpan(m31, a.dv, 'framing', 90).c;
+    if (a.cover / Math.max(ered, 1e-9) > megCop) megCop = a.cover / Math.max(ered, 1e-9);
+  }
+  chk('e li la rotazione guadagna COPERTURA, che e la cosa che conta in quel modo',
+    megCop > 1.05, 'fino a x' + Number(megCop).toFixed(2) + ' di soggetto inquadrato');
+
+  /* IL CASO NEGATIVO: senza angolo di posizione non c'e' niente da ottimizzare, e
+     la rotazione ereditata deve restare esattamente com'era. */
+  const senzaPA = TG.targets.find(x => x.pa_deg == null);
+  chk('esiste un bersaglio senza angolo di posizione dichiarato', !!senzaPA,
+    senzaPA ? senzaPA.names[0] : '(nessuno: 118 su 169 nel catalogo)');
+  if (senzaPA) {
+    const a0 = M.fitAlternatives(senzaPA, CFGR, stR, npR, {}, 30, DB.presets, 6, 90, 'full');
+    chk('li nessun candidato inventa una rotazione propria',
+      a0.every(a => !a.rotPropria), senzaPA.names[0]);
+    chk('e tutti restano sull angolo ereditato', a0.every(a => a.rot === 90),
+      'tutti a 90°, come prima');
+    const a1 = M.fitAlternatives(senzaPA, CFGR, stR, npR, {}, 30, DB.presets, 6, 0, 'full');
+    chk('cambiando l angolo ereditato lo seguono, invece di ignorarlo',
+      a1.every(a => a.rot === 0));
+    chk('e senza PA la resa non cambia fra i due angoli',
+      a0.length === a1.length && a0.every((a, i) =>
+        Math.abs(a.P - a1[i].P) < 1e-12), 'nessuna differenza');
+  }
+
+  /* E la rotazione va DETTA, altrimenti il confronto e onesto e incomprensibile. */
+  const srcR = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  chk('l interfaccia dichiara l angolo di ogni candidato', /x\.rotPropria\?/.test(srcR));
+  chk('e spiega una volta perche gli angoli sono diversi',
+    /alla rotazione che gli conviene/.test(srcR));
+}
+
 console.log('\n'+(ko?'\x1b[31m':'\x1b[32m')+ok+' verifiche superate, '+ko+' fallite\x1b[0m');
 process.exit(ko?1:0);
