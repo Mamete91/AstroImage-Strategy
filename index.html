@@ -7311,17 +7311,33 @@ function bloccoRuoli(){
     const auto=(()=>{ const salvato=ROLES&&ROLES[b]; if(salvato) delete ROLES[b];
       const a=filterFor(b,cam); if(salvato) ROLES[b]=salvato; return a; })();
     const scelto=(ROLES&&ROLES[b])||'';
+    /* SE PER UN RUOLO DI BANDA LARGA SCEGLI UN FILTRO STRETTO, le ore della scheda
+       smettono di voler dire quello che dicono. Il budget «L» di una scheda descrive
+       una luminanza a banda larga: convertirlo a 3 nm chiede quanto tempo serve per
+       raggiungere QUELLA profondita' di continuo attraverso 3 nm, e la risposta e'
+       un milione di ore. Non e' un errore di calcolo — misurato, M31 su RC8 passa da
+       4.8 h con il `lum` a 1.017.328 h con un Ha da 3 nm — e' la domanda a non avere
+       senso: una luminanza di sola riga e' un'ALTRA immagine, non la stessa piu'
+       lenta. La scelta resta possibile, perche' e' legittima e qualcuno la vuole; ma
+       il numero che ne esce va dichiarato per quello che e'. */
+    const stretta=BB_BANDS.includes(b)&&scelto&&
+      bandWidth(DB.filters.find(f=>f.id===scelto)||null,b)<50;
     return `<label class="f" style="flex:1;min-width:220px">${b==='L'?'Luminanza (L)':b}
       <select onchange="setRole('${b}',this.value)">
         <option value="" ${scelto?'':'selected'}>automatico — ${esc(auto?auto.name:'nessuno')}</option>
         ${cand.map(f=>`<option value="${f.id}" ${scelto===f.id?'selected':''}>${esc(f.name)}</option>`).join('')}
-      </select></label>`;
+      </select>${stretta?`<span class="small p-warn" style="display:block;margin-top:4px;padding:4px 6px;border-radius:6px">
+        Banda stretta in un ruolo di banda larga: le ore di questo canale non sono più
+        confrontabili con la scheda, che descrive una luminanza larga. È un'altra immagine,
+        non la stessa più lenta — il numero che leggi qui sotto va preso come tale.</span>`:''}</label>`;
   }).filter(Boolean);
   if(!righe.length) return '';
   return `<div class="block"><h4>Chi svolge quale ruolo</h4>
     <p class="small muted" style="margin-bottom:10px">La luminanza è una funzione, non un
       filtro: se preferisci riprenderla con un anti-inquinamento, con un multiband o
-      perfino con un Hα, dillo qui e il motore userà quello — e non lo sostituirà.
+      perfino con un Hα, dillo qui e il motore userà quello — e non lo sostituirà. Una
+      luminanza di sola riga però è un'<b>altra immagine</b>, non la stessa più lenta: le
+      ore della scheda descrivono una banda larga, e il riquadro te lo ricorda se lo fai.
       Con «automatico» sceglie lui, e sceglie in base al ruolo: su una <b>riga</b> vince il
       più stretto, perché la riga passa comunque e il cielo no; su un <b>continuo</b> vince
       chi raccoglie di più, perché stringere butta via segnale quanto butta via cielo.</p>

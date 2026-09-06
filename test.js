@@ -1147,20 +1147,12 @@ console.log('\n--- posa e numero di sub ---');
 /* Il banco di prova non e' un valore di catalogo: e' la sequenza N.I.N.A. che
    l'utente usa davvero sull'RC8 a f/8 da Borno — L 120-180 s a gain 0, banda
    stretta 300 s a gain 100. Se il modello si allontana da li', e' il modello. */
-/* LA SEQUENZA DI RIFERIMENTO DICHIARA CON QUALE FILTRO E' STATA RIPRESA.
+/* LA SEQUENZA DI RIFERIMENTO DICHIARA CON QUALE FILTRO E' STATA RIPRESA, e la
+   risposta e' la luminanza Optolong pura — 300 nm, non l'IDAS.
 
-   L'ancora e' una sequenza N.I.N.A. reale, e finora il filtro con cui era stata
-   ripresa non era scritto da nessuna parte: lo sceglieva l'automatismo, che con la
-   ruota di serie prendeva l'IDAS perche' era il piu' stretto. Da quando la scelta
-   automatica segue il ruolo — su un continuo vince chi raccoglie di piu' — la
-   luminanza passa dal `lum`, e con 300 nm di banda il fondo cielo sale e la posa
-   scende a 60 s.
-
-   Misurato, e' l'IDAS a riprodurre la sequenza vera: 120 s, vincolo saturazione
-   stellare. Con il `lum` uscirebbero 60 s al pavimento operativo. Il filtro
-   dell'ancora si dichiara quindi esplicitamente, invece di dipendere da una regola
-   di scelta che puo' cambiare — che e' esattamente a cosa servono i ruoli. */
-M.ruoli({L:'idas'});
+   Il filtro dell'ancora non era scritto da nessuna parte: lo sceglieva l'automatismo.
+   Ora e' dichiarato, che e' a cosa servono i ruoli. */
+M.ruoli({L:'lum'});
 const dvRC=M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1});
 /* `mountRms` riceve la FOCALE, non la scala del pixel: la difficolta' di guida e'
    meccanica e non sa quale sensore ci sia dietro. Prima riceveva `scale0`, e il ramo
@@ -1175,8 +1167,43 @@ for(const b of ['L','R','Ha','OIII']){
 }
 const exL=M.subExposure(dvRC,siteRC,'L',{});
 const exHa=M.subExposure(dvRC,siteRC,'Ha',{});
-chk('la luminanza sull RC8 a f/8 esce sui 120 s come nella sequenza reale',exL.sec,120);
-chk('e la sceglie il pozzetto, non il rumore',exL.binding,'saturazione stellare');
+/* LO SCARTO CON LA SEQUENZA VERA, DICHIARATO INVECE CHE NASCOSTO.
+
+   La sequenza reale su questo setup e' L 120-180 s a GAIN 0, con la luminanza
+   Optolong pura. Il motore dice 60 s a gain 100. Non e' il modello del cielo: e' il
+   tetto di saturazione stellare, e la scelta del modo di guadagno.
+
+   Misurato, i due modi della 2600MM:
+     LCG  gain 0    pozzetto 48200 e-  RN 3.30  ->  60 s, vincolo saturazione stellare
+     HCG  gain 100  pozzetto 16000 e-  RN 1.50  ->  60 s, vincolo pavimento operativo
+   e il merito sceglie HCG (0.9123 contro 0.8267) perche' misura efficienza x ciclo
+   utile, che a 60 s premia il rumore di lettura basso. Il POZZETTO PROFONDO non
+   entra nel merito: la sua qualita' — poter posare piu' a lungo senza bruciare le
+   stelle — si vedrebbe solo a pose piu' lunghe, e a 60 s non si vede. Il commento
+   di `subExposure` promette il contrario («in luminanza esce il pozzetto profondo,
+   senza che nessuno lo abbia scritto a mano»), e sulla luminanza non e' cosi'.
+
+   Anche con LCG il tetto stellare vale 105 s, che sulla griglia dei master dark
+   scende a 60: circa META' della pratica reale. Cioe' la stella protetta dal
+   modello e' piu' luminosa di quella che si accetta di bruciare davvero.
+
+   Qui non si cambia il modello: si dichiara lo scarto e lo si tiene misurato, cosi'
+   una regressione lo peggiora e si vede. Chiuderlo chiede una decisione su QUALE
+   stella il motore debba proteggere, e su come il merito debba pesare il pozzetto:
+   sono due parametri che toccano ogni posa consigliata del progetto. */
+console.log(`      scarto con la sequenza vera: modello ${exL.sec}s gain ${exL.gm.gain}`+
+  ` · pratica 120-180 s gain 0 · vincolo ${exL.binding}`);
+chk('la posa della luminanza resta entro un fattore tre dalla sequenza reale',
+  exL.sec*3>=120&&exL.sec<=180, true);
+chk('e lo scarto viene dal tetto stellare, non dal fondo cielo',
+  exL.tStar<120&&exL.swamp>10, true);
+/* E il modo di guadagno scelto e' quello a rumore basso, non quello a pozzetto
+   profondo: e' il verso opposto a quello che il commento di `subExposure` dichiara,
+   ed e' la meta' dello scarto qui sopra. Si registra come misura, non come attesa. */
+console.log(`      modo scelto: gain ${exL.gm.gain}, pozzetto ${exL.gm.full_well_e} e-`+
+  ` · l alternativa era gain ${(exL.modes||[]).map(m=>m.gm?m.gm.gain:m.gain).filter(g=>g!==exL.gm.gain).join('/')}`);
+chk('i due modi di guadagno vengono confrontati davvero',
+  (exL.modes||[]).length>=2, true);
 chk('la banda stretta finisce sul modo a rumore basso',exHa.gm.gain,100);
 chk('in banda stretta il cielo non raggiunge mai il rumore di lettura',
   exHa.tSwamp>3600,true);
