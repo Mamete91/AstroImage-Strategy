@@ -180,9 +180,21 @@ H('E · DINAMICA NON PROMETTE RISOLUZIONE');
      nessuna strategia la tocca. */
   const s0 = scenario(m31, rc8, borno, 20, 'resa');
   const s1 = scenario(m31, rc8, borno, 20, 'dinamica');
-  chk('la scala del pixel non cambia', rc8.scale === rc8.scale, F(rc8.scale, 3) + '"/px');
-  chk('la fedelta di risoluzione non cambia',
-    Math.abs(M.resolutionFidelity(rc8.scale, borno.fwhm) - M.resolutionFidelity(rc8.scale, borno.fwhm)) < 1e-15, true);
+  /* QUESTE DUE NON POTEVANO FALLIRE. Confrontavano `rc8.scale` con se stesso e
+     `f(x)` con `f(x)`: vere per qualunque valore, e gli scenari s0 ed s1 — calcolati
+     due righe sopra proprio per questo — non entravano nel confronto. Cio' che
+     volevano dire e' che la strategia non tocca la geometria, e ora lo dicono
+     confrontando i due scenari, che e' l'unico modo in cui l'affermazione ha senso. */
+  /* La scala del pixel e' un INGRESSO — `dv` e' lo stesso oggetto nei due scenari —
+     quindi confrontarla non direbbe niente. Cio' che ha senso verificare e' che non
+     cambi quello che il motore PRODUCE sulla geometria: la fedelta' di risoluzione e
+     il verdetto di campionamento escono da `evaluate`, e una strategia che li
+     toccasse starebbe cambiando l'immagine, non solo la posa. */
+  chk('la fedelta di risoluzione non cambia con la strategia',
+    Math.abs(s0.e.resol - s1.e.resol) < 1e-15, F(s0.e.resol, 4) + ' in entrambe');
+  chk('e nemmeno il verdetto di campionamento',
+    s0.e.samp.k === s1.e.samp.k && s0.e.samp.cls === s1.e.samp.cls,
+    s0.e.samp.k);
   /* `coverage` e' l'INTENTO ('full' / 'framing'), non un numero: la frazione
      coperta sta in `covered.c`. Confrontarla con F() dava NaN — un errore mio, non
      del motore. */

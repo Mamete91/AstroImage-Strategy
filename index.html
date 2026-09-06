@@ -2165,14 +2165,38 @@ const factorValidated=(dv,band)=>rates(dv,band,refCfg().sqm).validated;
 const RMS2FWHM=1.7;
 const effFWHM=(seeing,rms)=>Math.sqrt(seeing*seeing+Math.pow(RMS2FWHM*(rms||0),2));
 
+/* SOVRACAMPIONARE E SOTTOCAMPIONARE NON SONO LA STESSA COSA, e questa funzione
+   li trattava identici: stessa classe `p-warn` e stessa nota, parola per parola.
+
+   La differenza e' fisica e il progetto la conosce gia' — la dice il commento di
+   `binAdvice` («su CMOS il binning e' somma digitale: riprendere a bin 1 e binnare
+   in elaborazione da' lo stesso SNR») e la scrive l'interfaccia nel suggerimento
+   dell'asse dettaglio. Sovracampionare non butta via niente: i fotoni ci sono
+   tutti, li si somma dopo, e si paga solo in spazio disco e in un po' di rumore di
+   lettura in piu'. Sottocampionare butta via dettaglio che non torna: quella
+   informazione non e' da nessuna parte.
+
+   Misurato con la fedelta' che il motore calcola da se': a 0,10″/px con FWHM 2″
+   vale 0,999, a 2,00″/px vale 0,827. Presentarli con la stessa pastiglia e la
+   stessa frase diceva a chi legge che sono due errori uguali. */
 function samplingVerdict(scale,fwhm){
   const lo=fwhm/3.5, hi=fwhm/1.8;
-  if(scale<lo) return {k:'sovracampionato', cls:'p-warn',
-    n:`ottimale ${lo.toFixed(2)}–${hi.toFixed(2)}″/px con FWHM ${fwhm.toFixed(2)}″`};
-  if(scale>hi)  return {k:'sottocampionato', cls:'p-warn',
-    n:`ottimale ${lo.toFixed(2)}–${hi.toFixed(2)}″/px con FWHM ${fwhm.toFixed(2)}″`};
-  return {k:'corretto', cls:'p-ok', n:`ottimale ${lo.toFixed(2)}–${hi.toFixed(2)}″/px`};
+  const range=`ottimale ${lo.toFixed(2)}–${hi.toFixed(2)}″/px con FWHM ${fwhm.toFixed(2)}″`;
+  if(scale<lo) return {k:'sovracampionato', cls:'p-dim', reversibile:true,
+    n:`${range}. Non perdi niente: i fotoni ci sono tutti e puoi sommarli in elaborazione`};
+  if(scale>hi)  return {k:'sottocampionato', cls:'p-warn', reversibile:false,
+    n:`${range}. Il dettaglio che non campioni non torna: questa e' l'unica delle due che costa`};
+  return {k:'corretto', cls:'p-ok', reversibile:true, n:`ottimale ${lo.toFixed(2)}–${hi.toFixed(2)}″/px`};
 }
+
+/* QUANTO DEVE ESSERE MIGLIORE UN'ALTRA CONFIGURAZIONE perche' valga la pena di
+   nominarla. E' una convenzione, non fisica, e come tale va dichiarata: dieci punti
+   di resa sono un decimo della fotografia ottenibile — una differenza che si vede
+   guardando l'immagine finita. Sotto quella soglia, dire a qualcuno di cambiare
+   telescopio e' rumore. Misurato sulla distribuzione reale dei divari (312 casi,
+   mediana 29 punti): a dieci punti il confronto compare in 217 casi su 312, e ne
+   recupera 36 che oggi restavano nascosti pur essendoci di meglio. */
+const RESA_GAP=0.10;
 
 /* Quanti pannelli servono per coprire l'oggetto, con il 15% di sovrapposizione
    che serve davvero per allineare e per non lasciare la cucitura in mezzo al
@@ -2376,8 +2400,18 @@ function binAdvice(cfg,fwhm){
   const o=binOptions(cfg,fwhm);
   const cur=Math.max(1,Math.min(4,Math.round(cfg.bin||1)));
   const ok=o.filter(x=>x.samp.k==='corretto');
+  /* QUANDO NESSUN BIN E' CORRETTO. Se anche a bin 1 si e' sovracampionati, il
+     ripiego prendeva `o[o.length-1]`, cioe' il bin PIU' SPINTO — che e' quello che
+     sottocampiona di piu', quindi il peggiore dei disponibili. Misurato su 21114
+     combinazioni di camera, telescopio, riduttore e seeing: il ramo si raggiunge
+     1937 volte e in 176 consigliava bin 3, fedelta' 0,866, dove bin 1 vale 0,982.
+     Succede con seeing mediocre e ottiche corte, cioe' una notte normale.
+     La scelta giusta e' il bin piu' alto che NON sottocampiona: si prendono i
+     vantaggi pratici del binning senza buttare via dettaglio, e se nessuno li ha
+     si resta a bin 1, che e' l'unico verso in cui non si perde niente. */
+  const nonSotto = o.filter(x=>x.samp.k!=='sottocampionato');
   const best = ok.length ? ok[ok.length-1].bin
-             : (o[0].samp.k==='sovracampionato' ? o[o.length-1].bin : 1);
+             : (nonSotto.length ? nonSotto[nonSotto.length-1].bin : 1);
   const at=b=>o.find(x=>x.bin===b)||o[0];
   const sc=b=>fmt(at(b).scale,2)+'″/px';
   const gain=(a,b)=>(b*b)/(a*a);
@@ -5352,7 +5386,13 @@ function evaluate(tg,dv,site,np,state,cov){
      che è: senza questo termine bastava alzare il binning per far salire il
      punteggio di ogni oggetto, cioè barare con sé stessi in modo strutturale. */
   const res = clamp((seeing/1.8)/dv.scale,0,1);
-  const sSamp = samp.k==='corretto' ? 1 : samp.k==='sovracampionato' ? 0.9 : Math.max(0.25,res);
+  /* Il sovracampionamento pagava un forfait dello 0,9 — dieci per cento — mentre il
+     sottocampionamento usava la fedelta' vera. E' l'asimmetria rovesciata: la
+     fedelta' di un sistema sovracampionato vale 0,999, non 0,9. Ora entrambi i versi
+     passano dalla stessa grandezza continua, e il forfait sparisce. Il pavimento a
+     0,25 resta, ed e' dichiarato: impedisce che un sottocampionamento estremo
+     azzeri un punteggio che ha altre quattro componenti. */
+  const sSamp = samp.k==='corretto' ? 1 : Math.max(0.25,res);
   /* La fattibilità premia anche chi una versione ridotta vera ce l'ha: un oggetto
      che a metà tempo si chiude vale più di uno che non si chiude comunque. */
   const sFeas = Math.max(feas.score, accReal ? 0.9*feasAcc.score : 0);
@@ -7716,12 +7756,8 @@ function renderRx(np){
       Quanto sotto sei lo dice il numero, non un divieto: è una distanza dal
       livello-obiettivo, e sta a te decidere se vale la nottata.</div>`;
 
-  const altBlock = !sottoSoglia ? '' : (()=>{
+  const altBlock = (()=>{
     const alts=fitAlternatives(t,CFG,SITE,np,STATE,hours,DB.presets,3,rotFor(t),covIntent());
-    if(!alts.length) return `<p class="small muted" style="margin-top:14px">Nessun'altra
-      configurazione fra le tue porta questo oggetto al livello-obiettivo in
-      ${fmt(hours,1)} h. Puoi comunque riprenderlo con quella che hai: la prescrizione
-      qui sopra e' la piu' sensata con queste ore.</p>`;
     /* I tre assi in chiaro accanto a ogni riga. La classifica e' il loro
        prodotto, e chi legge deve poter vedere QUALE ha deciso invece di fidarsi
        di un numero solo: su una planetaria decide la risoluzione, su M31 la
@@ -7733,6 +7769,23 @@ function renderRx(np){
        piu' di ogni alternativa, ed e' esattamente la risposta utile. */
     const mio=imageYield(t,dv,SITE,pr,covIntent(),rotFor(t));
     const meglio=alts.filter(x=>x.P>mio.P+1e-9);
+    /* QUANDO MOSTRARE IL CONFRONTO. Prima la condizione era il LIVELLO: solo se il
+       canale critico restava sotto la sua soglia. Ma il livello e' un giudizio sulla
+       PROFONDITA', e la resa ha tre gambe — quanto del soggetto inquadri, quanta
+       profondita' raggiungi, quanto dettaglio conservi. Una configurazione poteva
+       dichiarare «ridotto» sulla profondita' ed essere disastrosa sulla copertura
+       senza che nessuno lo dicesse: misurato, NGC 7000 su RC8 in inquadratura libera
+       a 16 h rende il 7% — copre il 14% del soggetto — mentre un'alternativa in
+       ruota rende il 90%, e il confronto non veniva mostrato.
+       Su 312 casi il confronto restava nascosto 36 volte pur essendoci di meglio.
+       Ora si mostra anche quando la resa migliore supera la tua di RESA_GAP. */
+    const guadagno = meglio.length ? meglio[0].P - mio.P : 0;
+    const perResa = !sottoSoglia && guadagno > RESA_GAP;
+    if(!sottoSoglia && !perResa) return '';
+    if(!alts.length) return !sottoSoglia ? '' : `<p class="small muted" style="margin-top:14px">Nessun'altra
+      configurazione fra le tue porta questo oggetto al livello-obiettivo in
+      ${fmt(hours,1)} h. Puoi comunque riprenderlo con quella che hai: la prescrizione
+      qui sopra e' la piu' sensata con queste ore.</p>`;
     const rigaMia=`<div class="altrow" style="opacity:.85">
       <span class="pill p-dim">quella che hai</span>
       <span class="n"><b>${esc((DB.presets.find(q=>q.telescope===CFG.tel&&String(q.reducer)===String(CFG.red)&&q.camera===CFG.cam)||{}).label||'la tua configurazione')}</b>${(CFG.bin||1)>1?` a <b>bin ${CFG.bin}</b>`:''}
@@ -7744,6 +7797,10 @@ function renderRx(np){
           <b>resa ${Math.round(mio.P*100)}%</b></div></span></div>`;
     return `<h4 style="margin:16px 0 4px;font-size:13px">${
       meglio.length?'Con quale strumento viene meglio':'Quella che hai è già la scelta migliore'}</h4>
+      ${perResa?`<p class="small muted" style="margin:0 0 6px">Le ore ci sono — il livello
+        e' <b>${esc(RXLVL[pr.level].k)}</b> — ma un'altra delle tue configurazioni consegna
+        <b>${Math.round(guadagno*100)} punti</b> di resa in piu' su questo soggetto. Non e' la
+        profondita' a mancare: e' quanto ne inquadri o a quale dettaglio.</p>`:''}
       ${!meglio.length?`<p class="small">Nessuna delle tue altre configurazioni rende di più su
         questo soggetto con queste ore. Le ore mancano, lo strumento no: la prescrizione qui
         sopra è la migliore che puoi fare stasera.</p>`:''}

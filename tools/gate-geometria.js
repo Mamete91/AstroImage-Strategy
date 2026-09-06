@@ -21,6 +21,9 @@
 
    Adesso risponde una funzione sola, e dichiara su cosa poggia.               */
 
+const fs=require('fs'), path=require('path');
+const F=(x,n)=>x==null||!isFinite(x)?'—':Number(x).toFixed(n==null?2:n);
+const ROOT=path.join(__dirname,'..');
 const {M,DB,TG,CAT}=require('./lib/engine.js');
 
 let ok=0, ko=0;
@@ -299,6 +302,96 @@ H('G - il curato resta intatto');
   chk('e nessuno resta senza canale critico',
     Object.values(critici).reduce((a,b)=>a+b,0)===n,
     Object.entries(critici).map(([k,v])=>k+':'+v).join(' · '));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+H('D-2 · I DUE VERSI DEL CAMPIONAMENTO NON SONO LA STESSA COSA');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* Sovracampionare non butta via niente — i fotoni ci sono tutti e si sommano in
+     elaborazione — mentre sottocampionare perde dettaglio che non torna. Il motore
+     lo sa: `resolutionFidelity` vale 0,999 a 0,10"/px e 0,827 a 2,00"/px con FWHM 2".
+     Ma `samplingVerdict` li presentava con la stessa pastiglia e la stessa nota,
+     parola per parola, e il punteggio penalizzava il sovracampionamento con un
+     forfait dello 0,9 mentre il sottocampionamento usava la fedelta' vera. */
+  const sopra = M.samplingVerdict(0.10, 2.0);
+  const sotto = M.samplingVerdict(2.00, 2.0);
+  const giusto = M.samplingVerdict(0.80, 2.0);
+  console.log('      0.10"/px ' + sopra.k + ' [' + sopra.cls + ']  fedelta ' +
+    F(M.resolutionFidelity(0.10, 2.0), 3));
+  console.log('      2.00"/px ' + sotto.k + ' [' + sotto.cls + ']  fedelta ' +
+    F(M.resolutionFidelity(2.00, 2.0), 3));
+  chk('i due versi non hanno la stessa nota', sopra.n !== sotto.n);
+  chk('ne la stessa pastiglia', sopra.cls !== sotto.cls, sopra.cls + ' contro ' + sotto.cls);
+  chk('e solo uno dei due e reversibile',
+    sopra.reversibile === true && sotto.reversibile === false);
+  chk('il campionamento corretto resta corretto', giusto.k === 'corretto' && giusto.cls === 'p-ok');
+
+  /* La fedelta' deve restare monotona: piu' si sottocampiona, meno resta. */
+  let mono = true, prev = null;
+  for (let sc = 0.1; sc <= 4.0; sc += 0.1) {
+    const r = M.resolutionFidelity(sc, 2.0);
+    if (prev != null && r > prev + 1e-12) mono = false;
+    prev = r;
+  }
+  chk('e la fedelta scende sempre al crescere della scala', mono);
+
+  /* Il ripiego di binAdvice non deve consigliare il bin che sottocampiona di piu'. */
+  let raggiunto = 0, sbagliati = 0, esempio = '';
+  for (const c of DB.cameras) for (const t of DB.telescopes) {
+    const reds = (t.reducers && t.reducers.length) ? t.reducers.map(r => r.factor) : [1];
+    for (const red of reds) for (let fw = 0.8; fw <= 6.01; fw += 0.4) {
+      let o; try { o = M.binOptions({ tel: t.id, red, cam: c.id, bin: 1 }, fw); } catch (e) { continue; }
+      if (!o || !o.length || o.some(x => x.samp.k === 'corretto')) continue;
+      if (o[0].samp.k !== 'sovracampionato') continue;
+      raggiunto++;
+      const adv = M.binAdvice({ tel: t.id, red, cam: c.id, bin: 1 }, fw);
+      const scelto = o.find(x => x.bin === adv.best);
+      if (scelto && scelto.samp.k === 'sottocampionato') {
+        sbagliati++;
+        if (!esempio) esempio = c.name.slice(0, 16) + ' / ' + t.id + ' FWHM ' + Number(fw).toFixed(1) + ' → bin ' + adv.best;
+      }
+    }
+  }
+  chk('il ripiego di binAdvice non sceglie mai un bin che sottocampiona',
+    sbagliati === 0,
+    sbagliati ? sbagliati + ' su ' + raggiunto + ', es. ' + esempio
+              : 'ramo raggiunto ' + raggiunto + ' volte, sempre non sottocampionato');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+H('C-5 · IL CONFRONTO FRA STRUMENTI SI MOSTRA QUANDO C È DA DIRLO');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* Il confronto era condizionato al LIVELLO, che e' un giudizio sulla profondita'.
+     Ma la resa ha tre gambe: copertura, profondita', dettaglio. Una configurazione
+     poteva dichiarare «ridotto» sulla profondita' ed essere disastrosa sulla
+     copertura senza che nessuno lo dicesse. */
+  const src = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  chk('la soglia di resa e una costante dichiarata', /const RESA_GAP=0\.10;/.test(src));
+  chk('il confronto non e piu appeso al solo livello',
+    !/const altBlock = !sottoSoglia \? '' :/.test(src),
+    /perResa/.test(src) ? 'si mostra anche per divario di resa' : 'ANCORA SOLO SUL LIVELLO');
+
+  /* E il caso misurato che restava nascosto deve ora superare la soglia. */
+  const st = { lat: 46.0167, lon: 10.3333, sqm: 20.8, seeing: 1.6, rms: 0.6, horizonMin: 20, clearFrac: 0.35 };
+  st.fwhm = M.effFWHM(st.seeing, st.rms);
+  const np = M.nightProfile(new Date(2026, 8, 11), st.lat, st.lon);
+  const t = TG.targets.find(x => /7000/.test(x.names.join(' ')));
+  const CFG = { tel: 'rc8', red: '1', cam: 'asi2600mm', mnt: 'am5', bin: 1 };
+  const dv = M.derive(CFG);
+  const e = M.evaluate(t, dv, st, np, { cov: 'framing' });
+  const pr = M.prescribe(e, 16, dv, e.targetPanels || 1);
+  const mio = M.imageYield(t, dv, st, pr, 'framing', 0);
+  const alts = M.fitAlternatives(t, CFG, st, np, {}, 16, DB.presets, 3, 0, 'framing');
+  const meglio = alts.filter(x => x.P > mio.P + 1e-9);
+  const gap = meglio.length ? meglio[0].P - mio.P : 0;
+  console.log('      NGC 7000 su RC8, inquadratura, 16 h: tua resa ' + Math.round(mio.P * 100) +
+    '% (copre ' + Math.round(mio.c * 100) + '%), migliore ' +
+    (meglio.length ? Math.round(meglio[0].P * 100) : '—') + '%, livello ' + pr.level);
+  chk('il caso che restava nascosto supera la soglia di resa', gap > 0.10,
+    'divario ' + Math.round(gap * 100) + ' punti, livello ' + pr.level);
+  chk('e non era il livello a poterlo segnalare', pr.level !== 'insufficiente', pr.level);
 }
 
 console.log('\n'+(ko?'\x1b[31m':'\x1b[32m')+ok+' verifiche superate, '+ko+' fallite\x1b[0m');

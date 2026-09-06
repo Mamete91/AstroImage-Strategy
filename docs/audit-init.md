@@ -6,7 +6,7 @@ confrontando i numeri: dove c'è scritto CHIUSO esiste una misura che prima
 sarebbe stata diversa, dove c'è scritto APERTO esiste il caso concreto in cui
 oggi sbaglia.
 
-**Misurato al commit `4da529f`, aggiornato a `cdf2aa5`.** Rifare le misure dopo ogni intervento: questo
+**Misurato al commit `4da529f`, aggiornato a `HEAD`.** Rifare le misure dopo ogni intervento: questo
 documento vale finché i numeri che contiene sono riproducibili.
 
 ## Perché esiste questo file
@@ -26,18 +26,18 @@ difetti.
 | **C-2** | due grandezze diverse chiamate «ore per notte» | 🟡 metà | media | medio |
 | **C-3** | convenzioni divergenti sull'angolo ignoto | 🟡 metà | media | medio |
 | **C-4** | arricchimento OpenNGC senza effetto | 🟢 chiusa | bassa | piccolo |
-| **C-5** | confronto cieco all'inquadratura | 🟡 metà | media | piccolo |
+| **C-5** | confronto cieco all'inquadratura | 🟢 chiusa | — | — |
 | **C-6** | segnaposto di pozzo pieno che governa la posa | 🟢 chiusa | — | — |
 | **C-7** | la classe sovrascrive i dati del bersaglio | 🟡 metà | media | piccolo |
 | **D-1** | rumore fotonico del soggetto mai nella varianza | 🔴 aperta | **alta** | medio |
-| **D-2** | sovra e sottocampionamento trattati uguali | 🟡 metà | media | medio |
+| **D-2** | sovra e sottocampionamento trattati uguali | 🟢 chiusa | — | — |
 | **D-3** | convenzioni non dichiarate come tali | 🟡 metà | media | medio |
 | **D-4** | candidati sotto soglia scartati | 🟡 metà | **alta** | piccolo |
 | **D-5** | ogni candidato eredita la rotazione attuale | 🔴 aperta | **alta** | medio |
 | **D-6** | fallback che scattano in silenzio | 🟡 metà | media | medio |
 | **D-7** | codice e dati mai raggiunti | 🟡 metà | media | piccolo |
 
-Tre chiuse, nove a metà, due aperte. **C-6 e C-1 chiuse in `cdf2aa5`**; il resto
+Cinque chiuse, sette a metà, due aperte. **C-6 e C-1 chiuse in `cdf2aa5`, C-5 e D-2 subito dopo**; il resto
 è fermo al `4da529f`. La sequenza dell'audit resta
 `C-1 → C-2 → C-3 → C-6 → C-4/D-6 → C-5/D-2 → C-7/D-1`.
 
@@ -132,19 +132,25 @@ verificabile in tre modi indipendenti (pannelli 4→6, consiglio di rotazione da
 assente a 6→2, su RC8 20→18). Restano tre residui minimi: un campo scritto e mai
 letto (`ongc_type`, scatta su 0 oggetti) e due contatori morti.
 
-### C-5 · il motore vede l'inquadratura, l'utente non lo vede mai
-Ricostruendo il criterio pre-`80a4144` e applicandolo agli stessi candidati:
+### ~~C-5~~ · chiusa
+Il motore ordinava già correttamente sulla resa — copertura × profondità ×
+dettaglio — e questo non è stato toccato. Il difetto era **il criterio con cui il
+confronto veniva mostrato**: `level === 'insufficiente'`, che è un giudizio sulla
+sola *profondità*. Una configurazione poteva dichiarare «ridotto» ed essere
+disastrosa sulla copertura senza che nessuno lo dicesse.
 
-| caso | vecchio vincitore | copre | nuovo vincitore | copre |
-|---|---|---|---|---|
-| Velo, 16 h | RC8 ridotto | 8,0 % | Askar nativo | 56,0 % |
-| NGC 7000, 20 h | RC8 bin 2 | 13,5 % | Askar nativo | **99,7 %** |
+Misurato su 312 casi: il confronto compariva nel 77 % di quelli utili, e restava
+nascosto **36 volte pur essendoci di meglio**. Il peggiore:
 
-La correzione è reale. Ma il blocco «Con quale strumento viene meglio» è
-condizionato a `level === 'insufficiente'`, e in inquadratura libera quel livello
-quasi non si raggiunge — l'RC8 sul Velo dichiara «pieno» coprendo l'8 % del
-soggetto. **Il confronto per resa non viene mostrato proprio nella modalità in
-cui è l'unico giudizio sensato.**
+> NGC 7000 su RC8, inquadratura libera, 16 h — la tua resa **7 %** (copre il 14 %
+> del soggetto), la migliore in ruota **90 %**, livello «ridotto».
+
+Ora il confronto si mostra anche quando un'altra configurazione supera la tua di
+`RESA_GAP` (10 punti di resa, costante dichiarata e tarata sulla distribuzione
+reale dei divari), con una riga che spiega **perché**: non è la profondità a
+mancare, è quanto ne inquadri o a quale dettaglio. Verificato che non produca
+falsi positivi: su un caso già buono — Tecnosky su M27, livello «pieno» — il
+blocco non compare. Costo misurato di `fitAlternatives`: 6 ms.
 
 ### ~~C-6~~ · chiusa in `cdf2aa5`
 Il meccanismo era corretto, mancavano i dati: **10 camere su 17 erano sul
@@ -176,13 +182,29 @@ IC 1396: la prescrizione è esattamente quella della scheda, mentre la sua class
 classe `line_fraction` e `stellar`, quest'ultima letta in sei punti con sei copie
 della stessa riga.
 
-### D-2 · la metà continua è fatta, quella dei consigli no
-`resolutionFidelity` è genuinamente asimmetrica (0.9994 contro 0.8270) e la resa
-ordina i setup su una scala continua. Ma `samplingVerdict` è ancora
-**letteralmente simmetrico**: a 0.10″/px e a 2.00″/px restituisce la stessa
-classe e una nota byte-identica, mentre la fedeltà reale differisce del 17 %. E
-il ripiego di `binOptions` sceglie il bin più spinto quando nessuno è corretto,
-dove la risposta giusta sarebbe bin 1.
+### ~~D-2~~ · chiusa
+`resolutionFidelity` era già asimmetrica e continua; il difetto stava nei tre
+punti che la ignoravano.
+
+**`samplingVerdict` era letteralmente simmetrico**: a 0,10″/px e a 2,00″/px
+restituiva la stessa pastiglia `p-warn` e una nota byte-identica, mentre la
+fedeltà vale 0,999 contro 0,827. Ora i due versi hanno classe, nota e un campo
+`reversibile` distinti — perché sovracampionare non perde niente (i fotoni si
+sommano dopo) e sottocampionare perde dettaglio che non torna. È la stessa cosa
+che il progetto già scriveva nel tooltip dell'asse dettaglio e nel commento di
+`binAdvice`, e che questa funzione contraddiceva.
+
+**Il ripiego di `binAdvice`** prendeva il bin più spinto quando nessuno era
+corretto, cioè il più sottocampionato. Misurato su 21 114 combinazioni di camera,
+telescopio, riduttore e seeing: il ramo si raggiunge 1937 volte e in **176
+consigliava bin 3 (fedeltà 0,866) dove bin 1 vale 0,982** — con seeing mediocre e
+ottiche corte, cioè una notte normale. Ora sceglie il bin più alto che *non*
+sottocampiona: 176 → **0**.
+
+**Il forfait nel punteggio**: `sSamp` penalizzava il sovracampionamento con uno
+0,9 fisso mentre il sottocampionamento usava la fedeltà vera — l'asimmetria
+rovesciata, ~1,2 punti su 100 senza base fisica. Ora entrambi i versi passano
+dalla stessa grandezza continua.
 
 ### D-3 · dichiarato il 30 %
 Censimento: **43 famiglie decisionali, 97 letterali numerici. Dichiarate come
@@ -220,8 +242,7 @@ riparate insieme alla voce che dovrebbero difendere.
 
 | dove | che cosa |
 |---|---|
-| `tools/gate-strategie.js:183` | `rc8.scale === rc8.scale` — confronto con sé stesso |
-| `tools/gate-strategie.js:184` | `abs(f(x) − f(x)) < 1e-15` — sempre zero; gli scenari `s0`/`s1` sono calcolati e mai usati |
+| ~~`gate-strategie.js:183-184`~~ | **riparate**: confrontavano `rc8` con sé stesso e `f(x)` con `f(x)`. La scala del pixel è un *ingresso* e non poteva differire; ora si confronta ciò che il motore **produce** — `resol` e `samp` — sui due scenari |
 | `test.js:1515` | ribattitura verbatim della formula di `varRate` |
 | `tools/gate-copertura.js:170` | codifica la formula **precedente** a C-1; passa per scelta della fixture |
 | `tools/gate-tempo.js` (blocco H) | chiama `planNights` senza `expo`, quindi il costo vale 0 e il secondo fattore non è mai esercitato |
