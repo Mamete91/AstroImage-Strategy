@@ -2142,7 +2142,7 @@ function refSubFor(band){
     const rif=(DB.reference_config&&DB.reference_config.filters)||DB.default_filters||[];
     OWNED.length=0; rif.forEach(x=>OWNED.push(x));
     if(typeof USING!=='undefined') USING=null;
-    const st={sqm:r.sqm,seeing:1.6,rms:0.6,fwhm:effFWHM(1.6,0.6)};
+    const st={sqm:r.sqm,seeing:SEEING_RIF,rms:RMS_RIF,fwhm:FWHM_RIF};
     v=subExposure(r.dv,st,band,{hours:8,noStrategy:true}).sec;
   }catch(e){ v=TSUB_NOMINAL(band); }
   finally{
@@ -2357,22 +2357,67 @@ function coveredSpan(tg,dv,cov,rot){
    L'ASIMMETRIA NON E' UNA PREFERENZA: sovracampionare non costa niente — il
    motore lo dimostra, varRate() non cambia col binning — mentre sottocampionare
    butta via dettaglio che nessuna posa in piu' restituisce. */
+/* LA NOTTE DI RIFERIMENTO, che nel motore c'era gia' ma senza nome: `refSubFor`
+   calcola la posa del riferimento con seeing 1.6" e RMS 0.6". Le ore delle schede
+   sono calibrate li', quindi «consegnare il dettaglio di quella notte» significa
+   «consegnare la fotografia che la scheda descrive». E' il metro dell'asse
+   dettaglio, e deve essere FISSO: un metro che si accorcia quando le condizioni
+   peggiorano non misura niente. */
+const SEEING_RIF=1.6, RMS_RIF=0.6;
+const FWHM_RIF=effFWHM(SEEING_RIF,RMS_RIF);      // 1.90"
+
+/* LA FWHM CHE FINISCE DAVVERO NELL'IMMAGINE. Il cielo e la guida allargano la
+   stella, il pixel la campiona: le due cose si sommano in quadratura. E' una
+   grandezza ASSOLUTA in arcosecondi, e piu' e' piccola meglio e'. */
+function deliveredFWHM(scale,fwhmSky){
+  const s=Math.max(1e-6,fwhmSky||0);
+  return Math.sqrt(s*s+Math.pow(PIX_FWHM*Math.max(0,scale),2));
+}
+/* La FEDELTA' DI CAMPIONAMENTO: quanta della risoluzione che il cielo concede
+   STANOTTE resta dopo il pixel. Risponde a «il mio pixel e' adeguato a queste
+   condizioni», ed e' la domanda giusta a configurazione fissa. NON e' una misura
+   di quanto dettaglio consegni: il suo denominatore contiene le condizioni, quindi
+   peggiorandole il rapporto SALE. Per confrontare configurazioni serve l'altra. */
 function resolutionFidelity(scale,fwhmSky){
   const s=Math.max(1e-6,fwhmSky||0);
-  return s/Math.sqrt(s*s+Math.pow(PIX_FWHM*Math.max(0,scale),2));
+  return s/deliveredFWHM(scale,s);
 }
 
 /* La resa: la frazione della fotografia ottenibile che questo sistema consegna
    davvero, con le ore che hai. Uno vuol dire il soggetto intero, alla
-   profondita' piena, campionato come il cielo permette. I tre fattori restano
-   separati e leggibili: si puo' sempre dire QUALE dei tre ha deciso. */
+   profondita' piena, con il dettaglio della notte di riferimento. I tre fattori
+   restano separati e leggibili: si puo' sempre dire QUALE dei tre ha deciso.
+
+   L'ASSE DETTAGLIO ERA UN RAPPORTO COL DENOMINATORE MOBILE, e per questo si
+   rovesciava. Usava `resolutionFidelity`, cioe' la frazione della risoluzione che
+   il cielo concede STANOTTE: peggiorando il cielo o la guida il cielo concede
+   meno, la frazione conservata sale, e la resa saliva con essa. A configurazione
+   fissa e' la domanda giusta; per confrontare configurazioni che portano ognuna la
+   propria FWHM — ed e' cio' che il confronto fa da quando varia anche la montatura
+   — e' un metro che si accorcia insieme a cio' che dovrebbe misurare.
+
+   MISURATO, prima della correzione: NGC 7331, RC10 + full-frame a bin 1, stessa
+   ottica e stesso cielo. Con una EQ8-R (RMS 0.60", stelle da 1.90") la resa dava
+   66.4%; con una AVX (RMS 1.80", stelle da 3.45") dava 99.3%, e il confronto
+   consigliava di passare alla AVX con 32.9 punti di vantaggio. Su tutto lo spazio
+   delle combinazioni: 308311 confronti invertiti, 1914 dei quali oltre RESA_GAP,
+   cioe' mostrati in pagina come consiglio.
+
+   Adesso il metro e' la FWHM consegnata contro quella della notte di riferimento.
+   E' assoluto: peggiorare seeing o guida allarga le stelle e basta. Satura a uno
+   come satura la copertura — consegnare piu' dettaglio di quello che la scheda
+   descrive e' un regalo, non una frazione piu' grande dell'obiettivo. */
 function imageYield(tg,dv,site,pr,cov,rot){
   const cv=coveredSpan(tg,dv,cov,rot);
   const ideal=((pr||{}).roadTotals||{}).ideal||0;
   const spent=(pr||{}).spent||0;
   const d=ideal>0?Math.min(1,spent/ideal):(spent>0?1:0);
-  const r=resolutionFidelity(dv.scale, site.fwhm||effFWHM(site.seeing,site.rms));
+  const fw=site.fwhm||effFWHM(site.seeing,site.rms);
+  const img=deliveredFWHM(dv.scale,fw);
+  const r=Math.min(1,FWHM_RIF/img);
   return {c:cv.c,cx:cv.cx,cy:cv.cy,d,r,P:cv.c*d*r,
+          /* la grandezza vera, in arcosecondi, per chi vuole leggerla nuda */
+          fwhmImg:img, fwhmRif:FWHM_RIF,
           span:{x:cv.spanX,y:cv.spanY},extent:{x:cv.W,y:cv.H},
           panels:cv.pp.panels,targetPanels:cv.pp.targetPanels,intent:cv.pp.intent};
 }
@@ -2987,7 +3032,12 @@ function mountRms(mountId,scale){
 /* `cov` in coda: la stessa configurazione vale diversamente a seconda che tu
    voglia il soggetto intero o una sua inquadratura, e il confronto deve saperlo.
    L'ordinamento non cambia — cambia cosa costa ciascun candidato. */
-function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov){
+/* `rmsFor` porta dentro l'errore di inseguimento che l'utente ha MISURATO sulle
+   proprie montature. Senza, i candidati venivano giudicati al valore di catalogo
+   mentre la configurazione in uso usava quello dichiarato: due grandezze non
+   omogenee nella stessa classifica, e il candidato che monta la TUA stessa
+   montatura riceveva un RMS diverso dal tuo. */
+function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov,rmsFor){
   const out=[];
   /* Le configurazioni che una prescrizione ce l'hanno, ma non eseguibile con i
      filtri che possiedi. Restano fuori dalla classifica — consigliare un sistema
@@ -3007,8 +3057,12 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov){
      dal confronto perche' la chiave la scambiava per quella in uso. Non e' la
      stessa: la montatura porta il proprio errore di inseguimento, quindi un'altra
      FWHM e un'altra resa. Misurato su NGC 7000, stesso RC8 e stessa 2600MM a bin 1:
-     CEM70G rms 0.70 -> resa 13.4%, AM5 rms 1.30 -> resa 13.5%. Due righe diverse,
-     e una non veniva mai mostrata. */
+     la CEM70G (0.70") consegna stelle da 1.99" e l'AM5 (1.30") da 2.73", e la resa
+     scende da 13.5% a 9.4%. Due righe diverse, e una non veniva mai mostrata.
+     (La prima stesura di questo commento riportava 13.4% contro 13.5% e leggeva
+     quei numeri come «due righe diverse» senza accorgersi che la montatura PEGGIORE
+     prendeva il punteggio piu' alto: era l'asse dettaglio rovesciato, corretto in
+     `imageYield`.) */
   const key=c=>`${c.tel}|${Number(c.red)}|${c.cam}|${c.mnt}|${Number(c.bin||1)}`;
   const cur=key(cfg);
   for(const p of presets){
@@ -3016,8 +3070,10 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov){
       const c={tel:p.telescope,red:p.reducer,cam:p.camera,mnt:p.mount,bin};
       if(key(c)===cur) continue;
       let dv2; try{ dv2=derive(c); }catch(err){ continue; }
-      // la montatura del preset porta con sé il suo errore di guida
-      const rms2=mountRms(p.mount,dv2.scale0);
+      // la montatura del preset porta con sé il suo errore di guida: quello che hai
+      // misurato tu se c'e', altrimenti quello di catalogo
+      const rmsUt=rmsFor?rmsFor(p.mount):null;
+      const rms2=(rmsUt>0)?rmsUt:mountRms(p.mount,dv2.scale0);
       const site2={...site,rms:rms2,fwhm:effFWHM(site.seeing,rms2)};
       const e2=evaluate(tg,dv2,site2,np,state,cov);
       /* Ogni configurazione porta la propria geometria: un tubo corto copre il
@@ -8091,8 +8147,15 @@ function renderRx(np){
        configurazioni: tagliarne una significa nascondere a chi legge una cosa che
        possiede. Il tetto quindi cresce con le dichiarazioni, e resta a tre per chi
        ne ha poche, cosi' il caso normale non cambia aspetto. */
+    /* L'RMS MISURATO VIAGGIA CON LA MONTATURA. Chi ha scritto a mano l'errore di
+       inseguimento delle proprie montature vedeva quel valore applicato solo alla
+       configurazione in uso: i candidati restavano al catalogo, anche quando
+       montavano la stessa montatura. Due grandezze non omogenee nella stessa
+       classifica. `ap_rms` e' gia' una mappa per montatura: basta passarla. */
+    const rmsMisurato=(()=>{ const m=loadRms();
+      return mnt=>{ const v=+m[mnt]; return v>0?v:null; }; })();
     const alts=fitAlternatives(t,CFG,SITE,np,STATE,hours,setupsAsPresets(),
-      Math.max(3,mySetups().length),rotFor(t),covIntent());
+      Math.max(3,mySetups().length),rotFor(t),covIntent(),rmsMisurato);
     /* I tre assi in chiaro accanto a ogni riga. La classifica e' il loro
        prodotto, e chi legge deve poter vedere QUALE ha deciso invece di fidarsi
        di un numero solo: su una planetaria decide la risoluzione, su M31 la
@@ -8148,7 +8211,7 @@ function renderRx(np){
         <div class="small" style="margin-top:2px">
           ${asse(mio.c,'soggetto','Quanta parte del soggetto entra nell\'immagine.')} &middot;
           ${asse(mio.d,'profondità','Quanto della profondità prevista raggiungi con le ore che hai.')} &middot;
-          ${asse(mio.r,'dettaglio','Quanta della risoluzione che il cielo concede resta nell\'immagine.')} &middot;
+          ${asse(mio.r,'dettaglio',`Il dettaglio che consegni davvero: stelle da ${fmt(mio.fwhmImg,2)}″ contro le ${fmt(mio.fwhmRif,2)}″ della notte di riferimento a cui sono scritte le ore delle schede. Seeing e guida allargano la stella, il pixel la campiona. Satura al 100%: consegnare più dettaglio della scheda è un regalo, non un pezzo in più dell'obiettivo.`)} &middot;
           <b>resa fotografica ${Math.round(mio.P*100)}%</b></div></span></div>`;
     return `<h4 style="margin:16px 0 4px;font-size:13px">${
       meglio.length?'Con quale configurazione viene meglio':'Quella che hai è già la scelta migliore'}</h4>
@@ -8171,7 +8234,7 @@ function renderRx(np){
           <div class="small" style="margin-top:2px">
             ${asse(x.cover,'soggetto','Quanta parte del soggetto entra nell\'immagine. Satura al 100%: inquadrare più cielo del soggetto non aggiunge niente.')} &middot;
             ${asse(x.depth,'profondità','Quanto della profondità prevista dalla scheda raggiungi con le ore che hai, su ciascun campo.')} &middot;
-            ${asse(x.resol,'dettaglio','Quanta della risoluzione che il cielo concede resta nell\'immagine, dato il campionamento. Sovracampionare non toglie niente; sottocampionare butta via dettaglio che non torna.')} &middot;
+            ${asse(x.resol,'dettaglio',`Il dettaglio che questo sistema consegna: stelle da ${fmt(x.yield.fwhmImg,2)}″ contro le ${fmt(x.yield.fwhmRif,2)}″ della notte di riferimento. Sovracampionare non toglie niente; sottocampionare, e una guida che allarga le stelle, buttano via dettaglio che non torna.`)} &middot;
             <b data-tip="Il prodotto dei tre: la frazione della fotografia ottenibile che questo sistema consegna davvero. L'elenco è ordinato su questo.">resa fotografica ${Math.round(x.P*100)}%</b></div></span>
         <button class="chip fn fn-cfg" onclick="rxApply('${x.preset.id}',${x.bin})">usa questa</button>
       </div>`).join('')}
