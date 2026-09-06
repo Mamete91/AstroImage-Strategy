@@ -30,7 +30,7 @@ const fn=new Function(...Object.keys(ctx), pure+`
           synthTarget,inRoad,planNights,moonTolerance,objectExtent,bestRotation,
           nightWindows,nightsBounds,bestStart,balanceSessions,moonExcessMag,moonExcessFlux,lpExcessFlux,skyRef,subExposure,exposurePlan,
           subPlan,skyRateFor,starPeakRate,gainModes,bandSpec,ninaSequence,ninaCheck,mountRms,EXP_GRID,
-          cfaFraction,objectSatTime,framingCenter,
+          cfaFraction,objectSatTime,framingCenter,bandaCromatica,skyColour,filterWindows,windowLambda,BAND_LAMBDA,BB_NM,
           /* i ruoli si impostano: sono uno stato del motore, non un valore da leggere */
           ruoli:(r)=>{ROLES=r||{};}};`);
 const M=fn(...Object.values(ctx));
@@ -2193,6 +2193,233 @@ chk('mentre una notte futura non e passata',
 const vuoto=M.resolveNight(null,st,new Date(2026,8,11,12,0,0),{now:oggi});
 chk('senza bersaglio la notte chiesta resta intatta',vuoto.shift,0);
 chk('e non si inventa uno stato di utilizzabilita',vuoto.usable,null);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA LUNA GUARDA IL VETRO CHE HAI DAVANTI, NON IL NOME DEL RUOLO
+   ═══════════════════════════════════════════════════════════════════════════
+
+   `moonPenalty` prendeva la lunghezza d'onda da `BAND_LAMBDA[banda]`. Per un canale
+   ordinario e' una procura onesta — chi riprende in Ha monta un filtro Ha — ma il
+   ruolo NON e' il vetro: con un Ha da 3 nm nel ruolo di luminanza, scelta lecita su
+   una monocromatica che il motore onora, la Luna veniva valutata a 550 nm invece che
+   a 656.3.
+
+   Le verifiche qui sotto NON chiedono alla funzione di confermare se stessa: la
+   formula fisica — fondo naturale piu' inquinamento, contro l'eccesso lunare che va
+   come Rayleigh — si riscrive qui a mano e si confronta con quello che il motore
+   risponde. Se la Luna tornasse a leggere il nome della banda, i due conti
+   divergerebbero. */
+{
+const sqmT=20.8, xLP=M.lpExcessFlux(sqmT,M.BB_NM), dMag=1.5;
+/* La formula, scritta indipendentemente dalla funzione sotto esame. */
+const aMano=lam=>{
+  const base=M.skyColour(lam)+xLP;
+  const ecc=(Math.pow(10,0.4*dMag)-1)*Math.pow(550/lam,4);
+  return base/(base+ecc);
+};
+const conRuolo=(cam,id)=>{ M.ruoli(id?{L:id}:{});
+  const dv=M.derive({tel:'askar71f',red:0.75,cam,mnt:'am5',bin:1});
+  const cr=M.bandaCromatica('L',dv.c);
+  const p=M.moonPenalty('L',dMag,M.bandSpec('L',dv.c).fwhm,false,xLP,cr);
+  const filtro=(M.filterFor('L',dv.c)||{}).id;   // prima di togliere il ruolo, non dopo
+  M.ruoli({}); return {dv,cr,p,filtro}; };
+
+const RUOTA=OWNED.slice();
+const conRuota=v=>{OWNED.length=0; v.forEach(x=>OWNED.push(x));};
+conRuota(['lum','uvir','ha3','o3_3','s2_3','red','grn','blu','idas','lult','lqef']);
+
+const nudo=conRuolo('asi2600mm','lum');
+const inHa=conRuolo('asi2600mm','ha3');
+const inO3=conRuolo('asi2600mm','o3_3');
+console.log(`      Luna dMagV ${dMag} a SQM ${sqmT} — stesso tubo, stessa camera, cambia solo il vetro nel ruolo L:`);
+console.log(`      lum ${nudo.p.toFixed(5)} (lambda ${nudo.cr.lam.toFixed(1)})   `+
+            `ha3 ${inHa.p.toFixed(5)} (${inHa.cr.lam.toFixed(1)})   `+
+            `o3_3 ${inO3.p.toFixed(5)} (${inO3.cr.lam.toFixed(1)})`);
+
+chk('la Luna sulla luminanza pura vale quanto dice la formula a 550 nm',inHa.cr&&nudo.p,aMano(550),1e-12);
+chk('e con un Ha da 3 nm nel ruolo L vale quanto dice la formula a 656.3',inHa.p,aMano(656.3),1e-12);
+chk('e con un OIII da 3 nm vale quanto dice la formula a 500.7',inO3.p,aMano(500.7),1e-12);
+/* La direzione e' fisica, non convenzionale: lo scattering di Rayleigh va come
+   lambda^-4, quindi nel rosso la Luna disturba meno e nel blu di piu'. */
+chk('  quindi nel rosso la Luna pesa meno che in banda larga',inHa.p>nudo.p,true,
+  inHa.p.toFixed(5)+' contro '+nudo.p.toFixed(5));
+chk('  e nel blu pesa di piu',inO3.p<nudo.p,true,inO3.p.toFixed(5)+' contro '+nudo.p.toFixed(5));
+/* Non e' un dettaglio da terza cifra: e' la differenza fra prescrivere venti ore e
+   prescriverne quindici. */
+chk('  e lo scarto vale ore, non decimali',Math.abs(nudo.p/inHa.p-1)>0.20,true,
+  'x'+(nudo.p/inHa.p).toFixed(3)+' di ore fra le due letture');
+
+/* LA CORREZIONE NON MUOVE CIO' CHE ERA GIA' GIUSTO. Un canale ordinario — l'Ha
+   ripreso con un filtro Ha — deve restare identico al bit: li' il nome della banda e
+   il vetro dicono la stessa cosa, e cambiare qualcosa sarebbe una regressione. */
+for(const [banda,lam] of [['Ha',656.3],['OIII',500.7],['SII',672.4]]){
+  const dv=M.derive({tel:'askar71f',red:0.75,cam:'asi2600mm',mnt:'am5',bin:1});
+  const cr=M.bandaCromatica(banda,dv.c);
+  const conVetro=M.moonPenalty(banda,dMag,3,false,xLP,cr);
+  const senza  =M.moonPenalty(banda,dMag,3,false,xLP);
+  chk('il canale '+banda+' ordinario non si muove di un bit',conVetro,senza,0);
+}
+/* E senza camera si torna alla lambda nominale: nessun chiamante che la camera non ce
+   l'ha puo' regredire. */
+chk('senza camera il termine cromatico e quello nominale',
+  M.bandaCromatica('OIII',null).lam,M.BAND_LAMBDA['OIII'],1e-12);
+chk('  e lo dichiara',M.bandaCromatica('OIII',null).montato,false);
+
+/* UN VETRO A PIU' FINESTRE NON STA A 550 NM. L-Ultimate apre a 500.7 e 656.3: la
+   Luna va mediata sulle due finestre, pesata sulla larghezza, perche' e' luce diffusa
+   che si somma al continuo e ogni finestra ne raccoglie in proporzione a quanto e'
+   larga. Prima usciva 550, che quel filtro non lascia passare affatto. */
+const dual=conRuolo('asi2600mc','lult');
+console.log(`      L-Ultimate come luminanza su matrice: lambda efficace ${dual.cr.lam.toFixed(1)} nm, `+
+  `Luna ${dual.p.toFixed(5)} contro ${aMano(550).toFixed(5)} del nome della banda`);
+chk('la lambda efficace di un dual sta fra le sue due finestre',
+  dual.cr.lam>500&&dual.cr.lam<657,true,dual.cr.lam.toFixed(1)+' nm');
+chk('  e non e quella nominale della banda',Math.abs(dual.cr.lam-550)>10,true);
+chk('  e il filtro montato e davvero quello scelto',dual.filtro,'lult');
+chk('  quindi la Luna lo tratta meglio del nome della banda',dual.p>aMano(550),true,
+  dual.p.toFixed(5)+' contro '+aMano(550).toFixed(5));
+conRuota(RUOTA);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   UN CANALE CHE NON SI PUO' RIPRENDERE NON HA UN TEMPO
+   ═══════════════════════════════════════════════════════════════════════════
+
+   Senza un filtro che apra quella banda, `bandSpec` costruiva lo stesso una spec da
+   sensore nudo — 250 nm assunti, T 0.97 — indistinguibile da una spec vera. Da li'
+   uscivano ore vere: su ASI2600MC il SII, che nessun filtro della ruota di serie apre,
+   chiedeva 0.00083 ore. Tre secondi. E la strada SHO su NGC 7000 costava 52.61 h
+   esatte come la HOO, mentre sulla stessa scheda con una monocromatica costa il
+   doppio. */
+{
+const st={lat:46.0167,lon:10.3333,sqm:20.8,seeing:1.6,rms:0.9,horizonMin:20,clearFrac:0.35};
+st.fwhm=M.effFWHM(st.seeing,st.rms);
+const np=M.nightProfile(new Date(2026,6,15),st.lat,st.lon);
+const tg=TG.targets.find(x=>x.names.some(n=>/7000/.test(n)));
+const mc=M.derive({tel:'askar71f',red:0.75,cam:'asi2600mc',mnt:'am5',bin:1});
+const mm=M.derive({tel:'askar71f',red:0.75,cam:'asi2600mm',mnt:'am5',bin:1});
+
+chk('con la ruota di serie una matrice non ha nessun filtro per il SII',M.filterFor('SII',mc.c),null);
+chk('  e la spec lo dichiara invece di fingere un sensore nudo',M.bandSpec('SII',mc.c).impossibile,true);
+chk('  mentre sulla stessa ruota la monocromatica ce l ha',(M.filterFor('SII',mm.c)||{}).id,'s2_3');
+chk('  e la sua spec non e impossibile',!!M.bandSpec('SII',mm.c).impossibile,false);
+
+/* LE FUNZIONI DI TEMPO NON RISPONDONO. Non rispondono un numero piccolo: non
+   rispondono. */
+chk('il fattore di tempo di un canale non riprendibile e null',M.timeFactor(mc,'SII',600),null);
+chk('e il suo fondo cielo pure',M.skyRateFor(mc,'SII',st.sqm),null);
+/* E la stessa domanda su una configurazione VALIDA continua a rispondere un numero:
+   la guardia scatta dove deve e non altrove. */
+const tfMono=M.timeFactor(mm,'SII',600), tfHa=M.timeFactor(mc,'Ha',600);
+chk('mentre su una monocromatica lo stesso canale risponde un numero',
+  typeof tfMono==='number'&&isFinite(tfMono)&&tfMono>0,true,'timeFactor SII mono '+tfMono.toFixed(4));
+chk('e sulla stessa matrice un canale che il vetro apre risponde eccome',
+  typeof tfHa==='number'&&isFinite(tfHa)&&tfHa>0,true,'timeFactor Ha matrice '+tfHa.toFixed(4));
+
+/* LA VERIFICA NON E' VUOTA: il numero finto che il difetto produceva e' ancora
+   calcolabile a mano, passando la spec da sensore nudo, e si vede quanto era assurdo.
+   Serve a dimostrare che la guardia toglie qualcosa di reale, non un caso di scuola. */
+const nudaSII={lines:[672.4],fwhm:250,T:0.97,filter:null,lineSum:1,dual:false,narrow:false,windows:1};
+const finto=M.skyRateFor(mc,'SII',st.sqm,{spec:nudaSII});
+const vero =M.skyRateFor(mm,'SII',st.sqm);
+console.log(`      SII: col sensore nudo il fondo sarebbe ${finto.toFixed(5)} e-/px/s, `+
+  `contro ${vero.toFixed(5)} di un vero SII da 3 nm — x${(finto/vero).toFixed(0)}`);
+chk('e quello che si toglie era davvero il cielo di tutto il visibile',finto>vero*20,true,
+  'x'+(finto/vero).toFixed(0)+' il fondo di un SII vero');
+
+/* IL BUDGET DEL CANALE. Non valutabile non e' zero, ed e' importante che resti nel
+   budget: e' lui che rende la strada non percorribile, e chi cerca cosa manca lo
+   cerca li' dentro. */
+const eMC=M.evaluate(tg,mc,st,np,{},'full'), eMM=M.evaluate(tg,mm,st,np,{},'full');
+chk('il canale non riprendibile resta nel budget',!!eMC.budget.SII,true);
+chk('  ma senza ore',eMC.budget.SII.useful,null);
+chk('  e dichiarato non valutabile',eMC.budget.SII.nonValutabile,true);
+chk('  e senza fattore di tempo',eMC.budget.SII.factor,null);
+chk('mentre su monocromatica lo stesso canale ha ore vere',
+  typeof eMM.budget.SII.useful==='number'&&eMM.budget.SII.useful>1,true,
+  eMM.budget.SII.useful.toFixed(2)+' h');
+chk('  e non e marcato non valutabile',!!eMM.budget.SII.nonValutabile,false);
+
+/* LA STRADA CHE NON SI PUO' PERCORRERE NON COSTA QUANTO QUELLA CHE SI PUO'. */
+const pMC=M.prescribe(eMC,20,mc,1,{}), pMM=M.prescribe(eMM,20,mm,1,{});
+const sceltaMC=id=>(pMC.roadChoices||[]).find(c=>c.id===id);
+const shoMC=sceltaMC('sho'), hooMC=sceltaMC('hoo');
+console.log(`      NGC 7000: matrice hoo ${hooMC&&hooMC.ideal!=null?hooMC.ideal.toFixed(2):'—'} h, `+
+  `sho ${shoMC&&shoMC.ideal==null?'non valutabile':String(shoMC&&shoMC.ideal)}`);
+chk('la strada che chiede un canale impossibile non ha un costo',shoMC&&shoMC.ideal,null);
+chk('  e nemmeno un pavimento',shoMC&&shoMC.floor,null);
+chk('  e dichiara che cosa le manca',JSON.stringify(shoMC&&shoMC.manca),'["SII"]');
+chk('  mentre la strada percorribile un costo ce l ha',
+  typeof hooMC.ideal==='number'&&hooMC.ideal>1,true,hooMC.ideal.toFixed(2)+' h');
+chk('  e non e piu uguale a quello della strada impossibile',hooMC.ideal!==shoMC.ideal,true);
+/* L'INVARIANTE, che non e' una fotografia di un numero: il costo di una strada
+   percorribile e' la somma dei suoi canali, con la regola del dual dove si applica. */
+const partiHoo=M.roadChannels(eMC.budget,'hoo');
+chk('  e vale ancora la somma dei suoi canali',
+  M.roadSum(partiHoo,v=>v.useful,M.dualPass(mc.c)),hooMC.ideal,1e-9);
+
+/* Su una monocromatica, dove il SII si fa davvero, tutte e due le strade costano, e
+   la SHO costa di piu': e' la controprova che il null di sopra non e' un difetto
+   generale ma la risposta a una configurazione precisa. */
+const shoMM=(pMM.roadChoices||[]).find(c=>c.id==='sho');
+const hooMM=(pMM.roadChoices||[]).find(c=>c.id==='hoo');
+chk('su monocromatica la SHO un costo ce l ha',typeof shoMM.ideal==='number'&&shoMM.ideal>1,true,
+  shoMM.ideal.toFixed(2)+' h');
+chk('  ed e piu alto della HOO, perche un canale in piu si paga',shoMM.ideal>hooMM.ideal,true,
+  shoMM.ideal.toFixed(2)+' contro '+hooMM.ideal.toFixed(2));
+
+/* SCEGLIERLA A MANO RESTA POSSIBILE — e' una decisione di chi riprende — ma le ore
+   si distribuiscono su quello che si puo' davvero acquisire, e quello che manca resta
+   scritto. */
+const forz=M.prescribe(eMC,20,mc,1,{road:'sho'});
+chk('scegliendo a mano la strada impossibile il costo resta non calcolabile',
+  forz.roadTotals.ideal,null);
+chk('  ma cio che manca resta dichiarato',JSON.stringify(forz.missing),'["SII"]');
+chk('  e le ore vanno sui canali che si possono davvero riprendere',
+  (forz.alloc||[]).every(g=>g.id!=='SII')&&(forz.alloc||[]).length>0,true,
+  (forz.alloc||[]).map(g=>g.id).join(' + '));
+chk('  e nessuna ora si perde per strada',
+  Math.abs((forz.alloc||[]).reduce((a,g)=>a+g.hours,0)-20)<1e-6,true);
+
+/* IL CANALE A QUOTA ZERO NON AVVELENA LA STRADA. Sh2-155 elenca un SII con quota 0:
+   e' un extra, non il costo della tecnica. Senza filtro cade con una nota e la strada
+   resta valida — e resta VALUTABILE. La prima stesura di questa correzione lo faceva
+   diventare non calcolabile anche a `hargb`, che invece si fa eccome. */
+const cave=TG.targets.find(x=>x.id==='sh2_155');
+if(cave){
+  const eC=M.evaluate(cave,mc,st,np,{},'full');
+  const pC=M.prescribe(eC,20,mc,1,{});
+  chk('un canale extra a quota zero e senza filtro e non valutabile',
+    !!eC.budget.SII.nonValutabile,true);
+  chk('  ma la strada che non lo chiede resta valutabile',
+    typeof pC.roadTotals.ideal==='number'&&pC.roadTotals.ideal>1,true,
+    pC.roadTotals.ideal.toFixed(2)+' h');
+  chk('  e il motore non lo conta fra cio che manca',
+    (pC.missing||[]).indexOf('SII'),-1);
+}
+
+/* E DOVE LA TECNICA LO CHIEDE DAVVERO, il progetto si dichiara non calcolabile invece
+   di mostrare un numero: IC 1805 ha il SII con quota 0.35 nella sua strada di
+   default, e su una camera a colori quel canale non esiste. */
+const cuore=TG.targets.find(x=>x.id==='ic1805_1848');
+if(cuore){
+  const eH=M.evaluate(cuore,mc,st,np,{},'full');
+  console.log(`      IC 1805 su matrice: ore della strada di default ${String(eH.roadH)}, `+
+    `notti ${String(eH.nights)}, verdetto «${eH.feas&&eH.feas.k}»`);
+  chk('le ore della strada di default non sono un numero',eH.roadH,null);
+  chk('  e nemmeno le notti',eH.nights,null);
+  chk('  e nemmeno le settimane',eH.weeks,null);
+  chk('  mentre il verdetto dice che cosa manca',/SII/.test(String(eH.feas&&eH.feas.k)),true,
+    String(eH.feas&&eH.feas.k));
+  const eHm=M.evaluate(cuore,mm,st,np,{},'full');
+  chk('  e sulla monocromatica le ore ci sono',
+    typeof eHm.roadH==='number'&&eHm.roadH>1,true,eHm.roadH.toFixed(2)+' h');
+  /* Il costo di progetto non torna a esistere moltiplicandolo per i riquadri. */
+  const pH=M.prescribe(eH,20,mc,1,{});
+  chk('  e il costo di progetto non rinasce dai riquadri',
+    pH.roadTotalsProject.ideal,null);
+}
 }
 
 console.log(`\n${pass} verifiche superate, ${fail} fallite\n`);

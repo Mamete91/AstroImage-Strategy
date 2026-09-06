@@ -126,11 +126,30 @@ H('A · OGNI TIPOLOGIA ATTRAVERSA IL MOTORE SENZA NUMERI ROTTI');
       y = M.imageYield(t, dv, st, pr, 'full', 0);
     } catch (err) { rotti.push(etichetta + '/' + cam + ': eccezione ' + err.message); continue; }
     esaminati++;
+    /* NaN E INFINITY SONO NUMERI ROTTI. `null` NO: E' UNA RISPOSTA.
+
+       Qui si mettevano nello stesso sacco. Con un filtro solo in ruota la maggior
+       parte dei canali non ha vetro, e da quando un canale che non si puo' riprendere
+       restituisce `null` invece di ore da sensore nudo, questo controllo contava come
+       rotti proprio i valori che la correzione ha reso onesti. La proprieta' vera e'
+       un'altra, ed e' piu' stretta: nessun NaN e nessun Infinity, MAI; e ogni `null`
+       accompagnato dalla dichiarazione che quel canale non e' valutabile — un null
+       muto sarebbe un difetto quanto un NaN. */
+    const rotto = x => x != null && (typeof x !== 'number' || !isFinite(x));
     const numeri = [e.roadHTot, e.nights, e.weeks, e.score, pr.spent, y.P]
       .concat(Object.values(e.budget).map(b => b.useful))
       .concat(Object.values(e.budget).map(b => b.factor));
-    const male = numeri.filter(x => !sano(x)).length;
+    const male = numeri.filter(rotto).length;
     if (male) rotti.push(etichetta + '/' + cam + ': ' + male + ' numeri non finiti');
+    /* E ogni ora assente deve avere il suo perche' scritto accanto. */
+    const muti = Object.entries(e.budget)
+      .filter(([b, v]) => v.useful == null && !v.nonValutabile).map(([b]) => b);
+    if (muti.length) rotti.push(etichetta + '/' + cam + ': ore assenti non dichiarate su ' + muti.join(','));
+    /* E dove il canale non e' valutabile, il motivo dev'essere quello vero: nessun
+       filtro in ruota per quella banda. Non un effetto collaterale. */
+    const falsi = Object.entries(e.budget)
+      .filter(([b, v]) => v.nonValutabile && !!M.filterFor(b, dv.c)).map(([b]) => b);
+    if (falsi.length) rotti.push(etichetta + '/' + cam + ': dichiarato non valutabile con il filtro in ruota su ' + falsi.join(','));
     /* «Non escluso» significa che il motore lo trova quando lo cerca per una delle
        sue bande. Va provato SENZA concorrenti: con un `lum` in ruota, un filtro di
        banda larga piu' stretto legittimamente non viene scelto — non e' esclusione,
@@ -146,7 +165,7 @@ H('A · OGNI TIPOLOGIA ATTRAVERSA IL MOTORE SENZA NUMERI ROTTI');
     CAMPIONARIO.map(x => x.etichetta.split(' ')[0]).join(', '));
   chk('tutte attraversano la catena', esaminati === CAMPIONARIO.length * 2,
     esaminati + ' passaggi su ' + CAMPIONARIO.length * 2);
-  chk('nessun NaN, nessun Infinity, nessuna eccezione', rotti.length === 0,
+  chk('nessun NaN, nessun Infinity, e ogni ora assente ha il suo perche', rotti.length === 0,
     rotti.length ? rotti.slice(0, 3).join(' · ') : esaminati + ' prescrizioni sane');
   chk('e nessuna esclusa in silenzio', esclusi.length === 0,
     esclusi.length ? esclusi.join(' · ') : 'tutte raggiungibili da almeno una banda');
@@ -315,10 +334,25 @@ H('F · L-QEF, PRIMO ESEMPIO CONCRETO DELL ARCHITETTURA');
   const t = M.TG.targets.find(x => /M31|Andromeda/i.test(x.names.join(' ')));
   const e = M.evaluate(t, dv, st, np, {}, 'full');
   const pr = M.prescribe(e, 20, dv, 1);
+  /* CON LUI SOLO IN RUOTA LA PRESCRIZIONE ESCE SANA — e «sana» va detto con
+     precisione. La strada di default di M31 e' `lrgb_ha`, che vuole un canale Ha
+     DEDICATO, e un quad-band non lo fornisce: la sua posa e' una sola, il colore lo
+     separa la matrice. Quindi il costo di quella strada non e' basso, non e': il
+     motore ripiega su L+RGB, che con questo vetro si fa eccome, e li' i numeri ci
+     sono tutti.
+     Prima qui si pretendeva un numero anche per la strada impraticabile, ed era il
+     numero da sensore nudo che la correzione ha tolto di mezzo. */
   chk('e con lui solo in ruota la prescrizione esce sana',
-    sano(e.roadHTot) && sano(e.nights) && sano(pr.spent) && pr.alloc.every(g => sano(g.hours)),
-    'progetto ' + F(e.roadHTot) + ' h · notti ' + F(e.nights, 1) + ' · canali ' +
-    pr.alloc.filter(g => !g.dropped).map(g => g.id).join('+'));
+    sano(pr.spent) && pr.alloc.every(g => sano(g.hours)) && pr.alloc.length > 0,
+    'canali ' + pr.alloc.filter(g => !g.dropped).map(g => g.id).join('+') +
+    ' per ' + F(pr.spent) + ' h');
+  chk('  e ripiega sulla strada che quel vetro permette davvero',
+    pr.road && pr.road.id !== 'lrgb_ha', 'strada ' + (pr.road || {}).id);
+  chk('  mentre quella che vuole un Ha dedicato non viene costata a vuoto',
+    e.roadHTot === null && e.nights === null,
+    'lrgb_ha: ore ' + String(e.roadHTot) + ', notti ' + String(e.nights));
+  chk('  e il motivo e scritto',
+    (e.missing || []).indexOf('Ha') >= 0, 'manca ' + JSON.stringify(e.missing));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

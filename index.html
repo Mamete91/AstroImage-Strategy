@@ -2208,6 +2208,10 @@ function refSubFor(band){
    proprio ottimo il difetto restava latente, perche' i due ottimi coincidono; si
    sveglia esattamente quando si introducono strategie che deviano apposta. */
 function timeFactor(dv, band, tsub, sFot){
+  /* UN CANALE CHE NON SI PUO' RIPRENDERE NON HA UN TEMPO, e non ne ha uno piccolo:
+     non ne ha. Restituire un numero qui era il punto da cui il resto della catena
+     ereditava l'illusione — ore, somma della strada, confronto fra strade. */
+  if(dv&&dv.c&&bandSpec(band,dv.c).impossibile) return null;
   const r=refCfg(), sqm=r.sqm;
   /* Il default dei DUE lati e' la stessa posa: quella del riferimento. Lasciando
      `TSUB_NOMINAL` al numeratore e `refSubFor` al denominatore, il setup di
@@ -2618,14 +2622,32 @@ function roadChannels(budget,roadId){
   const out={};
   for(const [b,v] of Object.entries(budget)){
     if(!inRoad(v,roadId)) continue;
-    if(!(v.useful>0)) continue;
+    /* Un canale NON VALUTABILE resta nella strada. Toglierlo qui sarebbe comodo e
+       sbagliato: e' proprio lui che rende la strada non percorribile, e chi cerca
+       che cosa manca guarda dentro `parts`. */
+    if(!(v.useful>0)&&!v.nonValutabile) continue;
     out[b]=v;
   }
   return out;
 }
+/* SOMMARE UN CANALE CHE NON SI PUO' RIPRENDERE NON DA' UN NUMERO PIU' PICCOLO: NON DA'
+   UN NUMERO. Prima il canale impossibile entrava con le sue ore finte — tre secondi —
+   e la strada che non si puo' fare costava quanto quella che si puo' fare. */
 function roadSum(parts,pick,dual){
   const h={};
-  for(const [b,v] of Object.entries(parts)) h[b]=pick(v);
+  for(const [b,v] of Object.entries(parts)){
+    /* NON TUTTI I CANALI DI UNA STRADA NE SONO IL COSTO. Un canale a quota zero — il
+       colore delle stelle, un SII che la scheda elenca come extra — non entra nel
+       conto: se non hai il filtro cade con una nota e la strada resta valida senza,
+       ed e' la regola che il motore applica gia' (`starsDropped`). Solo un canale che
+       la strada CHIEDE davvero, e che non si puo' riprendere, rende il totale non
+       calcolabile. Senza questa distinzione la correzione rendeva non valutabile
+       anche `hargb` su Sh2-155, che invece si fa eccome. */
+    if(v.nonValutabile){ if((v.share||0)>0) return null; continue; }
+    const x=pick(v);
+    if(typeof x!=='number'||!isFinite(x)) return null;
+    h[b]=x;
+  }
   if(dual && h.Ha>0 && h.OIII>0){
     let tot=Math.max(h.Ha,h.OIII);
     for(const [b,x] of Object.entries(h)) if(b!=='Ha'&&b!=='OIII') tot+=x;
@@ -2806,8 +2828,12 @@ function prescribe(e,hours,dv,panels,opts){
      del «non ci sta» e del «non si puo' pianificare» — il motore prescrive, poi
      dice che cosa serve. */
   const hasFilter=b=>!dv||!dv.c||!!filterFor(b,dv.c);
+  /* `v.useful>0` era l'unico modo per dire «questo canale conta». Da quando un canale
+     senza vetro ha `useful` a null — invece delle sue ore finte — quel test da solo lo
+     perdeva, e la strada non risultava piu' incompleta: la correzione avrebbe silenziato
+     proprio l'avviso che deve restare. */
   const mancantiDi=x=>Object.entries(x.parts)
-    .filter(([b,v])=>v.useful>0&&(v.share||0)>0&&!hasFilter(b)).map(([b])=>b);
+    .filter(([b,v])=>(v.useful>0||v.nonValutabile)&&(v.share||0)>0&&!hasFilter(b)).map(([b])=>b);
   const cand0=roads.filter(x=>x.distinct);
   const cand0Perc=cand0.filter(x=>mancantiDi(x).length===0);
   const filterLimited=cand0Perc.length>0&&cand0Perc.length<cand0.length;
@@ -2922,12 +2948,27 @@ function prescribe(e,hours,dv,panels,opts){
      non ha senso assegnargli ore, e la strada resta valida senza. */
   const starsDropped=[];
   for(const [b,v] of Object.entries(chosen.parts))
-    if(v.useful>0&&(v.share||0)===0&&!hasFilter(b)){ starsDropped.push(b); delete chosen.parts[b]; }
+    if((v.useful>0||v.nonValutabile)&&(v.share||0)===0&&!hasFilter(b)){ starsDropped.push(b); delete chosen.parts[b]; }
 
   /* Che cosa manca sulla strada SCELTA — non su quella di default, che era il
      motivo per cui quattro casi su otto non davano nessun avviso. E che cosa si
      aprirebbe avendolo: e' l'informazione utile, non il rimprovero. */
   const missing=mancantiDi(chosen);
+  /* E CHE COSA MANCA A OGNI STRADA SI FOTOGRAFA ADESSO, prima che la ripartizione
+     tocchi i canali. `chosen` e' lo STESSO oggetto che finisce in `roadChoices`: la
+     riga «ti servirebbe SII» sulla card si legge da li', e cancellando il canale dalla
+     ripartizione sarebbe sparita anche quella — l'avviso ucciso dalla correzione che
+     doveva rafforzarlo. Si fotografa dopo `starsDropped`, cosi' i canali a quota zero
+     restano esclusi come sono sempre stati. */
+  const mancaDiStrada=new Map(scegliibili.map(x=>[x,mancantiDi(x)]));
+  /* DOPO aver dichiarato che cosa manca — e mai prima — i canali non valutabili escono
+     dalla ripartizione. E' il caso di chi sceglie a mano una strada che la sua ruota
+     non copre: la scelta e' sua e merita di essere vista, ma le ore vanno distribuite
+     su quello che si puo' davvero acquisire, non su un canale che non esiste.
+     `roadTotals` resta `null`, che e' la risposta onesta alla domanda «quanto costa
+     questa strada»: non si sa, perche' un pezzo non lo puoi fare. */
+  for(const [b,v] of Object.entries(chosen.parts))
+    if(v.nonValutabile) delete chosen.parts[b];
   /* «Non ce l'hai» e «l'hai spento tu» non sono la stessa cosa, e il messaggio non
      deve confonderle: nel secondo caso la cura e' un clic, non un acquisto. */
   const spente=missing.filter(b=>{
@@ -3070,7 +3111,7 @@ function prescribe(e,hours,dv,panels,opts){
           /* Le strade che la scheda offre e che con questa ruota si possono
              davvero percorrere: e' l'elenco che l'interfaccia rende cliccabile. */
           roadChoices:scegliibili.map(x=>({id:x.r.id,name:x.r.name,when:x.r.when,
-            ideal:x.ideal,floor:x.floor,manca:mancantiDi(x)})),
+            ideal:x.ideal,floor:x.floor,manca:mancaDiStrada.get(x)||mancantiDi(x)})),
           /* La ruota che hai, e che cosa ha deciso. `missing` e' vuoto ogni volta
              che una strada percorribile esiste; `filterLimited` dice che la scelta
              e' stata ristretta dai filtri e non dalle ore; `blocked` elenca che
@@ -3093,7 +3134,12 @@ function prescribe(e,hours,dv,panels,opts){
           /* Portate avanti da evaluate() perche' chi stampa il verdetto sappia
              se quei pannelli sono il progetto o soltanto la misura del soggetto. */
           coverage:e.coverage||COV_FULL,targetPanels:e.targetPanels||P,
-          roadTotalsProject:{ideal:chosen.ideal*P,acc:chosen.acc*P,floor:chosen.floor*P}};
+          /* `null * riquadri` fa zero, ed e' il modo piu' silenzioso di rimettere in
+             circolo il numero che si e' appena tolto: un costo non calcolabile resta
+             non calcolabile su cento riquadri come su uno. */
+          roadTotalsProject:{ideal:chosen.ideal!=null?chosen.ideal*P:null,
+                             acc:chosen.acc!=null?chosen.acc*P:null,
+                             floor:chosen.floor!=null?chosen.floor*P:null}};
 }
 
 /* Quando non ci sta: quale ALTRA configurazione fra quelle che possiedi lo
@@ -3262,7 +3308,11 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov,rmsFor)
 
      Le ore di progetto restano come spareggio: a parita' di fotografia
      ottenuta, si preferisce quella che costa meno. */
-  out.sort((a,b)=>(b.P-a.P) || (a.projectH-b.projectH));
+  /* A parita' di resa vince chi costa meno ore. Un costo NON CALCOLABILE non e' un
+     costo basso: `null - 5` fa -5, e il candidato che non si sa quanto costi sarebbe
+     passato davanti a tutti. Va in fondo, dove sta chi non si puo' valutare. */
+  const costoOrd=x=>(x.projectH!=null&&isFinite(x.projectH))?x.projectH:Infinity;
+  out.sort((a,b)=>(b.P-a.P) || (costoOrd(a)-costoOrd(b)));
   /* IL TETTO NON DEVE CANCELLARE UNA CONFIGURAZIONE INTERA.
 
      Ogni configurazione produce due righe, una per binning, e un taglio fatto sulle
@@ -3283,7 +3333,7 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov,rmsFor)
   const tetto=maxN||3;
   const res=(migliori.length>=tetto ? migliori.slice(0,tetto)
                                     : migliori.concat(altriBin).slice(0,tetto))
-    .sort((a,b)=>(b.P-a.P) || (a.projectH-b.projectH));
+    .sort((a,b)=>(b.P-a.P) || (costoOrd(a)-costoOrd(b)));
   /* QUANTE NE RESTANO FUORI PER IL SOLO TETTO. Non e' un dettaglio contabile: chi
      legge un elenco di tre righe non ha modo di sapere se erano tre o trenta, e un
      taglio che non si dichiara si legge come «non c'era altro». */
@@ -3375,7 +3425,7 @@ function synthTarget(cat,archKey){
    luminanza a banda larga scende sotto 0.3. */
 function moonTolerance(band,cam,stellar){
   const f=filterFor(band,cam);
-  return moonPenalty(band,2.0,f?f.fwhm_nm:BB_NM,stellar);
+  return moonPenalty(band,2.0,f?f.fwhm_nm:BB_NM,stellar,0,bandaCromatica(band,cam));
 }
 
 /* =====================================================================
@@ -3585,7 +3635,11 @@ function mixPenalty(live,dv,tg,site,night,expo){
   for(const g of live){
     const f=filterFor(g.bands[0],cam), fw=f?f.fwhm_nm:BB_NM;
     const xLP=lpExcessFlux(site.sqm,BB_NM);   // banda larga: la larghezza si semplifica
-    const p=Math.max(1e-3,moonPenalty(g.bands[0],night.dMagV,fw,stellar,xLP)*effOf(g));  // xLP a banda larga
+    /* Il gruppo che raccoglie due righe nella stessa posa ha DUE finestre, e la Luna
+       entra in tutte e due: `bandaCromatica` sul gruppo le media, invece di prendere
+       il colore della sola prima banda. */
+    const cr=bandaCromatica(g.joint?'Ha+OIII':g.bands[0],cam);
+    const p=Math.max(1e-3,moonPenalty(g.bands[0],night.dMagV,fw,stellar,xLP,cr)*effOf(g));  // xLP a banda larga
     num+=g.hours; den+=g.hours/p;
   }
   return den>0?num/den:1;
@@ -3627,12 +3681,14 @@ function bestStart(tg,dv,site,from,N,opts){
   let critBand='Ha';
   for(const [b,v] of Object.entries(tg.budget)) if(v.critical) critBand=b;
   const f=filterFor(critBand,dv.c), fw=f?f.fwhm_nm:BB_NM;
+  /* Fuori dal ciclo sulle notti: il colore del vetro non cambia da una notte all'altra. */
+  const crCrit=bandaCromatica(critBand,dv.c);
   const score=d=>{
     const w=nightWindows(tg,site,d,N,o);
     if(w.nights.length<N) return null;
     let num=0,den=0;
     for(const x of w.nights){
-      num+=moonPenalty(critBand,x.dMagV,fw,stellar,lpExcessFlux(site.sqm,BB_NM))*x.availH; den+=x.availH;
+      num+=moonPenalty(critBand,x.dMagV,fw,stellar,lpExcessFlux(site.sqm,BB_NM),crCrit)*x.availH; den+=x.availH;
     }
     return den?{q:num/den,h:den,first:w.nights[0].date}:null;
   };
@@ -3856,7 +3912,9 @@ function planNights(pr,e,dv,nights,opts){
        da un sito inquinato sovrastima quanto la Luna toglie: se il fondo e' gia'
        alto, la Luna ci aggiunge poco in proporzione. Il resto del motore lo fa
        gia' cosi' (`moonF=(1+xLP)/(1+xLP+xMoon)`); qui non lo faceva. */
-    const pen=nn.map(x=>moonPenalty(g.bands[0],x.dMagV,fw,stellar,lpExcessFlux(site.sqm,BB_NM)));
+    /* Il colore del vetro si calcola una volta per gruppo, non una per notte. */
+    const crG=bandaCromatica(g.joint?'Ha+OIII':g.bands[0],dv.c);
+    const pen=nn.map(x=>moonPenalty(g.bands[0],x.dMagV,fw,stellar,lpExcessFlux(site.sqm,BB_NM),crG));
     const hi=Math.max(...pen), lo=Math.min(...pen);
     /* Il pavimento della singola casella. In modalità sessione si misura in POSE,
        non in ore: cinque scatti da 120 s sono venti minuti e sono un contributo
@@ -4312,6 +4370,27 @@ function bandSpec(band,cam){
           /* Se quella larghezza e' dichiarata o assunta, e da dove viene: chi
              disegna la pagina deve poterlo dire senza rifare il conto. */
           fwhmNota:f?bandWidthNota(f,band):true, fwhmFonte:f?bandWidthFonte(f,band):'unknown',
+          /* NESSUN VETRO PER QUESTA BANDA, E LA BANDA E' ACCESA.
+
+             Senza filtro la spec veniva costruita lo stesso — 250 nm assunti, T 0.97,
+             sensore nudo — e usciva indistinguibile da una spec vera. Non e' una
+             sfumatura: e' la differenza fra «riprendo il SII» e «riprendo tutta la
+             luce che entra e la chiamo SII». MISURATO su ASI2600MC, dove nessun
+             filtro della ruota di serie apre il SII: rates.k 692.7 contro 0.16 di un
+             canale vero, timeFactor 3.44e-5 — cioe' 29.000 volte piu' veloce del
+             riferimento — e il budget del canale a 0.00083 ore. Tre secondi.
+
+             La conseguenza si vedeva sulle strade: su NGC 7000 la SHO risultava
+             costare 52.61 h esatte come la HOO, perche' il canale che non si puo'
+             fare entrava nella somma con zero. Sulla stessa scheda con una
+             monocromatica, dove il SII si fa davvero, la SHO costa 65.22 contro
+             30.03: il doppio. Le due card mostravano lo stesso numero.
+
+             `filterFor` restituisce null anche per una banda SPENTA, e quella e' una
+             scelta di chi riprende, non un'impossibilita': si guarda `usaBanda` per
+             tenerle distinte. E il sentinella `__none` — «davanti alla matrice non
+             avvito niente» — e' un oggetto, quindi una ripresa nuda resta valida. */
+          impossibile:!f&&usaBanda(band),
           dual:false,narrow:w<50,
           ...(subMono?{}:{windows:1})};
 }
@@ -4405,6 +4484,10 @@ function throughputFor(dv,sp,kind,perPixel){
 function skyRateFor(dv,band,sqm,opts){
   const o=opts||{};
   const sp=o.spec||bandSpec(band,dv.c);
+  /* Stessa regola del tempo: senza vetro non c'e' un fondo cielo di quel canale, c'e'
+     il fondo di tutto il visibile. Una spec passata a mano dal chiamante non si
+     discute: e' una domanda esplicita su quella spec. */
+  if(!o.spec&&sp.impossibile) return null;
   const osc=(o.mosaic||!dv.c.cfa_penalty||sp.narrow)?1:OSC_BB;
   return PHOT_V0*Math.pow(10,-0.4*sqm)*(dv.Aeff/100)*Math.pow(dv.scale,2)
          *throughputFor(dv,sp,'sky',!o.mosaic)*osc;
@@ -5365,6 +5448,70 @@ function skyColour(lam){
   return Math.pow(10,-0.4*(m-21.9));       // in unita' del cielo naturale in V
 }
 
+/* IL COLORE DELLA BANDA E' QUELLO DEL VETRO CHE HAI DAVANTI, non quello del nome.
+
+   `BAND_LAMBDA` associa a ogni banda una lunghezza d'onda nominale — L 550, Ha 656.3,
+   OIII 500.7 — e per un canale ordinario e' una procura onesta: chi riprende in Ha
+   monta un filtro Ha. Ma il ruolo NON e' il vetro, e il motore lo sa gia' dappertutto
+   tranne che qui. Con un Ha da 3 nm nel ruolo di luminanza — scelta lecita su una
+   monocromatica, e il motore la onora — la Luna veniva valutata a 550 nm invece che a
+   656.3: MISURATO, moonPenalty 0.47960 invece di 0.73196 con il fondo alzato di 1.5
+   magnitudini, cioe' il 52.6% di ore in piu' di quante ne servano davvero. Nell'altro
+   verso un OIII nello stesso ruolo usciva PIU' immune del vero (0.4796 contro 0.3617),
+   e li' l'errore fa sottostimare: promette una notte che non regge.
+
+   Il dato mancante non mancava: `bandSpec` calcola gia' la lambda della finestra
+   montata e la mette in `lines`. Bastava farla arrivare.
+
+   Con piu' finestre la media e' pesata sulla LARGHEZZA, e non e' una scelta di comodo:
+   la Luna e' luce diffusa che si somma al continuo del cielo, quindi ogni finestra ne
+   raccoglie in proporzione a quanto e' larga — la stessa pesatura con cui il fondo
+   cielo somma le finestre. Si mediano i FLUSSI, non le lunghezze d'onda: `ray` e
+   `skyColour` sono termini di flusso e mediarli e' lecito, mediare le lambda e poi
+   elevarle alla quarta non lo sarebbe.
+
+   Quando la camera non e' nota — o la banda non e' riprendibile — si torna alla lambda
+   nominale, che e' esattamente il comportamento di prima: nessun chiamante regredisce. */
+function bandaCromatica(band,cam){
+  const lam0=BAND_LAMBDA[band]||550;
+  const nominale={ray:Math.pow(550/lam0,4),colour:skyColour(lam0),lam:lam0,montato:false};
+  if(!cam) return nominale;
+  let sp=null;
+  try{ sp=bandSpec(band,cam); }catch(e){ return nominale; }
+  if(!sp||sp.impossibile) return nominale;
+  /* Le finestre si prendono dove ci sono. La spec composita le espone gia' in `sub`.
+     Quando non le espone — un multibanda montato come luminanza su una camera a
+     matrice: li' la posa e' una sola e il mosaico separa i colori, quindi la spec non
+     ha bisogno di scomporsi — le finestre restano comunque scritte sul FILTRO, ed e'
+     da li' che il colore della Luna va letto. Altrimenti un L-Ultimate, che apre a
+     500.7 e 656.3, verrebbe valutato a 550 nm: una lunghezza d'onda che quel vetro
+     non lascia passare affatto. */
+  let fin=(sp.sub&&sp.sub.length)?sp.sub:null;
+  if(!fin&&sp.filter){
+    const ws=filterWindows(sp.filter)||[];
+    if(ws.length>1) fin=ws.map(w=>({lam:windowLambda(w),
+      fwhm:larghezzaNota(w.fwhm_nm)?w.fwhm_nm:larghezzaAssunta()}))
+      .filter(x=>x.lam!=null&&isFinite(x.lam));
+  }
+  if(!fin||!fin.length) fin=[{lam:(sp.lines&&sp.lines[0]!=null)?sp.lines[0]:lam0,fwhm:sp.fwhm}];
+  /* CON UNA FINESTRA SOLA NON SI FA NESSUNA MEDIA. Non e' un'ottimizzazione: dividere
+     e rimoltiplicare per il peso sposta l'ultimo bit del double, e un canale ordinario
+     — l'Ha ripreso con un Ha — deve restare identico al bit a quello che il motore
+     diceva prima. Una correzione che muove anche cio' che era gia' giusto non si puo'
+     piu' verificare per differenza. */
+  if(fin.length===1){
+    const l=(fin[0].lam!=null&&isFinite(fin[0].lam))?fin[0].lam:lam0;
+    return {ray:Math.pow(550/l,4),colour:skyColour(l),lam:l,montato:true};
+  }
+  let ray=0,col=0,lam=0,peso=0;
+  for(const x of fin){
+    const w=Math.max(1e-9,x.fwhm||0), l=(x.lam!=null&&isFinite(x.lam))?x.lam:lam0;
+    ray+=w*Math.pow(550/l,4); col+=w*skyColour(l); lam+=w*l; peso+=w;
+  }
+  if(!(peso>0)) return nominale;
+  return {ray:ray/peso,colour:col/peso,lam:lam/peso,montato:true};
+}
+
 /* Eccesso di FLUSSO che la Luna aggiunge al fondo, nella banda che stai riprendendo,
    espresso come frazione del fondo naturale. È la stessa grandezza che `lpSkyRatio`
    calcola per l'inquinamento luminoso, e ora ha la stessa forma: le due sorgenti sono
@@ -5376,10 +5523,12 @@ function skyColour(lam){
    moltiplicava un logaritmo per dei fattori di flusso. Funzionava per caso intorno a
    una magnitudine di eccesso — il fattore 1.7 era lì per farla combaciare — e sbagliava
    agli estremi: troppo severa con poca Luna, troppo indulgente con la Luna piena. */
-function moonExcessFlux(band, dMagV, fwhm, stellar){
+function moonExcessFlux(band, dMagV, fwhm, stellar, cr){
   if(dMagV==null||dMagV<=0) return 0;
-  const lam=BAND_LAMBDA[band]||550;
-  const ray=Math.pow(550/lam,4);              // >1 nel blu, <1 nel rosso
+  /* `cr` e' il termine cromatico del VETRO MONTATO, da `bandaCromatica(band,cam)`.
+     Senza, si ricade sulla lambda nominale della banda: e' il comportamento storico
+     e resta valido per chi la camera non ce l'ha. */
+  const ray=cr&&isFinite(cr.ray)?cr.ray:Math.pow(550/(BAND_LAMBDA[band]||550),4);
   /* NIENTE `leakOf` QUI, ed e' la correzione che conta.
 
      Prima l'eccesso lunare veniva diviso per la larghezza relativa del filtro
@@ -5394,7 +5543,7 @@ function moonExcessFlux(band, dMagV, fwhm, stellar){
      — dello scattering qui, del fondo naturale in `skyColour`. Il vantaggio della
      banda stretta contro la Luna e' reale ma sta altrove: abbassa il fondo in
      assoluto, quindi il rumore di lettura, e conserva il segnale di riga. */
-  let excess=(Math.pow(10,0.4*dMagV)-1)*ray;
+  let excess=(Math.pow(10,0.4*dMagV)-1)*ray;   // >1 nel blu, <1 nel rosso
   /* Su un soggetto STELLARE — gli ammassi — il modello di superficie non vale. Il fondo
      cielo entra solo attraverso l'area della PSF, non su tutta l'estensione del soggetto:
      una Luna che alza il fondo di due magnitudini distrugge una nebulosa a 22 mag/arcsec2
@@ -5421,10 +5570,14 @@ function moonExcessFlux(band, dMagV, fwhm, stellar){
    `fwhm` non entra piu' nel rapporto e resta nella firma solo perche' i chiamanti
    la calcolano comunque per altri usi. Non e' un residuo dimenticato: e' la
    dichiarazione che la larghezza del filtro NON protegge dalla Luna. */
-function moonPenalty(band, dMagV, fwhm, stellar, xLP){
+function moonPenalty(band, dMagV, fwhm, stellar, xLP, cr){
   if(dMagV==null||dMagV<=0) return 1;
-  const base=skyColour(BAND_LAMBDA[band]||550)+(xLP||0);
-  return base/(base+moonExcessFlux(band,dMagV,fwhm,stellar));
+  /* `cr` — il colore del vetro montato — si costruisce con `bandaCromatica(band,cam)`.
+     Dentro un ciclo sulle notti va calcolato UNA volta fuori e passato: dipende dalla
+     ruota e dalla camera, non dalla notte. */
+  const c=cr&&isFinite(cr.colour)?cr:null;
+  const base=(c?c.colour:skyColour(BAND_LAMBDA[band]||550))+(xLP||0);
+  return base/(base+moonExcessFlux(band,dMagV,fwhm,stellar,c));
 }
 
 /* ---------- filtri ----------
@@ -5778,7 +5931,7 @@ function evaluate(tg,dv,site,np,state,cov){
        skyF  = lpF × moonF, che con questa forma torna esatto invece che per caso */
   const xRef=lpExcessFlux(skyRef(),critFwhm);
   const xLP=lpExcessFlux(site.sqm,critFwhm);
-  const xMoon=moonExcessFlux(critBand,dMagV,critFwhm,stellar);
+  const xMoon=moonExcessFlux(critBand,dMagV,critFwhm,stellar,bandaCromatica(critBand,dv.c));
   const lpF=(1+xRef)/(1+xLP);
   const moonF=(1+xLP)/(1+xLP+xMoon);
   const skyF=(1+xRef)/(1+xLP+xMoon);
@@ -5820,6 +5973,15 @@ function evaluate(tg,dv,site,np,state,cov){
   const budget={};
   for(const [b,v] of Object.entries(tg.budget)){
     const f=timeFactor(dv,b,tsubFor(b));
+    /* NON VALUTABILE NON E' ZERO. Il canale resta nel budget — deve restarci, o
+       `roadChannels` lo perderebbe e nessuno direbbe piu' che manca — ma le sue ore
+       sono `null`, non un numero piccolo. Chi somma se ne accorge e si ferma. */
+    if(f===null){
+      budget[b]={...v, floor:null, useful:null, saturates:null, accessible:null,
+                 factor:null, skyFactor:null, tsub:tsubFor(b), factorValidated:false,
+                 nonValutabile:true};
+      continue;
+    }
     const ff=filterFor(b,dv.c);
     /* LA LARGHEZZA CHE CONTA E' QUELLA DELLA FINESTRA DI QUESTA BANDA. Qui la
        larghezza diventa ORE — `lpPenalty` non si semplifica contro la
@@ -5845,6 +6007,10 @@ function evaluate(tg,dv,site,np,state,cov){
     for(const [b,v] of Object.entries(budget)){
       if(!inRoad(v,defRoad.id)) continue;
       if(v.share===0 && !v.critical && v.useful===0) continue;
+      /* Un canale della strada che non si puo' riprendere non rende la strada piu'
+         economica: rende il suo costo non calcolabile. Ma vale solo per i canali che
+         la strada chiede davvero: uno a quota zero e' un extra e cade da solo. */
+      if(v.nonValutabile){ if((v.share||0)>0||v.critical) return {h:null,dualUsed:false,nonValutabile:true}; continue; }
       parts[b]=pick(v);
     }
     if(dual && parts.Ha>0 && parts.OIII>0){
@@ -5859,7 +6025,7 @@ function evaluate(tg,dv,site,np,state,cov){
   /* Quando le soglie mangiano quasi tutto il budget la versione ridotta non esiste
      davvero: tagliare porterebbe il canale critico sul filo del rumore. Dirlo vale
      più che vendere un progetto da 12 h come "fattibile in 6". */
-  const accReal = roadH>0 && roadAccH/roadH<=0.85;
+  const accReal = roadH>0 && roadAccH>0 && roadAccH/roadH<=0.85;
 
   /* Due orizzonti diversi, e non vanno confusi.
      STRATEGICO — quante settimane per chiudere il progetto: la Luna NON entra,
@@ -5888,16 +6054,18 @@ function evaluate(tg,dv,site,np,state,cov){
   const cvr=projectPanels(tg,dv,cov);
   const mos=cvr.target;
   const panels=cvr.panels;
-  const roadHTot=roadH*panels, roadAccHTot=roadAccH*panels;
+  const roadHTot=roadH!=null?roadH*panels:null, roadAccHTot=roadAccH!=null?roadAccH*panels:null;
   /* Il cielo e' gia' dentro il budget: qui non va applicato una seconda volta.
      Prima `perNight` valeva `critH x lpF` e le ore della strada erano al cielo di
      riferimento — due unita' diverse divise l'una per l'altra. Adesso entrambe
      sono ore vere sotto il cielo vero, e la divisione ha senso dimensionale. */
   const perNight=Math.min(critH, np.darkH||np.nautH);
-  const nights = perNight>0.3 ? roadHTot/perNight : Infinity;
-  const weeks  = isFinite(nights) ? nights/(7*site.clearFrac) : Infinity;
-  const nightsAcc = perNight>0.3 ? roadAccHTot/perNight : Infinity;
-  const weeksAcc  = isFinite(nightsAcc) ? nightsAcc/(7*site.clearFrac) : Infinity;
+  /* Ore non calcolabili non fanno zero notti: non fanno nessun numero. Restituire 0
+     avrebbe detto «e' gia' fatto», che e' il contrario del vero. */
+  const nights = roadHTot==null ? null : (perNight>0.3 ? roadHTot/perNight : Infinity);
+  const weeks  = nights==null ? null : (isFinite(nights) ? nights/(7*site.clearFrac) : Infinity);
+  const nightsAcc = roadAccHTot==null ? null : (perNight>0.3 ? roadAccHTot/perNight : Infinity);
+  const weeksAcc  = nightsAcc==null ? null : (isFinite(nightsAcc) ? nightsAcc/(7*site.clearFrac) : Infinity);
   const critHeff = critH*skyF;
 
   // bande richieste dalla strada di default per cui non hai un filtro
@@ -8224,7 +8392,8 @@ function rxMoon(band,e){
      cielo naturale: da un sito inquinato la sovrastima, e la frase mostrata qui
      direbbe «Luna pesante» su una notte che il piano considera utilizzabile. */
   const p=moonPenalty(band,e.dMagV,fw,
-    !!(TG.archetypes[e.tg.archetype]||{}).stellar,lpExcessFlux(SITE.sqm,BB_NM));
+    !!(TG.archetypes[e.tg.archetype]||{}).stellar,lpExcessFlux(SITE.sqm,BB_NM),
+    bandaCromatica(band,derive(CFG).c));
   return {p,f};
 }
 
@@ -9013,7 +9182,15 @@ function renderRx(np){
       nebulosa estesa quanto ne inquadri. Non è un obbligo di cambiare: è l'alternativa, se ce l'hai.</p>`;
   })();
 
-  const costoNote = `<p class="small" style="margin:10px 0 0"><b>Il costo per intero.</b>
+  /* Quando la strada chiede un canale che questa camera non puo' riprendere, il costo
+     non e' alto o basso: non c'e'. Dirlo vale piu' che mostrare due trattini. */
+  const costoNote = pr.roadTotalsProject.ideal==null
+   ? `<p class="small" style="margin:10px 0 0"><b>Il costo per intero.</b>
+    Non si può calcolare: la tecnica di questa scheda chiede
+    <b>${esc((pr.missing||[]).join(' e ')||'un canale')}</b>, e con questa camera e questi
+    filtri quel canale non si riprende. Le ore qui sotto sono quelle dei canali che
+    puoi davvero acquisire.</p>`
+   : `<p class="small" style="margin:10px 0 0"><b>Il costo per intero.</b>
     Le tecniche possibili per questo oggetto costano <b>${fmt(pr.roadTotalsProject.floor,1)} h</b>
     al minimo e <b>${fmt(pr.roadTotalsProject.ideal,1)} h</b> per il livello-obiettivo, su questa
     configurazione${
@@ -9646,8 +9823,10 @@ function rxRoadHtml(pr){
         on?'<span class="pill p-ok">scelta tua</span>'
           :presa?'<span class="pill p-dim">la prende il motore</span>':''}</div>
       <div class="rc-w">${esc(c.when||'')}</div>
-      <div class="rc-n">${fmt(c.ideal,1)} h per farla piena${
-        manca?` <span class="p-bad">· ti servirebbe ${esc(manca)}</span>`:''}</div>
+      <div class="rc-n">${c.ideal==null
+        ? `<span class="p-bad">quanto costi non si sa: ${esc(manca||'manca un filtro')}</span>`
+        : `${fmt(c.ideal,1)} h per farla piena${
+            manca?` <span class="p-bad">· ti servirebbe ${esc(manca)}</span>`:''}`}</div>
     </button>`;
   };
   const auto=pr.roadChoices.find(c=>c.id===pr.roadAuto);
