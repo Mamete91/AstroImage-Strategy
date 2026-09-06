@@ -2485,18 +2485,35 @@ function fieldCorners(ra,dec,wDeg,hDeg,rot){
 
 /* Il binning messo davanti al campionamento: per ogni valore, che scala ottieni,
    se resti in campionamento corretto e quanto costa in tempo rispetto a bin 1. */
+/* IL BINNING NON ACCORCIA IL PROGETTO, e qui c'era scritto il contrario.
+
+   `timeRel` valeva 1/bin^2 — 1, 0.25, 0.111 — che e' la risposta del binning
+   HARDWARE su CCD, dove le cariche si sommano prima della lettura e il rumore di
+   lettura si paga una volta sola. Su CMOS la somma e' digitale: si legge ogni
+   fotosito e poi si sommano i numeri, quindi il rumore di lettura entra quattro
+   volte in un pixel da 2x2 e il rapporto segnale/rumore per la stessa porzione di
+   cielo resta identico.
+
+   Il motore lo sa gia', e lo dimostra: `timeFactor` e' esattamente invariante col
+   binning — 0.470408 a bin 1, 2 e 3 sulla stessa configurazione — perche' `rnEff`
+   scala come RN x bin. Due funzioni dello stesso motore davano risposte
+   incompatibili alla stessa domanda, e quella sbagliata era quella esposta come
+   dato. Non era letta da nessuno, il che e' un'attenuante e non una giustificazione:
+   un campo che dichiara un guadagno inesistente e' una trappola per il prossimo che
+   lo usa. */
 function binOptions(cfg,fwhm){
   return [1,2,3].map(b=>{
     const d=derive({...cfg,bin:b});
-    return {bin:b,scale:d.scale,samp:samplingVerdict(d.scale,fwhm),timeRel:1/(b*b)};
+    return {bin:b,scale:d.scale,samp:samplingVerdict(d.scale,fwhm),timeRel:1};
   });
 }
 /* Il consiglio non è mai "binna sempre" né "non binnare mai".
-   Regola: il binning più alto che resta in campionamento corretto, perché ogni
-   passo divide il tempo per il quadrato del lato. Ma su CMOS la scelta è
-   reversibile — si riprende a bin 1 e si bina in elaborazione con lo stesso
-   risultato — e questo va detto ogni volta, altrimenti sembra una decisione
-   irreversibile che invece non lo è. */
+   Regola: il binning più alto che resta in campionamento corretto — non perché
+   accorci il progetto, che su CMOS non lo accorcia, ma perché un pixel accoppiato
+   al seeing porta a casa lo stesso dettaglio con file più leggeri e meno tempo di
+   calibrazione. La scelta resta reversibile — si riprende a bin 1 e si bina in
+   elaborazione con lo stesso risultato — e questo va detto ogni volta, altrimenti
+   sembra una decisione irreversibile che invece non lo è. */
 const BIN_REVERSIBLE='Su CMOS il binning è somma digitale: riprendere a bin 1 e binnare in elaborazione dà lo stesso SNR. Puoi decidere a nottata finita — quello che risparmi binnando in ripresa è spazio disco e tempo di calibrazione, non fotoni.';
 function binAdvice(cfg,fwhm){
   const o=binOptions(cfg,fwhm);
@@ -4362,7 +4379,24 @@ function objectSatTime(dv,band,tg,arch,gm,spec,opts){
       spec:Object.assign({},spec,{fwhm:BB_NM,T:0.97,narrow:false})}));
     rate=Math.max(rate,wide*lf);
   }
-  return rate>0 ? gm.full_well_e/(rate*dv.bin*dv.bin) : Infinity;
+  /* A SATURARE E' IL FOTOSITO VERO, e il fotosito vero ha la scala NATIVA.
+
+     `skyRateFor` restituisce il tasso per pixel come lo leggi, cioe' gia' moltiplicato
+     per l'angolo solido del pixel BINNATO: contiene bin^2. Qui veniva moltiplicato per
+     bin^2 una seconda volta, e il tetto scendeva come bin^4. Misurato su NGC 6888,
+     RC8 + 2600MM in luminanza: 17654 s a bin 1, 1103 a bin 2, 218 a bin 3, 69 a bin 4
+     — rapporti esatti 1 : 16 : 81 : 256. A bin 4 la posa consigliata crollava da 180 s
+     a 60 s: tre volte i file e tre volte il rumore di lettura pagato, per un tetto che
+     non esiste.
+
+     Su CMOS la somma e' DIGITALE e avviene dopo la lettura — lo dice il motore in tre
+     punti, compreso `BIN_REVERSIBLE` — quindi il pozzetto che conta e' quello del
+     fotosito nativo e il tasso che lo riempie e' quello nativo. Si divide una volta per
+     tornare alla scala nativa, e il tetto diventa invariante col binning, che e'
+     esattamente cio' che la dottrina dichiarata chiede. `starPeakRate` lo faceva gia'
+     bene: usa `scale0` e non si muove. */
+  const rateNativo = rate/(dv.bin*dv.bin);
+  return rateNativo>0 ? gm.full_well_e/rateNativo : Infinity;
 }
 
 function subExposure(dv,site,band,opts){

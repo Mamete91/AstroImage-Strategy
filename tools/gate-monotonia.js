@@ -128,15 +128,23 @@ H('A · PEGGIORARE LA GUIDA O IL SEEING NON PUO ALZARE LA RESA');
      peggiora, e la profondita' sale da 0.679 a 0.851 mentre il dettaglio scende da
      1.000 a 0.899: il prodotto sale di 8.6 punti.
 
-     Non e' un errore di segno: e' un effetto reale su sistemi affamati di rumore di
-     lettura, e infatti si concentra sulle camere a pixel piccolo (41 violazioni su
-     48 stanno sulle ASI183). Sopprimerlo qui significherebbe falsificare la fisica
-     per far passare una verifica. La sua CAUSA sta nella scala delle pose, che e'
-     l'intervento successivo: fino ad allora il residuo si dichiara e si tiene sotto
-     una soglia che non puo' mai far comparire un consiglio.
+     Non e' un errore di segno: e' un effetto FISICO VERO. Con stelle piu' grasse la
+     posa puo' allungarsi senza saturare, e una posa piu' lunga paga meno eventi di
+     lettura, quindi le ore richieste calano davvero. Si vede solo dove il rumore di
+     lettura e' un socio in affari: prima si concentrava sulle ASI183 a pixel
+     piccolo, adesso su una full-frame ad f/8.
 
-     QUANDO L'INTERVENTO SULLE POSE SARA' FATTO, questa soglia va riportata a zero e
-     le due verifiche qui sotto devono diventare «nessuna violazione». */
+     Attribuivo la causa alla scala delle pose e mi aspettavo che l'intervento sul
+     binning la chiudesse. Non l'ha chiusa: il residuo e' sceso da 8.63 a 7.20 punti
+     — quella parte era il tetto di saturazione che scalava come bin^4 — e il resto
+     e' il canale del rumore di lettura, che e' corretto. Sopprimerlo significherebbe
+     falsificare la fisica per far passare una verifica.
+
+     Resta quindi dichiarato e delimitato. Il limite non e' arbitrario: e' RESA_GAP,
+     la soglia oltre la quale il confronto mostra un consiglio in pagina. Sotto
+     quella soglia il residuo non puo' produrre una raccomandazione sbagliata, che e'
+     la cosa che conta davvero. L'asse dettaglio da solo, che era il difetto, non
+     risale piu' su nessuno dei 3146 passi. */
   chk('l asse dettaglio da solo non si rovescia mai piu',
     violDettaglio === 0, violDettaglio + ' risalite dell asse dettaglio su ' +
     (casiR + casiS) + ' passi');
@@ -408,6 +416,70 @@ H('F · IL CIELO PENALIZZA IL PUNTEGGIO UNA VOLTA SOLA');
   chk('mentre la forma precedente ci dipendeva, e la verifica non e vuota',
     Math.abs(vecchia[0] - vecchia[2]) > 1e-6,
     vecchia.map(x => F(x, 4)).join(' · ') + ' con skyF, che contiene l inquinamento');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+H('G · IL BINNING NON CREA FOTONI');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* Su CMOS la somma e' digitale: si legge ogni fotosito e poi si sommano i numeri.
+     Il rumore di lettura entra quattro volte in un pixel da 2x2, quindi il rapporto
+     segnale/rumore per la stessa porzione di cielo resta quello. Il motore lo
+     dichiara in tre punti; qui si verifica che lo faccia davvero, in tutti e tre i
+     posti dove il binning tocca una decisione. */
+  const CAM = ['asi2600mm', 'asi2600mc', 'asi183mm', 'dslr_ff'];
+  const BANDE = ['L', 'Ha', 'OIII', 'R'];
+  let tf = 0, tfKo = 0, sat = 0, satKo = 0, esSat = null, esTf = null;
+  for (const cam of CAM) for (const b of BANDE) {
+    let rif = null, rifSat = null;
+    for (const bin of [1, 2, 3, 4]) {
+      let dv; try { dv = M.derive({ tel: 'rc8', red: 1, cam, mnt: 'am5', bin }); } catch (e) { continue; }
+      const f = M.timeFactor(dv, b);
+      if (rif == null) rif = f;
+      else { tf++; if (Math.abs(f - rif) > 1e-9) { tfKo++; esTf = cam + '/' + b + ' bin' + bin + ': ' + f.toFixed(6) + ' contro ' + rif.toFixed(6); } }
+      const tg = TG.targets.find(x => x.mag != null && x.size_arcmin);
+      if (tg) {
+        const sp = M.bandSpec(b, dv.c);
+        const st = M.objectSatTime(dv, b, tg, TG.archetypes[tg.archetype], { full_well_e: 50000 }, sp, {});
+        if (isFinite(st)) {
+          if (rifSat == null) rifSat = st;
+          else { sat++; if (Math.abs(st / rifSat - 1) > 1e-9) { satKo++; esSat = cam + '/' + b + ' bin' + bin + ': ' + st.toFixed(1) + ' s contro ' + rifSat.toFixed(1); } }
+        }
+      }
+    }
+  }
+  chk('il campione non e vuoto', tf > 30 && sat > 20, tf + ' confronti sul fattore, ' + sat + ' sul tetto');
+  chk('il fattore di tempo non cambia col binning', tfKo === 0,
+    tfKo ? tfKo + ' scarti, per esempio ' + esTf : tf + ' confronti identici');
+  chk('e nemmeno il tetto di saturazione del soggetto', satKo === 0,
+    satKo ? satKo + ' scarti, per esempio ' + esSat : sat + ' confronti identici');
+
+  /* Il difetto che questa sezione impedisce di tornare: `objectSatTime` divideva una
+     seconda volta per bin^2 un tasso che l'angolo solido lo conteneva gia', e il
+     tetto scendeva come bin^4 — 17654, 1103, 218, 69 s su NGC 6888. La conseguenza
+     visibile era la posa: a bin 4 crollava da 180 a 60 s. */
+  const tgP = TG.targets.find(x => /6888/.test(x.names.join(' '))) || TG.targets[0];
+  const pose = [1, 2, 3, 4].map(bin => {
+    const dv = M.derive({ tel: 'rc8', red: 1, cam: 'asi2600mm', mnt: 'am5', bin });
+    return M.subExposure(dv, { sqm: 20, seeing: 2.5, rms: 0.6, fwhm: M.effFWHM(2.5, 0.6) },
+      'L', { tg: tgP, arch: TG.archetypes[tgP.archetype] }).sec;
+  });
+  chk('e la posa consigliata non si accorcia salendo di binning',
+    pose.every(x => x === pose[0]), pose.map((x, i) => 'bin' + (i + 1) + ' ' + x + 's').join(' · '));
+
+  /* E il dato esposto non deve promettere un guadagno che non c'e'. */
+  const opt = M.binOptions({ tel: 'rc8', red: 1, cam: 'asi2600mm', mnt: 'am5', bin: 1 }, 2.2);
+  chk('e il tempo relativo dichiarato da binOptions non promette sconti',
+    opt.every(o => Math.abs(o.timeRel - 1) < 1e-12),
+    opt.map(o => 'bin' + o.bin + ' ' + o.timeRel.toFixed(3)).join(' · ') +
+    ' — valeva 1/bin², cioe la risposta del binning hardware su CCD');
+
+  /* NON TAUTOLOGICO: il binning deve comunque CAMBIARE qualcosa, altrimenti queste
+     verifiche passerebbero su un motore che lo ignora. Cambia la scala del pixel e
+     quindi il campionamento, che e' esattamente cio' per cui si bina. */
+  chk('mentre la scala del pixel cambia eccome, ed e il motivo per cui si bina',
+    Math.abs(opt[1].scale - opt[0].scale * 2) < 1e-9 && opt[0].samp.k !== opt[1].samp.k,
+    opt.map(o => 'bin' + o.bin + ' ' + o.scale.toFixed(2) + '"/px ' + o.samp.k).join(' · '));
 }
 
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
