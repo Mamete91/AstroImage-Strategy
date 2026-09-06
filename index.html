@@ -4024,8 +4024,15 @@ function filterWindows(f){
    blu e il sulfuro in quella rossa: chiedere «di che larghezza e' l'OIII» ha una
    risposta sola, ed e' quella della SUA finestra. */
 function windowFor(f,band){
-  for(const w of filterWindows(f)) if((w.lines||[]).some(l=>l.band===band)) return w;
-  return null;
+  const ws=filterWindows(f);
+  for(const w of ws) if((w.lines||[]).some(l=>l.band===band)) return w;
+  /* UNA FINESTRA SOLA E LA FINESTRA DI TUTTO. Un banda larga non elenca righe: la
+     sua finestra e un pezzo di continuo, e chiederle «quale riga porti» non ha
+     risposta. Finche il filtro ne ha una sola, e quella — ed e cosi che un
+     anti-inquinamento descritto come centro + larghezza conserva la sua larghezza
+     DICHIARATA invece di ripiegare sull assunto. Con piu finestre il ripiego non si
+     applica: li la domanda «quale banda» ha una risposta vera e va rispettata. */
+  return ws.length===1?ws[0]:null;
 }
 /* La lunghezza d'onda di una finestra NON e' un dato del catalogo: sarebbe un
    centroide inventato. Si ricava dalle righe che la finestra contiene, che e'
@@ -4033,6 +4040,12 @@ function windowFor(f,band){
    pochissimo — fra 486 e 501 nm una 2600MC passa da 0.753 a 0.757 — quindi un
    solo punto di valutazione e' piu' che sufficiente. */
 function windowLambda(w){
+  /* IL CENTRO DICHIARATO VIENE PRIMA DEL CENTROIDE. Dedurlo dalle righe funziona
+     finche' la finestra e' costruita attorno a quelle righe; su una finestra larga
+     — un anti-inquinamento, o una finestra asimmetrica che contiene una riga di
+     lato — il centroide delle righe non e' il centro della banda passante. Se il
+     produttore o la curva lo dichiarano, quel numero vince. */
+  if(w&&typeof w.center_nm==='number'&&isFinite(w.center_nm)&&w.center_nm>0) return w.center_nm;
   const L=(w.lines||[]).map(x=>x.lambda_nm).filter(x=>x!=null);
   return L.length?L.reduce((a,b)=>a+b,0)/L.length:null;
 }
@@ -4065,17 +4078,67 @@ const windowStrength=(w,band)=>(w&&w.lines||[])
    e nemmeno una media. E' il numero che conta quando si sceglie fra due filtri,
    perche' e' li' che entra piu' cielo. Sull'L-eNhance vale 24 nm, non i 10
    dell'Ha con cui il catalogo lo riassume. */
+/* DA DOVE VIENE UN NUMERO. Un catalogo di filtri commerciali non puo' pretendere
+   che ogni produttore pubblichi una scheda completa: Optolong, per dirne uno, sul
+   L-QEF scrive «FWHM: Quad bandpass filter» e pubblica solo la curva. La scelta del
+   progetto e' pragmatica ma non sciatta: si accetta il dato dove c'e', si dichiara
+   da dove viene, e non si inventa dove manca.
+
+     manufacturer-declared  il produttore lo pubblica come numero
+     curve-derived          ricavato dalla curva ufficiale del produttore
+     measured               misura indipendente (Viladrich, Cloudy Nights, ecc.)
+     estimated              stima, solo quando non c'e' altro
+     unknown                nessuna fonte: il valore non c'e'
+
+   Attenzione a non confonderne due: `unknown` come PROVENIENZA di un numero che
+   c'e' significa «non abbiamo registrato da dove viene», ed e' il caso della
+   maggior parte del catalogo storico. `unknown` come VALORE significa che il numero
+   non esiste, ed e' un'altra cosa: si vede da `fwhm_nm` assente. */
+const FONTI_FILTRO=['manufacturer-declared','curve-derived','measured','estimated','unknown'];
+const fonteDi=(...v)=>{ for(const x of v) if(x&&FONTI_FILTRO.indexOf(x)>=0) return x; return 'unknown'; };
+const larghezzaNota=v=>typeof v==='number'&&isFinite(v)&&v>0;
+
+/* LA LARGHEZZA QUANDO NON E' DICHIARATA.
+
+   Serviva una decisione, perche' senza di essa un filtro senza FWHM produceva
+   `undefined` e da li' NaN nel fondo cielo, NaN nelle ore, `Infinity` nelle
+   settimane — e la prescrizione lasciava cadere il canale in silenzio.
+
+   Si assume BANDA LARGA, ed e' la scelta prudente: e' l'ipotesi che NON regala al
+   filtro un vantaggio che nessuno ha dichiarato. Un filtro di cui non sappiamo la
+   larghezza non deve poter vincere la selezione automatica contro un 3 nm noto, e
+   con questa assunzione infatti perde. Il motore continua a funzionare, la
+   precisione cala, e la confidenza lo dichiara: e' la stessa grammatica che il
+   progetto usa gia' per i budget delle schede. */
+const larghezzaAssunta=()=>BB_NM;              // 250 nm: banda larga. Pigra perche BB_NM
+                                               // e dichiarata piu avanti nel motore.
+
 /* La larghezza che una BANDA vede attraverso un filtro: quella della finestra che
    la porta. Su un L-eNhance l'Ha passa da 10 nm e l'OIII da 24, e chiedere «quanto
    e' larga» senza dire quale banda non ha una risposta sola. */
 const bandWidth=(f,band)=>{
   const w=f?windowFor(f,band):null;
-  return w?w.fwhm_nm:(f?f.fwhm_nm:BB_NM);
+  const v=w?w.fwhm_nm:(f?f.fwhm_nm:BB_NM);
+  return larghezzaNota(v)?v:larghezzaAssunta();
+};
+/* Se quel numero e' dichiarato o assunto, e da dove viene. Chi disegna la pagina
+   deve poterlo dire senza rifare il conto. */
+const bandWidthNota=(f,band)=>{
+  const w=f?windowFor(f,band):null;
+  return larghezzaNota(w?w.fwhm_nm:(f?f.fwhm_nm:null));
+};
+const bandWidthFonte=(f,band)=>{
+  if(!f) return 'unknown';
+  const w=windowFor(f,band);
+  if(!bandWidthNota(f,band)) return 'unknown';
+  return fonteDi(w&&w.fwhm_source,f.fwhm_source);
 };
 function selectivity(f){
   if(!f) return Infinity;
   const w=filterWindows(f);
-  return w.length?Math.max.apply(null,w.map(x=>x.fwhm_nm||0)):(f.fwhm_nm||0);
+  const larghezze=(w.length?w.map(x=>x.fwhm_nm):[f.fwhm_nm])
+    .map(v=>larghezzaNota(v)?v:larghezzaAssunta());
+  return larghezze.length?Math.max.apply(null,larghezze):larghezzaAssunta();
 }
 
 /* Il modo di guadagno adatto alla banda. Banda stretta → il rumore di lettura
@@ -4127,7 +4190,8 @@ function bandSpec(band,cam){
         const w=windowFor(f,b);
         if(!w||viste.indexOf(w)>=0) continue;         // una finestra si conta una volta
         viste.push(w);
-        sub.push({band:b,lam:windowLambda(w)||BAND_LAMBDA[b]||550,fwhm:w.fwhm_nm,
+        sub.push({band:b,lam:windowLambda(w)||BAND_LAMBDA[b]||550,
+                  fwhm:larghezzaNota(w.fwhm_nm)?w.fwhm_nm:larghezzaAssunta(),
                   T:w.peak_t!=null?w.peak_t:(f.peak_t!=null?f.peak_t:0.9),
                   w:1,ls:windowStrength(w,null)||1,win:w});
       }
@@ -4151,7 +4215,7 @@ function bandSpec(band,cam){
   if(band==='RGB'&&!cam.cfa_penalty){
     const subs=['R','G','B'].map(b=>{const ff=filterFor(b,cam); return ff?{
       band:b,lam:ff.lambda_nm!=null?ff.lambda_nm:(BAND_LAMBDA[b]||550),
-      fwhm:ff.fwhm_nm,T:ff.peak_t!=null?ff.peak_t:0.9,filter:ff,
+      fwhm:bandWidth(ff,b),T:ff.peak_t!=null?ff.peak_t:0.9,filter:ff,
       w:(ff.time_share!=null?ff.time_share:1)}:null;}).filter(Boolean);
     if(subs.length===3){
       const ws=subs.reduce((a,x)=>a+x.w,0);
@@ -4168,7 +4232,12 @@ function bandSpec(band,cam){
      dava 10 nm — la finestra dell'Ha — mentre la finestra dell'OIII e' 24: il
      fondo cielo usciva meno della meta' del vero, proprio nel canale piu' fragile. */
   const wn=f?windowFor(f,band):null;
-  const w=wn?wn.fwhm_nm:(f?f.fwhm_nm:BB_NM);
+  /* LA LARGHEZZA PASSA DA `bandWidth`, che e' l'unico posto dove si decide cosa fare
+     quando il produttore non la dichiara. Qui la formula era ripetuta a mano, e la
+     ripetizione si e' fatta sentire appena e' entrato in catalogo un filtro senza
+     FWHM: usciva `undefined`, e da li' NaN nel fondo cielo, NaN nelle ore, Infinity
+     nelle settimane — con la prescrizione che lasciava cadere il canale in silenzio. */
+  const w=bandWidth(f,band);
   const T=wn&&wn.peak_t!=null?wn.peak_t:(f?(f.peak_t!=null?f.peak_t:0.9):0.97);
   /* E il segnale e' quello delle righe di QUESTA banda che quella finestra
      contiene: a 3 nm la sola OIII 5007, a 7 o 24 anche la 4959. */
@@ -4176,6 +4245,9 @@ function bandSpec(band,cam){
   return {lines:[wn&&windowLambda(wn)!=null&&(wn.lines||[]).length===1
                    ?windowLambda(wn):(BAND_LAMBDA[band]||550)],fwhm:w,
           T,filter:f||null,lineSum:ls,
+          /* Se quella larghezza e' dichiarata o assunta, e da dove viene: chi
+             disegna la pagina deve poterlo dire senza rifare il conto. */
+          fwhmNota:f?bandWidthNota(f,band):true, fwhmFonte:f?bandWidthFonte(f,band):'unknown',
           dual:false,narrow:w<50,windows:1};
 }
 /* Il prodotto spettrale della banda: QE(lambda) x T_filtro x larghezza, mediato
@@ -5319,16 +5391,67 @@ const usaBanda=b=>{
 };
 const ownedFilters=()=>DB.filters.filter(f=>OWNED.includes(f.id)&&
   (f.bands||[f.band]).some(b=>usaBanda(b)));
+
+/* «L» E' UN RUOLO, NON UN FILTRO.
+
+   La luminanza e' una funzione fotografica: raccogliere il segnale piu' largo che
+   quella notte convenga. Quale pezzo di vetro la svolga lo decide chi riprende, non
+   il programma — e ci sono ragioni ottime per scegliere un anti-inquinamento, un
+   multiband, o perfino un Ha, se si vuole deliberatamente una luminanza di sola
+   riga. Lo stesso vale per ogni altra banda quando in ruota ce n'e' piu' d'uno.
+
+   Prima non c'era modo di dirlo: `filterFor` ordinava i posseduti per larghezza
+   crescente e prendeva il primo, punto. Con due filtri di pari larghezza vinceva
+   quello che veniva prima nell'elenco — cioe' quello di CATALOGO, perche' i filtri
+   aggiunti a mano finiscono in coda. Un L-QEF dichiarato dall'utente restava
+   spuntato nella pagina e invisibile al motore.
+
+   `ROLES` e' una mappa banda -> id del filtro scelto, e vive qui perche' la
+   decisione deve entrare nel MOTORE, non fermarsi all'interfaccia. Stessa forma di
+   `USING`: la pagina la imposta, il motore la legge. Vuota significa «scegli tu»,
+   che resta il comportamento predefinito. */
+let ROLES={};
+const roleFilter=band=>{
+  const id=ROLES&&ROLES[band];
+  if(!id) return null;
+  const f=DB.filters.find(x=>x.id===id);
+  /* Una scelta vale finche' il filtro e' posseduto e la banda e' accesa: se hai
+     tolto la spunta al filtro, la scelta non puo' resuscitarlo. */
+  return (f&&OWNED.indexOf(f.id)>=0)?f:null;
+};
+/* L ORDINE DELLA SCELTA AUTOMATICA, che vale solo quando una scelta esplicita non
+   c e. Tre criteri, in questo ordine:
+
+     1. un filtro di cui la larghezza e DICHIARATA batte uno di cui e assunta. Un
+        valore che non conosciamo non deve vincere per via dell assunzione che lo
+        sostituisce: sarebbe un vantaggio regalato a chi ha meno documentazione.
+     2. poi il piu stretto SU QUESTA BANDA, che e la regola di sempre.
+     3. a parita, il TUO. Un filtro che hai descritto tu e una cosa che hai in mano;
+        uno di catalogo e una voce di elenco, e prima vinceva sempre lui perche i
+        filtri aggiunti a mano finiscono in coda. */
+const primaIlTuo=(a,b,band)=>{
+  const assunto=x=>bandWidthNota(x,band)?0:1;
+  return (assunto(a)-assunto(b))
+      || (bandWidth(a,band)-bandWidth(b,band))
+      || ((b.user?1:0)-(a.user?1:0));
+};
 function filterFor(band,cam){
   /* Una banda spenta non ha filtro, esattamente come una banda che non possiedi:
      da qui in poi tutto il motore — strade ammissibili, posa, Luna, budget — la
      tratta come assente, e le regole gia' scritte sui corredi parziali valgono
      senza una riga in piu'. */
   if(!usaBanda(band)) return null;
+  /* LA SCELTA ESPLICITA VIENE PRIMA DI TUTTO, e non viene mai sostituita in
+     silenzio. Se chi riprende ha detto «per la L monto questo», il motore monta
+     quello — anche se e' un Ha da 3 nm, anche se un automatismo avrebbe scelto
+     altro. Il resto della catena si adatta da solo: `bandSpec` ricava `narrow`
+     dalla larghezza della finestra, non dal nome della banda. */
+  const scelto=roleFilter(band);
+  if(scelto) return scelto;
   const isBB=BB_BANDS.includes(band);
   if(cam.cfa_penalty&&isBB){
     // su sensore a colori la matrice di Bayer fa gia' da RGB: basta non avere filtri
-    const lp=ownedFilters().filter(f=>f.band==='L').sort((a,b)=>a.fwhm_nm-b.fwhm_nm)[0];
+    const lp=ownedFilters().filter(f=>f.band==='L').sort((a,b)=>primaIlTuo(a,b,'L'))[0];
     return lp||{id:'__none',name:'nessun filtro (Bayer)',band:'L',fwhm_nm:BB_NM,peak_t:1,lambda_nm:550};
   }
   if(band==='RGB'){
@@ -5342,7 +5465,7 @@ function filterFor(band,cam){
      sembrava piu' prudente ed era sbagliato — con un L-eNhance e un Ha da 12 nm in
      ruota, per l'Ha avrebbe scelto il 12 nm invece della finestra da 10 dell'eNhance,
      cioe' un quinto di cielo in piu' del necessario. */
-  return c.length?c.sort((a,b)=>bandWidth(a,band)-bandWidth(b,band))[0]:null;
+  return c.length?c.sort((a,b)=>primaIlTuo(a,b,band))[0]:null;
 }
 /* Un dual-band su sensore a colori raccoglie Ha e OIII nella stessa posa: il tempo
    della strada e' quello del canale piu' difficile, non la somma dei due. */
@@ -5894,6 +6017,7 @@ function start(){
   $('date').value=new Date().toISOString().slice(0,10);
 
   loadGear(); loadReducers(); loadUserFilters(); UTGT=loadUserTargets();
+  ROLES=loadRoles();
   OWNED=loadOwned()||(DB.default_filters||[]).slice();
   try{ const u=JSON.parse(localStorage.getItem('ap_using')||'null');
        USING=(Array.isArray(u)&&u.length)?u:null; }catch(e){ USING=null; }
@@ -7007,6 +7131,67 @@ const loadOwned=()=>{try{const v=JSON.parse(localStorage.getItem('ap_filters')||
   return Array.isArray(v)?v:null}catch(e){return null}};
 const persistOwned=()=>{try{localStorage.setItem('ap_filters',JSON.stringify(OWNED))}catch(e){}};
 
+/* I RUOLI: quale filtro monti per quale funzione fotografica. Vivono nel motore
+   (`ROLES`), qui c'e' solo il ponte con il browser. */
+const loadRoles=()=>{try{const v=JSON.parse(localStorage.getItem('ap_roles')||'null');
+  return (v&&typeof v==='object'&&!Array.isArray(v))?v:{}}catch(e){return{}}};
+const persistRoles=()=>{try{localStorage.setItem('ap_roles',JSON.stringify(ROLES||{}))}catch(e){}};
+/* Le bande per cui ha senso scegliere: quelle che un filtro puo' servire. */
+const RUOLI=['L','Ha','OIII','SII','R','G','B'];
+/* I candidati a un ruolo sono i filtri POSSEDUTI che quella banda la portano. Per la
+   luminanza si allarga: qualunque filtro puo' fare da L, se e' quello che vuoi —
+   compreso un Ha, che e' una scelta legittima e deliberata. */
+const candidatiRuolo=band=>{
+  const own=DB.filters.filter(f=>OWNED.includes(f.id));
+  if(band==='L') return own;
+  return own.filter(f=>f.band===band||(f.bands&&f.bands.includes(band)));
+};
+function setRole(band,id){
+  if(!ROLES) ROLES={};
+  if(id) ROLES[band]=id; else delete ROLES[band];
+  persistRoles(); openFilters(); filtSummary(); refresh();
+}
+/* Quando un filtro smette di essere posseduto, la scelta che lo nominava cade: una
+   scelta non puo' tenere in vita un filtro che hai tolto dalla ruota. */
+function puliscoRuoli(){
+  let cambiato=false;
+  for(const b of Object.keys(ROLES||{}))
+    if(!OWNED.includes(ROLES[b])){ delete ROLES[b]; cambiato=true; }
+  if(cambiato) persistRoles();
+}
+
+/* LA RIGA DI DESCRIZIONE, che deve dire la verita' anche quando il dato manca.
+   Prima era `f.fwhm_nm>=50?'banda larga':f.fwhm_nm+' nm'`: con un filtro senza
+   larghezza dichiarata scriveva «undefined nm», e con un multiband raccontava una
+   finestra sola. */
+const FONTE_LBL={'manufacturer-declared':'dato del produttore','curve-derived':'ricavato dalla curva ufficiale',
+  'measured':'misura indipendente','estimated':'stima','unknown':'provenienza non registrata'};
+function descriviFiltro(f){
+  const ws=filterWindows(f);
+  const pezzi=ws.map(w=>{
+    const righe=(w.lines||[]).map(l=>l.band).filter((x,i,a)=>a.indexOf(x)===i);
+    const et=righe.length?righe.join('+'):(f.band||'');
+    /* Un valore ricavato dalla curva e' una lettura, non una misura: si scrive con
+       il «circa» davanti, perche' presentarlo come «20.0 nm» sarebbe trasformare
+       una stima ragionevole in un falso dato preciso. */
+    if(larghezzaNota(w.fwhm_nm))
+      return `${et} ${fonteDi(w.fwhm_source,f.fwhm_source)==='curve-derived'?'≈':''}${w.fwhm_nm} nm`;
+    return `${et} <span class="p-warn" style="padding:0 4px;border-radius:4px">larghezza non dichiarata</span>`;
+  });
+  /* Se NESSUNA finestra ha una larghezza, si dice una volta sola: ripeterlo per
+     quattro finestre e rumore, e il fatto e uno. */
+  if(ws.length&&ws.every(w=>!larghezzaNota(w.fwhm_nm))){
+    const righe=ws.map(w=>(w.lines||[]).map(l=>l.band).join('+')).filter(Boolean);
+    return (righe.length?righe.join(' · ')+' — ':'')+
+      '<span class="p-warn" style="padding:0 4px;border-radius:4px">larghezze non dichiarate dal produttore</span>';
+  }
+  if(!ws.length) pezzi.push(larghezzaNota(f.fwhm_nm)
+    ? (f.fwhm_nm>=50?'banda larga':f.fwhm_nm+' nm') : 'larghezza non dichiarata');
+  const fonti=[...new Set(ws.map(w=>fonteDi(w.fwhm_source,f.fwhm_source))
+    .concat(ws.length?[]:[fonteDi(f.fwhm_source)]))];
+  const prov=fonti.length===1&&fonti[0]!=='unknown'?' · '+FONTE_LBL[fonti[0]]:'';
+  return pezzi.join(' · ')+prov;
+}
 function filtGroups(){
   const nb=DB.filters.filter(f=>!f.dual&&['Ha','OIII','SII'].includes(f.band));
   const du=DB.filters.filter(f=>f.dual);
@@ -7024,40 +7209,227 @@ function openFilters(){
       <div class="block"><h4>${t}</h4>
         <p class="small muted" style="margin-bottom:10px">${d}</p>
         <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px">
-        ${list.map(f=>`<label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer">
-          <input type="checkbox" data-fid="${f.id}" ${OWNED.includes(f.id)?'checked':''}
-            style="margin-top:3px;width:auto">
-          <span>${esc(f.name)}<br><span class="tsub">${f.fwhm_nm>=50?'banda larga':f.fwhm_nm+' nm'}${f.bands?' · '+f.bands.join('+'):''}</span></span>
-        </label>`).join('')}
+        ${list.map(f=>`<div style="display:flex;gap:8px;align-items:flex-start;font-size:13px">
+          <label style="display:flex;gap:8px;align-items:flex-start;flex:1;min-width:0;cursor:pointer">
+            <input type="checkbox" data-fid="${f.id}" ${OWNED.includes(f.id)?'checked':''}
+              style="margin-top:3px;width:auto">
+            <span style="min-width:0">${esc(f.name)}${f.user?' <span class="pill p-dim">tuo</span>':''}
+              <br><span class="tsub">${descriviFiltro(f)}</span></span></label>
+          ${f.user?`<span style="display:flex;gap:4px;flex:none">
+            <button class="chip" onclick="openFilterForm('${f.id}')">modifica</button>
+            <button class="chip" onclick="delUserFilter('${f.id}')">elimina</button></span>`:''}
+        </div>`).join('')}
         </div></div>`).join('')}
+    ${bloccoRuoli()}
     <div class="block"><div class="row">
-      <button class="primary" onclick="openAddFilter()">+ Aggiungi un filtro…</button>
+      <button class="primary" onclick="openFilterForm(null)">+ Aggiungi un filtro…</button>
     </div></div>`;
   $('filtBody').querySelectorAll('input[data-fid]').forEach(cb=>
     cb.addEventListener('change',()=>{
       const id=cb.getAttribute('data-fid');
       if(cb.checked){ if(!OWNED.includes(id)) OWNED.push(id); }
       else OWNED=OWNED.filter(x=>x!==id);
-      persistOwned(); filtSummary(); refresh();
+      puliscoRuoli();
+      persistOwned(); openFilters(); filtSummary(); refresh();
     }));
 }
-function openAddFilter(){
-  const name=(prompt('Nome del filtro (es. "Chroma Ha 3 nm")')||'').trim();
-  if(!name) return;
-  const bandRaw=(prompt('Quale riga o banda?\n\nHa · OIII · SII · Ha+OIII · SII+OIII · L · R · G · B','Ha')||'').trim();
-  if(!bandRaw) return;
-  const fw=parseFloat(String(prompt('Larghezza di banda in nanometri (FWHM).\nPer un filtro a banda larga scrivi 250.','3')||'').replace(',','.'));
-  if(!(fw>0.5&&fw<400)){ gearMsg('bad','Larghezza non valida: attesi nanometri, fra 0.5 e 400.'); return; }
-  const parts=bandRaw.toUpperCase().replace(/\s/g,'').split('+')
-    .map(x=>({HA:'Ha',OIII:'OIII',O3:'OIII',SII:'SII',S2:'SII',L:'L',R:'R',G:'G',B:'B'})[x]).filter(Boolean);
-  if(!parts.length){ gearMsg('bad','Banda non riconosciuta.'); return; }
-  const LAM={Ha:656.3,OIII:500.7,SII:672.4,L:550,R:630,G:535,B:465};
-  const f={id:'f_'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,18)+'_'+Date.now().toString(36).slice(-4),
-    name, band:parts.length>1?'dual':parts[0], lambda_nm:LAM[parts[0]], fwhm_nm:fw, peak_t:0.90, user:true};
-  if(parts.length>1){ f.bands=parts; f.dual=true; }
-  DB.filters.push(f); OWNED.push(f.id);
-  persistOwned(); persistUserFilters(); openFilters(); filtSummary(); refresh();
+/* CHI FA DA LUMINANZA — e in generale, chi svolge quale ruolo.
+
+   La «L» e' una funzione fotografica, non un pezzo di vetro: raccogliere il segnale
+   piu' largo che quella notte convenga. Quale filtro la svolga lo decide chi
+   riprende. Il motore propone — il piu' stretto fra quelli che portano la banda, con
+   un dato dichiarato che batte uno assunto — ma la proposta non e' un verdetto.
+
+   Il riquadro compare solo dove c'e' davvero una scelta da fare, cioe' dove i
+   candidati sono almeno due: altrimenti sarebbe una tendina con una voce sola. */
+function bloccoRuoli(){
+  const cam=DB.cameras.find(c=>c.id===CFG.cam)||DB.cameras[0];
+  const righe=RUOLI.map(b=>{
+    const cand=candidatiRuolo(b);
+    if(cand.length<2) return '';
+    const auto=(()=>{ const salvato=ROLES&&ROLES[b]; if(salvato) delete ROLES[b];
+      const a=filterFor(b,cam); if(salvato) ROLES[b]=salvato; return a; })();
+    const scelto=(ROLES&&ROLES[b])||'';
+    return `<label class="f" style="flex:1;min-width:220px">${b==='L'?'Luminanza (L)':b}
+      <select onchange="setRole('${b}',this.value)">
+        <option value="" ${scelto?'':'selected'}>automatico — ${esc(auto?auto.name:'nessuno')}</option>
+        ${cand.map(f=>`<option value="${f.id}" ${scelto===f.id?'selected':''}>${esc(f.name)}</option>`).join('')}
+      </select></label>`;
+  }).filter(Boolean);
+  if(!righe.length) return '';
+  return `<div class="block"><h4>Chi svolge quale ruolo</h4>
+    <p class="small muted" style="margin-bottom:10px">La luminanza e' una funzione, non un
+      filtro: se preferisci riprenderla con un anti-inquinamento, con un multiband o
+      perfino con un Ha, dillo qui e il motore userà quello. Con «automatico» sceglie lui,
+      preferendo il più selettivo fra quelli di cui la larghezza è dichiarata.</p>
+    <div class="row">${righe.join('')}</div></div>`;
 }
+
+/* IL MODULO DEI FILTRI, che prima erano tre `prompt()` in fila.
+
+   I tre riquadri del browser chiedevano nome, banda e una FWHM sola, con un
+   vocabolario chiuso che non conteneva l'Hbeta e non sapeva dire «due finestre di
+   larghezza diversa». Un L-eNhance — 10 nm sull'Ha e 24 sull'OIII, che e' in
+   catalogo — non era descrivibile da fuori, e un quad-band nemmeno.
+
+   Qui un filtro e' quello che e' fisicamente: un insieme di FINESTRE, ognuna con le
+   righe che contiene, la sua larghezza e la sua trasmissione. La larghezza si puo'
+   lasciare vuota: il produttore non sempre la dichiara, e il motore assume banda
+   larga dichiarando l'assunto invece di rompersi. */
+let FORM_FIN=[];
+const RIGHE_NOTE={Ha:656.28,OIII:500.68,SII:672.40,Hb:486.13,L:550,R:630,G:535,B:465};
+function openFilterForm(id){
+  const f=id?DB.filters.find(x=>x.id===id):null;
+  FORM_FIN=f?filterWindows(f).map(w=>({
+      righe:(w.lines||[]).map(l=>l.band).filter((x,i,a)=>a.indexOf(x)===i),
+      centro:(typeof w.center_nm==='number')?w.center_nm:'',
+      fwhm:larghezzaNota(w.fwhm_nm)?w.fwhm_nm:'',
+      t:w.peak_t!=null?Math.round(w.peak_t*100):(f.peak_t!=null?Math.round(f.peak_t*100):''),
+      fonte:fonteDi(w.fwhm_source,f.fwhm_source)}))
+    : [{righe:['Ha'],centro:'',fwhm:'',t:90,fonte:'manufacturer-declared'}];
+  disegnaFormFiltro(f);
+}
+function disegnaFormFiltro(f){
+  const modifica=!!(f&&f.user);
+  $('filtBody').innerHTML=`<h3>${modifica?'Modifica':'Aggiungi'} un filtro</h3>
+    <p class="small muted">Un filtro è un insieme di <b>finestre</b>: ognuna lascia passare un
+      pezzo di spettro e contiene le righe che ci cadono dentro. Un narrowband ne ha una, un
+      dual-band due — spesso di larghezza diversa — un quad-band quattro.
+      <b>La larghezza si può lasciare vuota</b>: molti produttori pubblicano solo la curva.
+      In quel caso il motore assume banda larga, che è l'ipotesi prudente, e lo dichiara.</p>
+    <div class="row">
+      <label class="f" style="flex:2;min-width:220px">Nome
+        <input id="ff_name" value="${f?esc(f.name):''}" placeholder="es. Optolong L-eXtreme"></label>
+      <label class="f" style="flex:1;min-width:160px">Produttore
+        <input id="ff_mfr" value="${f&&f.manufacturer?esc(f.manufacturer):''}" placeholder="es. Optolong"></label>
+    </div>
+    <div id="ff_fin" style="margin-top:12px"></div>
+    <div class="row" style="margin-top:6px">
+      <button class="chip" onclick="aggiungiFinestra()">+ un'altra finestra</button></div>
+    <div id="ff_msg" class="small" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" onclick="salvaFiltro(${f&&f.user?`'${f.id}'`:'null'})">Salva</button>
+      <button class="fn" onclick="openFilters()">Annulla</button>
+      ${modifica?`<button class="fn" onclick="delUserFilter('${f.id}')">Elimina</button>`:''}
+    </div>`;
+  disegnaFinestre();
+}
+function disegnaFinestre(){
+  $('ff_fin').innerHTML=FORM_FIN.map((w,i)=>`
+    <div class="block" style="padding:10px;margin-top:6px">
+      <div class="row" style="align-items:flex-end">
+        <label class="f" style="flex:2;min-width:200px">Righe in questa finestra
+          <span class="small muted" style="display:block;margin:4px 0">
+            ${Object.keys(RIGHE_NOTE).map(b=>`<label style="display:inline-flex;gap:3px;margin-right:8px;cursor:pointer">
+              <input type="checkbox" style="width:auto" ${w.righe.includes(b)?'checked':''}
+                onchange="toccaRiga(${i},'${b}',this.checked)">${b}</label>`).join('')}
+          </span></label>
+        <label class="f" style="flex:1;min-width:120px">Centro nm
+          <input type="number" step="0.1" value="${w.centro}" placeholder="dalle righe"
+            oninput="FORM_FIN[${i}].centro=this.value"></label>
+        <label class="f" style="flex:1;min-width:130px">Larghezza nm
+          <input type="number" step="0.1" value="${w.fwhm}" placeholder="non dichiarata"
+            oninput="FORM_FIN[${i}].fwhm=this.value"></label>
+        <label class="f" style="flex:1;min-width:110px">Trasmissione %
+          <input type="number" step="1" value="${w.t}" placeholder="90"
+            oninput="FORM_FIN[${i}].t=this.value"></label>
+        <label class="f" style="flex:1.4;min-width:190px">Da dove viene la larghezza
+          <select onchange="FORM_FIN[${i}].fonte=this.value">
+            ${FONTI_FILTRO.map(x=>`<option value="${x}" ${w.fonte===x?'selected':''}>${FONTE_LBL[x]}</option>`).join('')}
+          </select></label>
+        ${FORM_FIN.length>1?`<button class="chip" style="flex:none"
+          onclick="FORM_FIN.splice(${i},1);disegnaFinestre()">togli</button>`:''}
+      </div></div>`).join('');
+}
+const aggiungiFinestra=()=>{ FORM_FIN.push({righe:[],centro:'',fwhm:'',t:90,fonte:'manufacturer-declared'});
+  disegnaFinestre(); };
+function toccaRiga(i,b,on){
+  const w=FORM_FIN[i]; if(!w) return;
+  if(on){ if(!w.righe.includes(b)) w.righe.push(b); }
+  else w.righe=w.righe.filter(x=>x!==b);
+}
+const ffMsg=(k,t)=>{ const e=$('ff_msg'); if(e) e.innerHTML=t
+  ? `<span class="pill ${k==='bad'?'p-warn':'p-ok'}">${k==='bad'?'attenzione':'ok'}</span> <span class="muted">${t}</span>`:''; };
+
+function salvaFiltro(id){
+  const nome=($('ff_name').value||'').trim();
+  if(!nome){ ffMsg('bad','Manca il nome.'); return; }
+  const fin=[];
+  for(const w of FORM_FIN){
+    if(!w.righe.length) continue;                       // una finestra senza righe non e' una finestra
+    const larg=parseFloat(String(w.fwhm).replace(',','.'));
+    if(String(w.fwhm).trim()!==''&&!(larg>0.1&&larg<600)){
+      ffMsg('bad','Larghezza fuori scala: attesi nanometri fra 0.1 e 600, oppure vuoto se il produttore non la dichiara.'); return; }
+    const t=parseFloat(String(w.t).replace(',','.'));
+    const o={lines:w.righe.map(b=>({band:b,lambda_nm:RIGHE_NOTE[b]}))};
+    const centro=parseFloat(String(w.centro).replace(',','.'));
+    if(String(w.centro).trim()!==''){
+      if(!(centro>300&&centro<1100)){
+        ffMsg('bad','Centro fuori scala: attesi nanometri fra 300 e 1100, oppure vuoto per dedurlo dalle righe.'); return; }
+      o.center_nm=centro;
+    }
+    if(larghezzaNota(larg)){ o.fwhm_nm=larg; o.fwhm_source=w.fonte||'unknown'; }
+    if(t>0&&t<=100) o.peak_t=t/100;
+    fin.push(o);
+  }
+  if(!fin.length){ ffMsg('bad','Serve almeno una finestra con una riga dentro.'); return; }
+  const bande=[...new Set(fin.flatMap(w=>w.lines.map(l=>l.band)))];
+  const soloLarga=bande.every(b=>BB_BANDS.includes(b));
+  /* La banda «di elenco» serve solo a mettere il filtro nel gruppo giusto della
+     pagina: la fisica la fanno le finestre. Un filtro che porta righe di nebulosa
+     ed e' anche largo — un anti-inquinamento multiband — resta di banda larga, che
+     e' cio' che e': lo dice Optolong stessa dell'L-QEF. */
+  const larghe=fin.filter(w=>!larghezzaNota(w.fwhm_nm)||w.fwhm_nm>=50).length;
+  const band=soloLarga?bande[0]:(larghe===fin.length?'L':(bande.length>1?'dual':bande[0]));
+  const vecchio=id?DB.filters.find(x=>x.id===id):null;
+  const f=vecchio||{id:'f_'+nome.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,18)+'_'+Date.now().toString(36).slice(-4),user:true};
+  f.name=nome;
+  const mfr=($('ff_mfr').value||'').trim(); if(mfr) f.manufacturer=mfr; else delete f.manufacturer;
+  f.band=band; f.windows=fin;
+  if(bande.length>1&&band==='dual'){ f.bands=bande; f.dual=true; }
+  else if(bande.length>1){ f.bands=bande; delete f.dual; }
+  else { delete f.bands; delete f.dual; }
+  /* NIENTE FWHM GLOBALE SU UN MULTI-FINESTRA. Un dual-band con 10 nm sull'Ha e 24
+     sull'OIII non ha «una» larghezza, e riassumerla con il massimo o con la media
+     produce un numero che non descrive niente — e' esattamente l'errore che rendeva
+     l'L-eNhance un Ha travestito da dual. Il campo resta solo dove ha senso: una
+     finestra sola, cioe' un filtro single-band. Con piu' finestre `bandWidth`
+     risponde per banda, che e' l'unica domanda con una risposta. */
+  const larghezze=fin.map(w=>w.fwhm_nm).filter(larghezzaNota);
+  if(fin.length===1&&larghezze.length===1) f.fwhm_nm=larghezze[0]; else delete f.fwhm_nm;
+  f.peak_t=fin.map(w=>w.peak_t).filter(x=>x>0).reduce((a,b,i,ar)=>a+b/ar.length,0)||0.9;
+  f.lambda_nm=RIGHE_NOTE[bande[0]]||550;
+  f.fwhm_source=larghezze.length?fonteDi.apply(null,fin.map(w=>w.fwhm_source)):'unknown';
+  f.confidence=larghezze.length===fin.length?'media':'bassa';
+  if(!vecchio){ DB.filters.push(f); if(!OWNED.includes(f.id)) OWNED.push(f.id); }
+  persistOwned(); persistUserFilters(); openFilters(); filtSummary(); refresh();
+  gearMsg('ok',`«${esc(nome)}» ${vecchio?'aggiornato':'aggiunto'} e in ruota.`);
+}
+
+/* L'ELIMINAZIONE, che non esisteva. Togliere la spunta lo toglieva dal possesso, non
+   dall'elenco: un filtro sbagliato restava in pagina per sempre, e per cancellarlo
+   bisognava mettere le mani in `localStorage`. Si eliminano solo i propri: il
+   catalogo non e' cancellabile, si spunta e basta. */
+function delUserFilter(id){
+  const f=DB.filters.find(x=>x.id===id);
+  if(!f||!f.user) return;
+  const i=DB.filters.indexOf(f); if(i>=0) DB.filters.splice(i,1);
+  OWNED=OWNED.filter(x=>x!==id);
+  for(const b of Object.keys(ROLES||{})) if(ROLES[b]===id) delete ROLES[b];
+  persistOwned(); persistRoles(); persistUserFilters(); openFilters(); filtSummary(); refresh();
+  gearMsg('dim',`«${esc(f.name)}» eliminato.`);
+}
+
+/* I TRE `prompt()` NON CI SONO PIU'.
+
+   Chiedevano nome, banda e una larghezza sola, con un vocabolario chiuso —
+   Ha · OIII · SII · Ha+OIII · SII+OIII · L · R · G · B — che non conteneva l'Hbeta e
+   non sapeva dire «due finestre di larghezza diversa». Un L-eNhance, che il catalogo
+   descrive con 10 nm sull'Ha e 24 sull'OIII, non era descrivibile da fuori; un
+   quad-band nemmeno; e la trasmissione era cablata a 0.90 per tutti.
+   Al loro posto c'e' `openFilterForm`, che descrive un filtro per quello che e':
+   un insieme di finestre, ognuna con le sue righe, la sua larghezza — anche assente —
+   la sua trasmissione e la sua provenienza. */
 function persistUserFilters(){
   try{localStorage.setItem('ap_userfilters',JSON.stringify(DB.filters.filter(f=>f.user)))}catch(e){}
 }

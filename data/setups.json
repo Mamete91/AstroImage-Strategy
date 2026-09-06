@@ -1181,7 +1181,9 @@
      ]
     }
    ],
-   "windows_source": "Optolong dichiara 3 nm su entrambe le righe. A 3 nm nella finestra blu ci sta la sola 5007: la 4959 dista 4.8 nm e resta fuori."
+   "windows_source": "Optolong dichiara 3 nm su entrambe le righe. A 3 nm nella finestra blu ci sta la sola 5007: la 4959 dista 4.8 nm e resta fuori.",
+   "fwhm_source": "manufacturer-declared",
+   "manufacturer": "Optolong"
   },
   {
    "id": "lext",
@@ -1219,7 +1221,9 @@
      ]
     }
    ],
-   "windows_source": "Optolong dichiara 7 nm su entrambe le righe, con l'Hbeta escluso."
+   "windows_source": "Optolong dichiara 7 nm su entrambe le righe, con l'Hbeta escluso.",
+   "fwhm_source": "manufacturer-declared",
+   "manufacturer": "Optolong"
   },
   {
    "id": "lenh",
@@ -1261,7 +1265,9 @@
      ]
     }
    ],
-   "windows_source": "Optolong dichiara 10 nm sull'Ha e circa 24 nm sulla regione che contiene Hbeta e le due righe dell'OIII: e' l'unico dei tre a lasciar passare l'Hbeta, ed e' la ragione per cui il suo canale blu raccoglie piu' cielo degli altri."
+   "windows_source": "Optolong dichiara 10 nm sull'Ha e circa 24 nm sulla regione che contiene Hbeta e le due righe dell'OIII: e' l'unico dei tre a lasciar passare l'Hbeta, ed e' la ragione per cui il suo canale blu raccoglie piu' cielo degli altri.",
+   "fwhm_source": "manufacturer-declared",
+   "manufacturer": "Optolong"
   },
   {
    "id": "alpt",
@@ -1666,6 +1672,67 @@
    "lambda_nm": 550.0,
    "fwhm_nm": 200.0,
    "peak_t": 0.92
+  },
+  {
+   "id": "lqef",
+   "name": "Optolong L-QEF (quad-band)",
+   "manufacturer": "Optolong",
+   "band": "L",
+   "bands": [
+    "Hb",
+    "OIII",
+    "Ha",
+    "SII"
+   ],
+   "peak_t": 0.9,
+   "peak_t_source": "manufacturer-declared",
+   "fwhm_source": "unknown",
+   "confidence": "bassa",
+   "blocking_nm": [
+    300,
+    1000
+   ],
+   "blocking_od": "OD2-OD4",
+   "curve_url": "https://optolong.com/cms/document/detail/id/286.html",
+   "spec_note": "Optolong dichiara quattro finestre sulle righe Hbeta, OIII, Halpha e SII con trasmissione >90%, blocco 300-1000 nm a OD2-OD4, e NON dichiara la larghezza delle finestre: la scheda riporta «FWHM: Quad bandpass filter». La curva ufficiale esiste ma non e' stata letta come numeri, quindi le larghezze restano non dichiarate e il motore assume banda larga, che e' l'ipotesi prudente. I 7 nm di alcuni rivenditori, e i 10/24 nm di altri — che sono le specifiche dell'L-eNhance — non sono stati registrati.",
+   "windows": [
+    {
+     "lines": [
+      {
+       "band": "Hb",
+       "lambda_nm": 486.13
+      }
+     ]
+    },
+    {
+     "lines": [
+      {
+       "band": "OIII",
+       "lambda_nm": 495.89
+      },
+      {
+       "band": "OIII",
+       "lambda_nm": 500.68
+      }
+     ]
+    },
+    {
+     "lines": [
+      {
+       "band": "Ha",
+       "lambda_nm": 656.28
+      }
+     ]
+    },
+    {
+     "lines": [
+      {
+       "band": "SII",
+       "lambda_nm": 672.4
+      }
+     ]
+    }
+   ]
   }
  ],
  "extinction": {
