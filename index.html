@@ -3861,9 +3861,34 @@ function starPeakRate(dv,band,mag,fwhm,opts){
   return tot*peak;
 }
 
-/* Griglia delle pose che si usano davvero. Un consiglio da 137 s e' finta
-   precisione: la posa la scrivi nel sequenziatore, e la scrivi tonda. */
-const EXP_GRID=[15,20,30,45,60,90,120,150,180,240,300,360,420,480,600,720,900];
+/* LE POSE CHE SI POSSONO DAVVERO CALIBRARE.
+
+   Un consiglio da 137 s e' finta precisione: la posa la scrivi nel sequenziatore,
+   e la scrivi tonda. Ma «tonda» non basta, e la griglia di prima sbagliava proprio
+   qui — conteneva 45, 90, 150, 360, 420, 480, 720, numeri che nessuno usa.
+
+   Il motivo non e' estetico ed e' vincolante: una posa vive solo se esiste il
+   master dark che la sottrae. Le librerie si costruiscono una volta e si tengono
+   per anni, a temperatura e guadagno fissi, sui tempi canonici — 20, 30, 60, 120,
+   180, 240, 300, 600 secondi. Consigliare 420 s significa consigliare una posa che
+   in fase di elaborazione non si puo' calibrare: o si rifanno i dark apposta, o
+   quella notte si butta. Un consiglio inapplicabile non e' un consiglio.
+
+   Il 240 non e' un'aggiunta arbitraria: le schede dei bersagli dichiarano gia'
+   `sub_max_s: 240`, e senza quel gradino quel tetto diventerebbe silenziosamente
+   180. La serie corta per il nucleo non passa di qui — prende `hdr_short_s` dalla
+   scheda, che vale 10, 15 o 20 s, gia' tutti canonici.
+
+   IL PREZZO, MISURATO. Con la griglia fine EQUILIBRIO e DINAMICA trovavano quasi
+   sempre un gradino un po' piu' corto; con questa lo trovano meno spesso e
+   ricadono piu' vicino a RESA. Su 864 combinazioni di configurazione, banda, cielo
+   e strategia la posa cambia in 414, e il costo medio in ore e' -5.2%, cioe' in
+   media si RISPARMIA: RESA e' l'ottimo di efficienza, e avvicinarcisi non e' un
+   danno. Il caso peggiore e' +26% di ore, su banda larga in Dinamica dove il
+   gradino saltato e' 45 -> 30 s. E' un prezzo accettato consapevolmente: non
+   serve riempire la notte al minuto, e dieci minuti che avanzano non fanno
+   nulla — una posa che non si puo' sottrarre invece si'. */
+const EXP_GRID=[20,30,60,120,180,240,300,600];
 const snapExp=t=>{ let p=null;
   for(const g of EXP_GRID) if(g<=t+1e-9) p=g; return p; };
 

@@ -372,6 +372,82 @@ H('I · I VINCOLI OPERATIVI RESTANO VINCOLI');
   } else chk('il piano di controllo si costruisce',false,pl2.reason.code);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+H('OGNI POSA CONSIGLIATA DEVE ESSERE CALIBRABILE');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* Una posa vive solo se esiste il master dark che la sottrae. Le librerie si
+     costruiscono una volta e si tengono per anni, a temperatura e guadagno fissi,
+     sui tempi canonici; consigliare 420 s o 45 s significa consigliare una notte
+     che in elaborazione non si puo' calibrare. Non e' una preferenza estetica: e'
+     un vincolo, e vale su TUTTI i percorsi che producono un numero di secondi.
+
+     Il difetto arrivava dal campo, da una schermata di piano: «420 s x 53» per la
+     luminanza e «45 s x 11» per R, G e B. Nessuno dei due era sbagliato quanto a
+     efficienza — erano l'ottimo di EQUILIBRIO sulla vecchia griglia — ed entrambi
+     erano inutilizzabili. */
+  const SCALA = M.EXP_GRID;
+  chk('la scala contiene solo tempi da libreria dark',
+    SCALA.every(t => [10, 15, 20, 30, 60, 120, 180, 240, 300, 600, 900].indexOf(t) >= 0),
+    SCALA.join(' · ') + ' s');
+  chk('e non contiene i tempi che nessuno usa',
+    [45, 90, 150, 360, 420, 480, 720].every(t => SCALA.indexOf(t) < 0));
+  chk('la scala e crescente e senza doppioni',
+    SCALA.every((t, i) => i === 0 || t > SCALA[i - 1]));
+
+  const stX = { lat: 46.0167, lon: 10.3333, sqm: 20.8, seeing: 1.6, rms: 0.6, horizonMin: 20, clearFrac: 0.35 };
+  stX.fwhm = M.effFWHM(stX.seeing, stX.rms);
+  const CONF = [['askar71f', 'asi2600mc', 0.75], ['rc8', 'asi2600mm', '1'],
+                ['tecnosky115', 'asi2600mm', 0.80], ['redcat51', 'asi2600mc', 0.92],
+                ['askar_fra400', 'asi2600mm', '1'], ['sw200n', 'asi2600mc', '1'],
+                ['c8', 'asi2600mm', '1'], ['samyang135', 'asi2600mc', '1']];
+  const BANDE = ['Ha', 'OIII', 'SII', 'L', 'R', 'G', 'B', 'RGB', 'Ha+OIII'];
+
+  /* Tutte e tre le strategie, non solo quella di riferimento: 420 e 45 nascevano
+     proprio in EQUILIBRIO e DINAMICA, che cercano un gradino piu' corto di RESA. */
+  let provate = 0; const fuori = {};
+  for (const [tel, cam, red] of CONF) {
+    const dv = M.derive({ tel, red, cam, mnt: 'am5', bin: 1 });
+    for (const b of BANDE) for (const q of [21.3, 20.8, 19.5, 18.5, 17.8]) {
+      let S; try { S = M.exposureStrategies(dv, Object.assign({}, stX, { sqm: q }), b, {}); } catch (e) { continue; }
+      for (const k of ['resa', 'equilibrio', 'dinamica']) {
+        const e = S[k]; if (!e || !e.sec) continue;
+        provate++;
+        if (SCALA.indexOf(e.sec) < 0) fuori[e.sec] = (fuori[e.sec] || 0) + 1;
+      }
+    }
+  }
+  chk('nessuna delle tre strategie esce dalla scala',
+    Object.keys(fuori).length === 0,
+    provate + ' pose provate' + (Object.keys(fuori).length ? ' — FUORI: ' +
+      Object.keys(fuori).sort((a, b) => a - b).map(x => x + ' s x' + fuori[x]).join(', ') : ''));
+
+  /* La serie corta per il nucleo non passa dalla griglia ma dalle schede: anche
+     quella deve essere un tempo che si trova in libreria. */
+  const corte = {};
+  for (const k of Object.keys(TG.archetypes)) {
+    const a = TG.archetypes[k];
+    if (a.hdr_short_s) corte[a.hdr_short_s] = 1;
+  }
+  chk('anche le pose corte per il nucleo sono tempi canonici',
+    Object.keys(corte).every(t => [5, 10, 15, 20, 30].indexOf(+t) >= 0),
+    Object.keys(corte).sort((a, b) => a - b).join(' · ') + ' s');
+
+  /* I tetti dichiarati dalle schede devono esistere sulla scala, altrimenti il
+     tetto diventa in silenzio il gradino sotto. E' la ragione per cui la scala
+     tiene il 240 anche se non e' fra i piu' comuni. */
+  const tetti = {};
+  for (const k of Object.keys(TG.archetypes)) {
+    const a = TG.archetypes[k];
+    if (a.sub_max_s) tetti[a.sub_max_s] = 1;
+  }
+  const mancanti = Object.keys(tetti).filter(t => SCALA.indexOf(+t) < 0);
+  chk('ogni tetto di posa dichiarato dalle schede esiste sulla scala',
+    mancanti.length === 0,
+    mancanti.length ? 'assenti: ' + mancanti.join(', ') + ' s'
+                    : Object.keys(tetti).sort((a, b) => a - b).join(' · ') + ' s');
+}
+
 console.log('\n'+(ko?'\x1b[31m':'\x1b[32m')+ok+' verifiche superate, '+ko+' fallite\x1b[0m');
 if(ko) process.exitCode=1;
 module.exports={ok,ko};

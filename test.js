@@ -29,7 +29,7 @@ const fn=new Function(...Object.keys(ctx), pure+`
           prescribe,fitAlternatives,roadChannels,roadSum,costGroups,fillBudget,expectFor,
           synthTarget,inRoad,planNights,moonTolerance,objectExtent,bestRotation,
           nightWindows,nightsBounds,bestStart,balanceSessions,moonExcessMag,moonExcessFlux,lpExcessFlux,skyRef,subExposure,exposurePlan,
-          subPlan,skyRateFor,starPeakRate,gainModes,bandSpec,ninaSequence,ninaCheck,mountRms,
+          subPlan,skyRateFor,starPeakRate,gainModes,bandSpec,ninaSequence,ninaCheck,mountRms,EXP_GRID,
           cfaFraction,objectSatTime,framingCenter};`);
 const M=fn(...Object.values(ctx));
 
@@ -1881,7 +1881,13 @@ chk('e il valore e quello del sensore',g.full_well_e,
  const ok=posa('_t_ok'), no=posa('_t_no');
  chk('col pozzetto derivato dal sensore la posa non collassa',ok>=120,true,ok+' s');
  chk('e senza sensore riconosciuto collassa davvero',no<=90,true,no+' s, dal segnaposto');
- chk('il rapporto e quello del pozzetto',ok/no>2,true,'x'+(ok/no).toFixed(1));
+ /* Il rapporto non puo' piu' essere quello esatto dei pozzetti: la posa vive su
+    una scala di tempi canonici — quelli per cui esiste un master dark — e fra 60 e
+    120 s non c'e' niente. Quello che il test difende resta intero: con il pozzetto
+    vero la posa vale almeno il doppio, cioe' almeno un gradino pieno in piu'. */
+ chk('il pozzetto vero vale almeno un raddoppio della posa',ok/no>=2,true,'x'+(ok/no).toFixed(1));
+ chk('e le due pose stanno entrambe sulla scala dei tempi calibrabili',
+   M.EXP_GRID.includes(ok)&&M.EXP_GRID.includes(no),true,ok+' s e '+no+' s');
  DB.cameras.splice(DB.cameras.findIndex(c=>c.id==='_t_ok'),1);
  DB.cameras.splice(DB.cameras.findIndex(c=>c.id==='_t_no'),1);}
 /* Sensore ignoto: il segnaposto resta, ma si DICHIARA. */
