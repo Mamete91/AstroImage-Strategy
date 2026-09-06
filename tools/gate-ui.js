@@ -270,5 +270,43 @@ if(ENG){
 }
 
 
+/* ═══ F · IL MARCHIO RIPORTA A CASA, E PER FARLO DEVE ESSERE RAGGIUNGIBILE ═══
+   Due cose che si reggono a vicenda: il marchio e' un comando che riporta alla
+   Strategia, e ha senso solo se l'intestazione resta in alto mentre si scorre.
+   La seconda era rotta e non se ne accorgeva nessuno — `height:100%` sul body
+   chiudeva la scatola dopo una schermata, e uno `position:sticky` vive solo
+   dentro la scatola del proprio padre. Su una pagina di risultati lunga seimila
+   pixel l'intestazione spariva dopo poche centinaia. */
+console.log('\n--- F · il marchio, e l intestazione che lo tiene a portata ---');
+{
+  const brand = html.match(/<button[^>]*class="brandblock"[^>]*>/);
+  chk('il marchio e un comando premibile, non un contenitore muto', !!brand,
+    brand ? 'e un <button>' : 'e ancora un <div>');
+  if (brand) {
+    const b = brand[0];
+    chk('e porta alla Strategia con lo stesso meccanismo delle altre voci',
+      /data-go="strategia"/.test(b));
+    chk('e si annuncia a chi non vede il logo', /aria-label="[^"]+"/.test(b));
+  }
+
+  /* Lo sticky vive nella scatola del padre: se il body ha un'altezza FISSA quella
+     scatola finisce con la prima schermata. E' la differenza fra `height` e
+     `min-height`, e vale la sparizione dell'intestazione su ogni pagina lunga. */
+  chk('il body non ha un altezza fissa che chiuderebbe lo sticky',
+    !/\bhtml,\s*body\{height:100%\}/.test(html) && /body\{min-height:100%\}/.test(html),
+    /body\{min-height:100%\}/.test(html) ? 'min-height:100%' : 'ALTEZZA FISSA: l intestazione sparisce scorrendo');
+  chk('e l intestazione e dichiarata appiccicata in alto',
+    /\.topbar\{[^}]*position:sticky/.test(html.replace(/\n/g, '')));
+
+  /* Navigare deve chiudere cio' che sta sopra: cambiare sezione sotto un pannello
+     aperto e' un cambio che non si vede. */
+  const goSrc = script.slice(script.indexOf('function go(name){'));
+  const corpo = goSrc.slice(0, goSrc.indexOf('function initNav'));
+  chk('cambiare sezione chiude i pannelli aperti sopra',
+    /sheet/.test(corpo) && /classList\.remove\('on'\)/.test(corpo),
+    corpo.indexOf('tgtSheet') > 0 ? 'tutti e tre i pannelli' : 'controllare');
+  chk('e riporta in cima', /scrollTo/.test(corpo));
+}
+
 console.log(`\n${pass} verifiche superate, ${fail} fallite\n`);
 process.exit(fail?1:0);

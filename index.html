@@ -72,7 +72,15 @@ html[data-night="1"] img, html[data-night="1"] svg.starfield{filter:saturate(.3)
 html[data-night="1"] #aladin{filter:saturate(.3)}
 
 *{box-sizing:border-box}
-html,body{height:100%}
+/* ALTEZZA MINIMA, NON FISSA. Con `height:100%` la scatola del body finisce dopo
+   una schermata, e uno `position:sticky` resta appiccicato solo DENTRO la scatola
+   del proprio padre: l'intestazione si staccava dopo poche centinaia di pixel e
+   scorreva via, proprio sul telefono dove le pagine sono lunghe. Con `min-height`
+   la scatola cresce con il contenuto e l'intestazione resta in alto sempre —
+   che e' anche il presupposto perche' il marchio possa riportare a casa da
+   qualunque punto. */
+html{height:100%}
+body{min-height:100%}
 body{margin:0;background:var(--bg);color:var(--fg);
   font:15px/1.58 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   -webkit-text-size-adjust:100%}
@@ -91,7 +99,17 @@ a{color:var(--acc)}
   border-bottom:1px solid var(--line);
 }
 html[data-night="1"] .topbar{background:var(--bg)}
-.brandblock{display:flex;align-items:center;gap:var(--s4);min-width:0}
+/* IL MARCHIO E' UN COMANDO: riporta alla Strategia da qualunque punto, ed e'
+   sempre li' perche' l'intestazione e' appiccicata in alto. Non deve pero'
+   SEMBRARE un bottone — nessun bordo, nessuno sfondo — perche' quello che si
+   riconosce e' il logo, non il pulsante: il segnale che sia premibile lo danno
+   il cursore, l'alone al passaggio e il fuoco da tastiera. */
+.brandblock{display:flex;align-items:center;gap:var(--s4);min-width:0;
+  background:none;border:0;padding:2px 4px;margin:-2px -4px;font:inherit;color:inherit;
+  text-align:left;cursor:pointer;border-radius:10px;transition:opacity .15s,background .15s}
+.brandblock:hover{background:rgba(255,255,255,.04)}
+.brandblock:active{opacity:.75}
+.brandblock:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .logo{width:52px;height:52px;flex:none;display:block}
 .brandtext{min-width:0}
 .wordmark{
@@ -886,7 +904,8 @@ td.archcell{max-width:120px}
      HEADER
      ===================================================================== -->
 <header class="topbar">
-  <div class="brandblock">
+  <button type="button" class="brandblock" data-go="strategia"
+          title="Torna alla Strategia" aria-label="Torna alla Strategia">
     <svg class="logo" viewBox="0 0 56 56" fill="none" aria-hidden="true">
       <defs>
         <linearGradient id="aisRing" x1="8" y1="6" x2="48" y2="50" gradientUnits="userSpaceOnUse">
@@ -912,7 +931,7 @@ td.archcell{max-width:120px}
       <div class="wordmark">ASTROIMAGE-<b>STRATEGY</b></div>
       <div class="payoff">Precision <i>&bull;</i> Planning <i>&bull;</i> Performance</div>
     </div>
-  </div>
+  </button>
 
   <div class="topspacer"></div>
 
@@ -9093,6 +9112,14 @@ const SEC_DEF='strategia';
 let SEC=SEC_DEF;
 
 function go(name){
+  /* Un pannello aperto sta SOPRA la dashboard: cambiare sezione sotto di esso
+     lasciandolo li' e' un cambio che non si vede, e chi ha premuto resta convinto
+     di non aver premuto niente. Vale per il marchio — «riportami a casa da
+     qualunque punto» — ma vale per ogni voce di menu, ed e' il posto giusto per
+     scriverlo una volta sola. */
+  for(const id of ['sheet','tgtSheet','gearSheet']){
+    const el=document.getElementById(id); if(el) el.classList.remove('on');
+  }
   const secs=[].slice.call(document.querySelectorAll('#app .sec'));
   if(!secs.some(s=>s.getAttribute('data-sec')===name)) name=SEC_DEF;
   SEC=name;
