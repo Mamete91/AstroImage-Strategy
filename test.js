@@ -774,10 +774,19 @@ const dvM31osc =M.derive({tel:'askar71f',red:0.75,cam:'asi2600mc',mnt:'am5',bin:
    il suo gate dedicato in tools/gate-copertura.js. Tenerle separate qui e' il
    punto: M31 su questa configurazione chiede sei pannelli, e mescolare le due
    cose renderebbe questi test illeggibili invece che piu' severi. */
-const prMono=M.prescribe(M.evaluate(m31,dvM31mono,bornoSite,npB,{}),14.5,dvM31mono,1);
-const prOsc =M.prescribe(M.evaluate(m31,dvM31osc ,bornoSite,npB,{}),14.5,dvM31osc ,1);
-console.log(`      M31 in 14.5h — mono: ${prMono.road.id} [${prMono.alloc.filter(g=>!g.dropped).map(g=>g.id+' '+g.hours.toFixed(1)).join(' ')}]`);
-console.log(`      M31 in 14.5h — OSC:  ${prOsc.road.id} [${prOsc.alloc.filter(g=>!g.dropped).map(g=>g.id+' '+g.hours.toFixed(1)).join(' ')}]`);
+/* SEDICI ORE, NON QUATTORDICI E MEZZO. Il confronto e' fra MONO e OSC — sulla
+   monocromatica l'Ha additivo entra nel budget, sulla camera a colori costa quattro
+   volte tanto e la strada resta LRGB pura — e quel confronto vale ancora. E' cambiata
+   la soglia in ore: la ruota di serie contiene un IDAS, `filterFor` lo sceglie per la
+   luminanza, e da quando il riferimento delle ore sta sotto la PROPRIA ruota quel
+   filtro costa il 25% di tempo in piu' invece di zero. A 14.5 h la luminanza si
+   mangia il budget e l'Ha non entra piu' nemmeno su mono; a 16 h il contrasto torna
+   quello di sempre. Il numero e' cambiato perche' un costo che c'era e' diventato
+   visibile, non perche' la proprieta' sia diversa. */
+const prMono=M.prescribe(M.evaluate(m31,dvM31mono,bornoSite,npB,{}),16,dvM31mono,1);
+const prOsc =M.prescribe(M.evaluate(m31,dvM31osc ,bornoSite,npB,{}),16,dvM31osc ,1);
+console.log(`      M31 in 16h — mono: ${prMono.road.id} [${prMono.alloc.filter(g=>!g.dropped).map(g=>g.id+' '+g.hours.toFixed(1)).join(' ')}]`);
+console.log(`      M31 in 16h — OSC:  ${prOsc.road.id} [${prOsc.alloc.filter(g=>!g.dropped).map(g=>g.id+' '+g.hours.toFixed(1)).join(' ')}]`);
 chk('su mono l Ha additivo ci sta',prMono.road.id,'lrgb_ha');
 chk('su OSC l Ha costa 4x e la strada giusta e LRGB puro',prOsc.road.id,'lrgb');
 /* Il difetto che il tracciato ha trovato: prima della correzione, su OSC il canale
@@ -921,7 +930,12 @@ console.log('      Ha rende '+(M.moonTolerance('Ha',monoCam,false)/
 chk('l Ha tollera la Luna molto piu della luminanza',
   M.moonTolerance('Ha',monoCam,false)>M.moonTolerance('L',monoCam,false)*2,true);
 const eM31=M.evaluate(m31,dvM31mono,bornoSite,npB,{});
-const prM31=M.prescribe(eM31,14.5,dvM31mono,1);   // un campo: vedi gate-copertura.js
+/* Sedici ore per la stessa ragione di sopra: sotto quella soglia la strada perde
+   l'Ha, e senza un canale che tollera la Luna la modalita' «progetto» non ha piu'
+   niente da spostare — il confronto fra le due modalita' diventerebbe degenere.
+   Misurato: a 14.5 h sessione 20.30 h contro progetto 20.52 h (differenza nel
+   rumore del trasporto), a 16 h 21.30 contro 20.24 (la proprieta' si vede). */
+const prM31=M.prescribe(eM31,16,dvM31mono,1);   // un campo: vedi gate-copertura.js
 const PDATE=new Date(2026,8,1);
 const POPT={site:bornoSite,date:PDATE};
 

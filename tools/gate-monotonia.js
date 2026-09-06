@@ -254,5 +254,93 @@ H('D · IL METRO DELL ASSE DETTAGLIO E FISSO');
     Math.abs(M.resolutionFidelity(2, 2) - 2 / Math.sqrt(4 + Math.pow(M.PIX_FWHM * 2, 2))) < 1e-12);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+H('E · IL RIFERIMENTO DELLE ORE NON DIPENDE DAI FILTRI CHE POSSIEDI');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* Le ore delle schede sono scritte su una configurazione dichiarata nei dati,
+     ruota compresa. Il fattore che le converte deve avere quel denominatore fisso:
+     se cambia con i filtri di chi guarda, ogni utente misura con un metro diverso e
+     i numeri non sono confrontabili ne' con la scheda ne' fra loro.
+
+     Il difetto che questa sezione impedisce di tornare: `refSubFor` era stato
+     scritto apposta per questo — «un riferimento che dipende da chi lo interroga
+     non e' un riferimento» — ma copriva la sola POSA. I tassi, che sono il
+     denominatore vero del fattore, passavano da `bandSpec`, che il filtro lo
+     sceglie fra quelli POSSEDUTI. Misurato in banda Ha su camera a colori: con la
+     ruota dichiarata il riferimento usa ha3 e il suo fondo cielo vale 0.007453; con
+     un L-eNhance in ruota passava a lenh e il fondo saliva a 0.024292, 3.26 volte,
+     e il fattore scendeva da 11.77 a 6.21. */
+  const fs2 = require('fs');
+  const src = fs2.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const MARCA = '/* =====================================================================';
+  const pura = src.split('<script>')[1].split('</script>')[0].split(MARCA + '\n   UI')[0];
+  const CATd = JSON.parse(fs2.readFileSync(path.join(ROOT, 'data', 'catalog.json'), 'utf8'));
+  const CITd = JSON.parse(fs2.readFileSync(path.join(ROOT, 'data', 'cities.json'), 'utf8'));
+  const conRuota = ruota => {
+    const ctx = { DB, TG, CAT: CATd.objects, CITIES: CITd.cities, OWNED: ruota.slice(),
+      console, Math, Date, Object, JSON, isFinite, parseFloat, parseInt, Number, window: {} };
+    return new Function(...Object.keys(ctx), pura +
+      'return {refCfg,rates,timeFactor,refSubFor,conRuotaDiRiferimento,derive};')(...Object.values(ctx));
+  };
+  const RUOTE = [
+    ['dichiarata nei dati', DB.reference_config.filters],
+    ['di serie', DB.default_filters],
+    ['solo L-eNhance', ['lenh', 'lum', 'red', 'grn', 'blu']],
+    ['solo L-eXtreme', ['lext', 'lum', 'red', 'grn', 'blu']],
+    ['solo L-Ultimate', ['lult', 'lum', 'red', 'grn', 'blu']],
+    ['amputata al solo lum', ['lum']],
+  ];
+  const BANDE = ['Ha', 'OIII', 'SII', 'L', 'R', 'G', 'B'];
+  chk('il campione copre ruote davvero diverse', RUOTE.length >= 6, RUOTE.length + ' ruote');
+
+  /* IL DENOMINATORE SI OSSERVA SOLO ATTRAVERSO `timeFactor`, e va osservato li'.
+
+     Chiamare `rates` dentro `conRuotaDiRiferimento` da questo gate proverebbe
+     soltanto che l'helper funziona: forzerebbe la ruota giusta a prescindere da
+     cosa fa il motore, ed e' una verifica che passa anche col difetto rimesso —
+     l'ho scritta cosi' la prima volta e infatti non lo rilevava.
+
+     Il modo onesto e' tenere fermo il NUMERATORE — stessa ottica, e per le bande
+     di controllo lo stesso filtro effettivamente usato — e muovere il RESTO della
+     ruota. Se il fattore si sposta, si e' spostato il denominatore. */
+  const K0 = conRuota(DB.reference_config.filters);
+  const dv0 = K0.derive({ tel: DB.reference_config.telescope, red: DB.reference_config.reducer,
+    cam: DB.reference_config.camera, mnt: 'am5', bin: 1 });
+  const conIdas = conRuota(DB.reference_config.filters.concat(['idas']));
+  const dvI = conIdas.derive({ tel: DB.reference_config.telescope, red: DB.reference_config.reducer,
+    cam: DB.reference_config.camera, mnt: 'am5', bin: 1 });
+  const fL = conIdas.timeFactor(dvI, 'L');
+  chk('aggiungere un IDAS alla ruota fa costare di piu la luminanza, non uguale',
+    fL > 1.05, 'L ' + fL.toFixed(4) + ' — col difetto il riferimento prendeva in prestito lo stesso IDAS e usciva 1.0000');
+  /* E le bande che l IDAS non tocca non si muovono di un millesimo. */
+  const fermi = ['Ha', 'OIII', 'SII'].every(b =>
+    Math.abs(conIdas.timeFactor(dvI, b) - K0.timeFactor(dv0, b)) < 1e-12);
+  chk('mentre la banda stretta, che quel filtro non tocca, resta identica', fermi,
+    ['Ha', 'OIII', 'SII'].map(b => b + ' ' + conIdas.timeFactor(dvI, b).toFixed(6)).join(' · '));
+
+  /* Non basta che sia fisso: deve valere UNO sulla configurazione di riferimento
+     con la sua ruota, altrimenti sarebbe fisso e sbagliato. */
+  chk('e vale uno esatto sulla configurazione di riferimento',
+    BANDE.every(b => Math.abs(K0.timeFactor(dv0, b) - 1) < 1e-12),
+    BANDE.map(b => b + ' ' + K0.timeFactor(dv0, b).toFixed(6)).join(' · '));
+
+  /* E la verifica non e' vuota: il NUMERATORE deve invece muoversi con la ruota,
+     perche' e' il filtro che usi davvero. Se non si muovesse, questa sezione
+     passerebbe anche su un motore che dei filtri non sa niente. */
+  const dvOsc = { tel: 'rc8', red: 1, cam: 'asi2600mc', mnt: 'cem70g', bin: 1 };
+  const fattori = ['lenh', 'lext', 'lult'].map(f => {
+    const K = conRuota([f, 'lum', 'red', 'grn', 'blu']);
+    return K.timeFactor(K.derive(dvOsc), 'Ha', 300);
+  });
+  chk('mentre il numeratore segue il filtro che usi davvero',
+    Math.max.apply(null, fattori) > Math.min.apply(null, fattori) * 1.15,
+    fattori.map(x => x.toFixed(4)).join(' · ') + '  (L-eNhance, L-eXtreme, L-Ultimate)');
+  chk('e il filtro piu stretto costa meno ore, non di piu',
+    fattori[2] < fattori[1] && fattori[1] < fattori[0],
+    'L-Ultimate ' + fattori[2].toFixed(2) + ' < L-eXtreme ' + fattori[1].toFixed(2) +
+    ' < L-eNhance ' + fattori[0].toFixed(2));
+}
+
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
 process.exit(ko ? 1 : 0);

@@ -358,17 +358,63 @@ H('I · I VINCOLI OPERATIVI RESTANO VINCOLI');
   if(pl2.ok){
     const perNotte=pl2.nights.map(n=>({d:n.dMagV,
       L:(n.blocks.find(b=>b.id==='L')||{}).h||0,
+      Lp:(n.blocks.find(b=>b.id==='L')||{}).projH||0,
       Ha:(n.blocks.find(b=>b.id==='Ha')||{}).h||0}));
     console.log('       dMagV / ore L / ore Ha per notte: '+
       perNotte.map(x=>F(x.d,1)+' → L '+F(x.L,1)+' Ha '+F(x.Ha,1)).join(' · '));
+    /* LA GRANDEZZA GIUSTA E' LA PROFONDITA DEPOSITATA, NON LE ORE DI OROLOGIO.
+
+       Questa verifica confrontava le ORE che la luminanza riceve nelle notti con
+       la Luna contro quelle senza, e chiedeva che fossero meno dove la Luna c'e'.
+       E' il proxy sbagliato, e si vede dalla definizione stessa del trasporto: le
+       righe si chiudono sulla PROFONDITA — somma di ore x resa — non sulle ore.
+       Sotto la Luna la stessa profondita' costa piu' ore di orologio, quindi un
+       canale presente su una notte lunare ne chiede legittimamente di piu'.
+
+       Lo scoperchiamento e' arrivato correggendo il riferimento dei filtri: la
+       luminanza ha cominciato a chiedere il 25% di ore in piu' (l'IDAS finalmente
+       prezzato), l'RGB della prima notte e' sceso sotto il minimo operativo e si e'
+       spento, e le sue ore sono andate alla L — che su quella notte rende 0.48. Le
+       ore della L sulla notte lunare sono salite da 2.20 a 3.38 e la verifica e'
+       caduta. Ma la PROFONDITA depositata era ed e' rimasta ordinata:
+       1.631 · 1.630 · 2.113 · 2.435 · 2.578 dalla notte peggiore alla migliore.
+
+       Due correzioni sono state provate sull'allocatore e MISURATE come peggiori:
+       accorciare la quota della colonna quando una casella si spegne rompe
+       l'invariante duro (19.87 h depositate contro 20.00 prescritte su NGC 6888),
+       e alzare l'inclinazione del trasporto peggiora sia il deposito (da 162/162 a
+       147/162 gia' a tilt 2) sia le inversioni sulla profondita' (da 1812 a 2896 su
+       12563 coppie). Il tilt attuale e' il migliore dei valori provati sulla
+       grandezza che conta. L'allocatore quindi non si tocca: si corregge il metro. */
+    const dep=perNotte.map(x=>({d:x.d,p:x.Lp}));
+    let inv=0, peggio=0;
+    for(let a=0;a<dep.length;a++) for(let b=a+1;b<dep.length;b++){
+      if(Math.abs(dep[a].d-dep[b].d)<1e-6) continue;
+      const buona=dep[a].d<dep[b].d?dep[a]:dep[b];      // dMagV piu' basso = meno Luna
+      const cattiva=dep[a].d<dep[b].d?dep[b]:dep[a];
+      /* Il trasporto e' iterativo — quaranta passate di Sinkhorn — quindi due
+         valori che il modello vuole uguali escono uguali a meno di qualche
+         millesimo. La tolleranza e' mezzo punto percentuale: sopra quella soglia
+         non e' rumore, e' un ordinamento sbagliato. */
+      const tol=Math.max(1e-3,0.005*buona.p);
+      if(cattiva.p>buona.p+tol){ inv++; peggio=Math.max(peggio,cattiva.p-buona.p); }
+    }
+    console.log('       profondita depositata in L per notte: '+
+      dep.map(x=>F(x.d,1)+' → '+F(x.p,3)).join(' · '));
+    chk('la profondita depositata in luminanza segue la Luna, non la contraddice',
+      inv===0, inv?inv+' inversioni, la peggiore '+F(peggio,3)+' h':
+      dep.length+' notti, ordinamento monotono');
+    chk('e la verifica discrimina: fra la notte peggiore e la migliore c e un fattore vero',
+      Math.max(...dep.map(x=>x.p))>Math.min(...dep.map(x=>x.p))*1.3,
+      'da '+F(Math.min(...dep.map(x=>x.p)),3)+' a '+F(Math.max(...dep.map(x=>x.p)),3)+' h');
+    /* Le ore di orologio restano stampate come contesto: e' il numero che l'utente
+       vede nel sequenziatore, e sapere che sale sotto la Luna e' utile. */
     const conLuna=perNotte.filter(x=>x.d>0.5), senza=perNotte.filter(x=>x.d<=0.5);
     if(conLuna.length&&senza.length){
       const qL=a=>a.reduce((s,x)=>s+x.L,0)/a.length;
-      chk('la luminanza si concentra dove la Luna non c e',
-        qL(senza)>=qL(conLuna)-1e-6,
-        'senza Luna '+F(qL(senza))+' h, con Luna '+F(qL(conLuna))+' h');
-    } else chk('la finestra di prova contiene notti con e senza Luna',true,
-      conLuna.length+' con Luna, '+senza.length+' senza — verifica non applicabile');
+      console.log('       ore di orologio in L: con Luna '+F(qL(conLuna))+
+        ' h · senza '+F(qL(senza))+' h — sotto la Luna la stessa profondita costa di piu');
+    }
   } else chk('il piano di controllo si costruisce',false,pl2.reason.code);
 }
 
@@ -484,7 +530,7 @@ H('IL RIFERIMENTO NON DIPENDE DA CHI LO INTERROGA');
     const ctxx = { DB: DBx, TG: TGx, CAT: CATx.objects, CITIES: CITx.cities, OWNED: OWNEDx,
       console, Math, Date, Object, JSON, isFinite, parseFloat, parseInt, Number, window: {} };
     const Mx = new Function(...Object.keys(ctxx), purex +
-      `return {refSubFor,derive,evaluate,prescribe,nightProfile,effFWHM};`)(...Object.values(ctxx));
+      `return {refSubFor,derive,evaluate,prescribe,nightProfile,effFWHM,timeFactor};`)(...Object.values(ctxx));
     return { rif: ['Ha', 'OIII', 'SII', 'L'].map(b => Mx.refSubFor(b)), M: Mx, OWNED: OWNEDx };
   };
   const RUOTE = [
@@ -526,15 +572,37 @@ H('IL RIFERIMENTO NON DIPENDE DA CHI LO INTERROGA');
   chk('cambiare ruota a sessione avviata non lascia il metro congelato',
     Math.abs(oA - oB) < 1e-6, 'scarto ' + F(Math.abs(oA - oB), 4) + ' h');
 
-  /* Il metro deve restare neutro su se stesso. */
-  const R = conRuota(DBx.default_filters);
-  const dvR = R.M.derive({ tel: DBx.reference_config.telescope, red: DBx.reference_config.reducer,
-                           cam: DBx.reference_config.camera, mnt: 'am5', bin: 1 });
-  chk('e la configurazione di riferimento vale ancora uno su se stessa',
-    ['Ha', 'OIII', 'SII', 'L'].every(b => {
-      const t = R.M.refSubFor(b);
-      return Math.abs(M.timeFactor(dvR, b, t) - 1) < 1e-9;
-    }));
+  /* IL METRO DEVE RESTARE NEUTRO SU SE STESSO — e «se stesso» comprende la ruota.
+
+     Questa verifica prima costruiva il modulo `R` con una ruota e poi chiamava
+     `M.timeFactor` del modulo ESTERNO: due motori diversi, e passava lo stesso
+     perche' il riferimento prendeva in prestito i filtri di chi lo interrogava,
+     quindi numeratore e denominatore si semplificavano comunque.
+
+     Adesso il denominatore sta sotto `reference_config.filters`, e l'identita' vale
+     nella sua forma vera: stessa ottica E stessa ruota del riferimento -> uno esatto
+     su ogni banda. Con una ruota diversa il fattore NON deve valere uno, ed e' il
+     punto: `default_filters` contiene un IDAS, e `filterFor` lo sceglie per la
+     luminanza al posto del `lum` del riferimento. Riprendere la L attraverso un
+     filtro anti-inquinamento costa il 25% di tempo in piu', e prima quel costo
+     spariva perche' anche il metro passava dall'IDAS. */
+  const RIF = conRuota(DBx.reference_config.filters);
+  const dvR = RIF.M.derive({ tel: DBx.reference_config.telescope, red: DBx.reference_config.reducer,
+                             cam: DBx.reference_config.camera, mnt: 'am5', bin: 1 });
+  const bandeRif = ['Ha', 'OIII', 'SII', 'L', 'R', 'G', 'B'];
+  chk('la configurazione di riferimento, con la ruota del riferimento, vale uno esatto',
+    bandeRif.every(b => Math.abs(RIF.M.timeFactor(dvR, b) - 1) < 1e-12),
+    bandeRif.map(b => b + ' ' + RIF.M.timeFactor(dvR, b).toFixed(6)).join(' · '));
+
+  const ALT = conRuota(DBx.default_filters);
+  const dvA = ALT.M.derive({ tel: DBx.reference_config.telescope, red: DBx.reference_config.reducer,
+                             cam: DBx.reference_config.camera, mnt: 'am5', bin: 1 });
+  chk('e la banda stretta resta uno anche con una ruota piu ricca: il metro non si muove',
+    ['Ha', 'OIII', 'SII'].every(b => Math.abs(ALT.M.timeFactor(dvA, b) - 1) < 1e-12),
+    ['Ha', 'OIII', 'SII'].map(b => b + ' ' + ALT.M.timeFactor(dvA, b).toFixed(6)).join(' · '));
+  chk('mentre la luminanza attraverso un IDAS costa piu del lum del riferimento',
+    ALT.M.timeFactor(dvA, 'L') > 1.05,
+    'L ' + ALT.M.timeFactor(dvA, 'L').toFixed(4) + ' contro 1.000000 del riferimento');
 }
 
 console.log('\n'+(ko?'\x1b[31m':'\x1b[32m')+ok+' verifiche superate, '+ko+' fallite\x1b[0m');

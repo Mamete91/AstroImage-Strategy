@@ -2133,22 +2133,40 @@ function cfaFraction(cam,band){
    chi guarda, non del riferimento. */
 let _refSub={};
 const resetRefSub=()=>{ _refSub={}; };
-function refSubFor(band){
-  if(_refSub[band]!=null) return _refSub[band];
-  const r=refCfg();
-  let v;
+
+/* SOTTO LA RUOTA DEL RIFERIMENTO, e non sotto la tua.
+
+   Tutto cio' che descrive il RIFERIMENTO va calcolato con i filtri che il
+   riferimento dichiara — `reference_config.filters`, narrowband 3 nm piu' LRGB —
+   e non con quelli che ha in mano chi sta guardando lo schermo. Vale per la posa
+   e vale, allo stesso modo, per i tassi: sono i due lati della stessa unita' di
+   misura.
+
+   Si azzera anche `USING`, perche' un riquadro spento e' uno stato di chi guarda,
+   non del riferimento. Il ripristino sta nel `finally`: se la funzione dentro
+   lancia, la ruota vera torna comunque al suo posto. */
+function conRuotaDiRiferimento(fn){
   const ruotaVera=OWNED.slice(), usoVero=(typeof USING!=='undefined')?USING:null;
   try{
     const rif=(DB.reference_config&&DB.reference_config.filters)||DB.default_filters||[];
     OWNED.length=0; rif.forEach(x=>OWNED.push(x));
     if(typeof USING!=='undefined') USING=null;
-    const st={sqm:r.sqm,seeing:SEEING_RIF,rms:RMS_RIF,fwhm:FWHM_RIF};
-    v=subExposure(r.dv,st,band,{hours:8,noStrategy:true}).sec;
-  }catch(e){ v=TSUB_NOMINAL(band); }
+    return fn();
+  }
   finally{
     OWNED.length=0; ruotaVera.forEach(x=>OWNED.push(x));
     if(typeof USING!=='undefined') USING=usoVero;
   }
+}
+function refSubFor(band){
+  if(_refSub[band]!=null) return _refSub[band];
+  const r=refCfg();
+  let v;
+  try{
+    v=conRuotaDiRiferimento(()=>subExposure(r.dv,
+        {sqm:r.sqm,seeing:SEEING_RIF,rms:RMS_RIF,fwhm:FWHM_RIF},
+        band,{hours:8,noStrategy:true}).sec);
+  }catch(e){ v=TSUB_NOMINAL(band); }
   return (_refSub[band]=v||TSUB_NOMINAL(band));
 }
 
@@ -2166,7 +2184,26 @@ function timeFactor(dv, band, tsub, sFot){
      `TSUB_NOMINAL` al numeratore e `refSubFor` al denominatore, il setup di
      riferimento non valeva piu' 1.000 su se stesso — 180 s contro 60 in luminanza. */
   const tr=refSubFor(band), ts=tsub||tr;
-  const a=rates(dv,band,sqm), b=rates(r.dv,band,sqm);
+  /* IL DENOMINATORE ANDAVA SOTTO LA RUOTA DEL RIFERIMENTO, e non ci andava.
+
+     `refSubFor` era stato scritto apposta per togliere il riferimento dalla ruota
+     di chi guarda — «un riferimento che dipende da chi lo interroga non e' un
+     riferimento» — ma la correzione si era fermata alla posa. I TASSI, che sono il
+     denominatore vero del fattore, continuavano a passare da `bandSpec`, che il
+     filtro lo sceglie fra quelli POSSEDUTI.
+
+     Misurato su banda Ha, camera a colori, stessa scheda e stesso cielo: con la
+     ruota dichiarata il riferimento usa ha3 e il suo fondo cielo vale 0.007453;
+     con un L-eNhance in ruota il riferimento passava a lenh e il fondo saliva a
+     0.024292, cioe' 3.26 volte, e il fattore scendeva da 11.77 a 6.21. Lo scarto
+     fra le ruote del catalogo arrivava all'89.6% sullo stesso numero.
+
+     La conseguenza era una decisione rovesciata: su NGC 6888 a 20 h il dual PIU'
+     LARGO risultava il piu' economico — L-eNhance 14.28 h «pieno», L-eXtreme
+     16.68 h «pieno», L-Ultimate 24.34 h «ridotto» — cioe' il filtro migliore
+     sembrava il piu' costoso, perche' ognuno veniva misurato con un metro fatto
+     con se stesso. */
+  const a=rates(dv,band,sqm), b=conRuotaDiRiferimento(()=>rates(r.dv,band,sqm));
   /* sFot e' la brillanza superficiale dell'oggetto in fotoni/s/cm²/arcsec². Quando
      lo strato fotometrico per oggetto la fornira', il termine di segnale entra nella
      varianza e la forma diventa esatta; finche' manca vale zero — limite debole —
