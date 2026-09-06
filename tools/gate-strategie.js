@@ -24,6 +24,8 @@
    di orologio vale 1/(eff·duty)² = 1/merit², dove `merit` e' calcolato da sempre e
    contiene sia il rumore di lettura sia scarichi e assestamenti.               */
 
+const fs = require('fs'), path = require('path');
+const ROOT = path.join(__dirname, '..');
 const { M, DB, TG, CAT } = require('./lib/engine.js');
 
 let ok = 0, ko = 0;
@@ -405,7 +407,27 @@ H('I · LA STRATEGIA NON TOCCA CHE COSA RIPRENDI');
      toglieva qualche punto percentuale e il motore ripiegava su una strada piu'
      economica. Ora quella capacita' si misura sempre sulla posa di Resa.
 
-     Qui si verifica l'invariante a tappeto, riproducendo la catena della UI. */
+     Qui si verifica l'invariante a tappeto, riproducendo la catena della UI.
+
+     ATTENZIONE, e' il punto debole di questa verifica: la catena qui sotto fissa
+     `strategy:'resa'` di proprio pugno. Se qualcuno togliesse quella scelta
+     dall'app, la simulazione continuerebbe a passarla e il gate resterebbe verde
+     mentre il difetto e' tornato. La riga del sorgente va quindi controllata per
+     quello che dice davvero, non riprodotta a memoria. */
+  {
+    const src = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    const i = src.indexOf('RXCAP=vivi.length');
+    const blocco = i > 0 ? src.slice(Math.max(0, i - 900), i) : '';
+    const usa = /expo0\s*=\s*exposurePlan\([\s\S]*?strategy:\s*'resa'/.test(blocco);
+    chk('l app misura la capacita sulla posa di RESA, non su quella scelta', usa,
+      i > 0 ? (usa ? "strategy:'resa' fissato nel sorgente"
+                   : 'LA RETROAZIONE E TORNATA: RXCAP usa la posa della strategia scelta')
+            : 'blocco RXCAP non trovato');
+    const dopo = i > 0 ? src.slice(i, i + 600) : '';
+    chk('e ridimensiona la prescrizione proprio con quella capacita',
+      /prescribe\(e\s*,\s*RXCAP\s*,/.test(dopo));
+  }
+
   const CFG = [
     ['RC8+2600MM', { tel: 'rc8', red: '1', cam: 'asi2600mm', mnt: 'cem70g', bin: 1 }],
     ['Tecno+2600MM', { tel: 'tecnosky115', red: 0.80, cam: 'asi2600mm', mnt: 'am5', bin: 1 }],

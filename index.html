@@ -372,6 +372,21 @@ label.f > input, label.f > select{text-transform:none;font-size:14px;letter-spac
 .sc-s{margin-top:6px;font-size:10.5px;color:var(--dim2);line-height:1.35}
 @media (max-width:560px){ .sc-n{font-size:18px} .stratcard{padding:9px 11px} }
 
+/* I riquadri dei filtri sono interruttori: quello spento resta leggibile — devi
+   poterlo ritrovare per riaccenderlo — ma e' inequivocabilmente fuori uso. */
+button.fchip{cursor:pointer;font:inherit;font-size:11px;font-weight:700;
+  min-height:26px;padding:4px 11px;transition:opacity .15s,filter .15s}
+/* Col dito il bersaglio va preso alla prima: sul telefono il riquadro cresce fino
+   ai 40 px raccomandati, invece dei 26 che bastano al mouse. */
+@media (hover:none),(max-width:560px){
+  button.fchip{min-height:40px;padding:10px 15px;font-size:12px}
+}
+button.fchip:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+button.fchip:hover{filter:brightness(1.25)}
+button.fchip.off{opacity:.34;filter:grayscale(1);text-decoration:line-through;
+  text-decoration-thickness:1.5px}
+button.fchip.off:hover{opacity:.6;filter:grayscale(.4)}
+
 /* Il filtro sotto il canale: quale pezzo di vetro produce quei dati. */
 .fbox{margin-top:7px;display:flex;flex-direction:column;gap:3px}
 .fline{font-size:11px;line-height:1.45;color:var(--dim)}
@@ -2520,13 +2535,50 @@ function prescribe(e,hours,dv,panels){
     coppiaImposta=true;
   }
   const cand=candF;
-  const byIdeal=cand.slice().sort((a,b)=>b.ideal-a.ideal);
+  /* UN CRITERIO SOLO: la strada piu' ricca che riesci a COMPLETARE.
 
-  let chosen=null;
-  for(const c of byIdeal) if(hours>=c.ideal-1e-9){ chosen=c; break; }
-  if(!chosen) for(const c of byIdeal) if(hours>=c.acc-1e-9){ chosen=c; break; }
-  if(!chosen) for(const c of byIdeal) if(hours>=c.floor-1e-9){ chosen=c; break; }
-  if(!chosen) chosen=cand.slice().sort((a,b)=>a.floor-b.floor)[0];
+     Qui c'erano TRE passate in sequenza — la piu' ricca che completi, poi la piu'
+     ricca il cui livello accessibile entra, poi la piu' ricca il cui pavimento
+     entra — e ognuna scandiva l'elenco ordinato per ricchezza. Ogni passata presa
+     da sola e' monotona; il salto FRA passate no, perche' `ideal > acc` e quindi
+     quando la prima comincia a scattare vince una strada piu' POVERA di quella che
+     stava vincendo con la seconda. Ne uscivano rimbalzi veri:
+
+       M31   4.5 h  passata 2 -> lrgb_ha (ideale 8.2)
+             5.0 h  passata 1 -> lrgb    (ideale 4.9)   mezz'ora in piu', un canale in meno
+             8.5 h  passata 1 -> lrgb_ha (ideale 8.2)
+
+     Su 3 configurazioni x 13 bersagli x 119 passi di mezz'ora: 9 cali di ricchezza
+     e 17 ritorni a una strada gia' abbandonata.
+
+     LA SOSTITUZIONE E' MONOTONA PER COSTRUZIONE, non per memoria: l'insieme delle
+     strade completabili cresce con le ore e non si restringe mai, e si prende
+     sempre il massimo di un insieme che cresce. Nessun confronto con la scelta
+     precedente, nessuno stato: la monotonia esce dal criterio.
+
+     PERCHE' «COMPLETARE» E NON «ACCESSIBILE». Le schede dicono a parole quando una
+     strada ha senso, e quel numero sta vicino all'ideale:
+
+       NGC 6888  sho  ideale 20.0  accessibile 11.8   scheda: «sopra le 18h»
+       NGC 7635  sho  ideale 16.0  accessibile  9.1   scheda: «sopra le 12h»
+       M27       sho  ideale 19.4  accessibile 10.7   scheda: «sopra le 15h»
+       Velo      sho  ideale 17.5  accessibile  9.5   scheda: «sopra le 20h»
+       NGC 7000  sho  ideale 25.5  accessibile 16.3   scheda: «sopra le 30h reali»
+
+     Sbloccare sull'accessibile avrebbe aperto la SHO a nove-dodici ore dove chi ha
+     scritto la scheda ne chiede quindici o trenta. La fisica non cambia — cambia
+     solo QUALE strada si sceglie, e le ore restano il criterio.
+
+     E sotto la strada piu' economica non si resta senza niente: si prende quella,
+     fatta con le ore che ci sono. E' la stessa regola del «non ci sta» e del «non
+     si puo' pianificare» — la prescrizione si da' sempre, la profondita' si
+     dichiara. */
+  const perRicchezza=(a,b)=>(b.ideal-a.ideal)||(a.i-b.i);
+  cand.forEach((c,i)=>{ if(c.i==null) c.i=i; });
+  const completabili=cand.filter(c=>hours>=c.ideal-1e-9);
+  const chosen=completabili.length
+    ? completabili.slice().sort(perRicchezza)[0]
+    : cand.slice().sort((a,b)=>(a.ideal-b.ideal)||(a.i-b.i))[0];
 
   /* Il canale per le sole stelle senza filtro cade qui, prima del riempimento:
      non ha senso assegnargli ore, e la strada resta valida senza. */
@@ -2538,6 +2590,13 @@ function prescribe(e,hours,dv,panels){
      motivo per cui quattro casi su otto non davano nessun avviso. E che cosa si
      aprirebbe avendolo: e' l'informazione utile, non il rimprovero. */
   const missing=mancantiDi(chosen);
+  /* «Non ce l'hai» e «l'hai spento tu» non sono la stessa cosa, e il messaggio non
+     deve confonderle: nel secondo caso la cura e' un clic, non un acquisto. */
+  const spente=missing.filter(b=>{
+    if(b==='RGB') return ['R','G','B'].every(x=>DB.filters.some(f=>OWNED.indexOf(f.id)>=0&&
+      (f.band===x||(f.bands||[]).indexOf(x)>=0)));
+    return DB.filters.some(f=>OWNED.indexOf(f.id)>=0&&(f.band===b||(f.bands||[]).indexOf(b)>=0));
+  });
   const bloccate=cand0.filter(x=>mancantiDi(x).length>0)
     .map(x=>({road:x.r.id,name:x.r.name,needs:mancantiDi(x)}));
 
@@ -2614,7 +2673,22 @@ function prescribe(e,hours,dv,panels){
   for(const g of alloc){
     let f=null;
     try{ const sp=bandSpec(g.id,dv.c); f=sp&&sp.filter?sp.filter:null; }catch(err){}
-    if(f&&f.id!=='__none'){ g.filterName=f.name; g.filterDual=!!f.dual; g.filterFwhm=f.fwhm_nm; }
+    /* Anche «nessun vetro davanti» e' una risposta, e su un sensore a colori e'
+       quella normale: il colore lo fa la matrice, il filtro anti-inquinamento e'
+       facoltativo. Tacere lasciava il canale senza riga, come se non si sapesse
+       con che cosa lo si riprende. */
+    if(f){
+      g.filterName=f.id==='__none' ? 'la matrice di Bayer, nessun filtro davanti' : f.name;
+      g.filterDual=!!f.dual; g.filterFwhm=f.fwhm_nm;
+    }
+    /* Su monocromatica l'RGB non e' un filtro: sono tre, che girano in sequenza
+       nella ruota. Il motore lo sa gia' — divide le ore fra i tre e ne pesa le
+       larghezze — ma la riga mostrava il solo verde, procura di comodo che qui
+       leggeva come se il rosso e il blu non servissero. */
+    if(g.id==='RGB' && dv.c && !dv.c.cfa_penalty){
+      const tre=['R','G','B'].map(b=>{ try{ const x=filterFor(b,dv.c); return x&&x.id!=='__none'?x.name:null; }catch(e){ return null; } });
+      if(tre.every(Boolean)) g.filterName=tre.join(' + ')+', in sequenza';
+    }
   }
   const spent=alloc.reduce((a,g)=>a+g.hours,0);
   const needed=critDropped?critG.floor:0;
@@ -2642,6 +2716,8 @@ function prescribe(e,hours,dv,panels){
              e' stata ristretta dai filtri e non dalle ore; `blocked` elenca che
              cosa si aprirebbe comprando che cosa. */
           missing,filterLimited,blocked:bloccate,starsDropped,
+          /* Le bande che mancano perche' le hai SPENTE, non perche' non le hai. */
+          missingOff:spente,
           /* Vero quando una strada a riga singola e' stata scartata perche' con il
              tuo dual-band sarebbe la stessa ripresa della strada accoppiata. */
           coppiaImposta,
@@ -4529,8 +4605,37 @@ function moonPenalty(band, dMagV, fwhm, stellar, xLP){
    Non e' un dettaglio d'inventario: senza un SII non esiste una strada SHO, e fra
    un 3 nm e un 7 nm passa piu' del doppio di inquinamento luminoso e di Luna. */
 const BB_BANDS=['L','R','G','B','RGB'];
-const ownedFilters=()=>DB.filters.filter(f=>OWNED.includes(f.id));
+/* QUELLO CHE HAI IN RUOTA, E QUELLO CHE USI STANOTTE. Due cose diverse.
+
+   `OWNED` e' l'attrezzatura: sta nella pagina Filtri, cambia quando compri o vendi
+   un filtro. `USING` e' la scelta di questo progetto — «stanotte HOO, il SII resta
+   nel cassetto» — e vive nei riquadri della home.
+
+   Tenerle distinte non e' pedanteria: spegnere il SII dal riepilogo non deve
+   cancellarlo dalla ruota, o dovresti riabilitarlo dalla pagina Filtri ogni volta.
+   E dire «non lo uso» e' vero, mentre dire «non ce l'ho» sarebbe falso.
+
+   `USING` vuoto significa «uso tutto quello che ho»: e' lo stato di partenza e
+   quello a cui si torna, e non va confuso con «non uso niente». */
+let USING=null;                       // null = tutte le bande possedute
+const bandeUsate=()=>USING;
+/* «RGB» non e' una banda in ruota: e' il gruppo dei tre filtri colore, e nei
+   riquadri compaiono R, G e B separati. Chiederlo per nome a `USING` non lo
+   trovava mai, e il colore delle stelle cadeva ogni volta che spegnevi qualunque
+   altra banda. Il gruppo e' in uso quando lo sono tutti e tre i suoi membri. */
+const usaBanda=b=>{
+  if(!USING) return true;
+  if(b==='RGB') return USING.indexOf('RGB')>=0 || ['R','G','B'].every(x=>USING.indexOf(x)>=0);
+  return USING.indexOf(b)>=0;
+};
+const ownedFilters=()=>DB.filters.filter(f=>OWNED.includes(f.id)&&
+  (f.bands||[f.band]).some(b=>usaBanda(b)));
 function filterFor(band,cam){
+  /* Una banda spenta non ha filtro, esattamente come una banda che non possiedi:
+     da qui in poi tutto il motore — strade ammissibili, posa, Luna, budget — la
+     tratta come assente, e le regole gia' scritte sui corredi parziali valgono
+     senza una riga in piu'. */
+  if(!usaBanda(band)) return null;
   const isBB=BB_BANDS.includes(band);
   if(cam.cfa_penalty&&isBB){
     // su sensore a colori la matrice di Bayer fa gia' da RGB: basta non avere filtri
@@ -5054,6 +5159,8 @@ function start(){
 
   loadGear(); loadReducers(); loadUserFilters(); UTGT=loadUserTargets();
   OWNED=loadOwned()||(DB.default_filters||[]).slice();
+  try{ const u=JSON.parse(localStorage.getItem('ap_using')||'null');
+       USING=(Array.isArray(u)&&u.length)?u:null; }catch(e){ USING=null; }
   $('bortle').innerHTML=BORTLE.map(b=>`<option value="${b.sqm}">${esc(b.label)}</option>`).join('')
     +`<option value="__custom">personalizzato</option>`;
   $('bortle').addEventListener('change',()=>{
@@ -6850,6 +6957,69 @@ function apriVista(t){
   },260);
 }
 
+/* L'interruttore. `USING` parte da null — «uso tutto» — e diventa una lista solo
+   quando spegni qualcosa. Le bande di un dual-band viaggiano insieme, perche'
+   insieme arrivano. Lo stato si ricorda, come il sito e la configurazione. */
+/* LE BANDE CHE HANNO SENSO PER QUESTA CAMERA, non tutte quelle in ruota.
+
+   Davanti a un sensore a colori non si mette un filtro rosso: il colore lo fa la
+   matrice di Bayer, e la banda larga e' UNA scelta sola — la si prende o no. I
+   riquadri R, G e B separati appartengono al monocromatico, dove i tre filtri
+   girano in sequenza nella ruota e sono davvero tre decisioni.
+
+   L'elenco si ricava quindi dalla camera e dalla ruota insieme, e non da una lista
+   fissa: una banda compare se, con quella camera, il motore avrebbe davvero un
+   filtro da usarci. E' la stessa domanda che si fa `filterFor`, posta ignorando lo
+   stato acceso/spento — altrimenti spegnere un riquadro lo farebbe sparire. */
+function bandePossedute(cam){
+  const c=cam||(()=>{try{return derive(CFG).c}catch(e){return null}})();
+  const prima=USING; USING=null;                 // la domanda e' «esiste», non «lo uso»
+  try{
+    const cand=c&&c.cfa_penalty ? ['Ha','OIII','SII','RGB']
+                                : ['Ha','OIII','SII','L','R','G','B'];
+    const out=[];
+    for(const b of cand){
+      let f=null; try{ f=c?filterFor(b,c):null; }catch(e){}
+      /* `__none` non e' un'assenza: e' la risposta «il colore lo fa gia' la matrice
+         di Bayer». Su un sensore a colori si riprende in RGB anche a ruota vuota, e
+         il filtro anti-inquinamento — LPS, L-Pro, CLS, UV/IR — quando c'e' migliora
+         quelle stesse pose, non ne apre di nuove. Scartare `__none` faceva sparire
+         il riquadro RGB a chi ha in ruota soltanto un dual-band. */
+      if(f) out.push(b);
+    }
+    if(out.length) return out;
+    /* Nessuna camera nota: si elencano le bande dei filtri in ruota. */
+    const g=[];
+    for(const f of DB.filters){ if(OWNED.indexOf(f.id)<0) continue;
+      for(const b of (f.bands||[f.band])) if(b&&g.indexOf(b)<0) g.push(b); }
+    return g;
+  } finally { USING=prima; }
+}
+function toggleBanda(b){
+  const dvT=(()=>{try{return derive(CFG)}catch(e){return null}})();
+  const tutte=bandePossedute(dvT?dvT.c:null);
+  let cur=USING?USING.filter(x=>tutte.indexOf(x)>=0):tutte.slice();
+  const dual=dvT?dualPass(dvT.c):null;
+  /* La coppia di un dual-band non si separa: si spegne e si accende intera. */
+  const gruppo=(dual&&(dual.bands||[]).indexOf(b)>=0)?dual.bands.slice():[b];
+  const spegnere=cur.indexOf(b)>=0;
+  for(const x of gruppo){
+    const i=cur.indexOf(x);
+    if(spegnere){ if(i>=0) cur.splice(i,1); }
+    else if(i<0) cur.push(x);
+  }
+  /* Spegnere tutto non e' uno stato utile: l'ultima banda accesa non si spegne. */
+  if(!cur.length) return;
+  USING=cur.length===tutte.length?null:cur;
+  try{ localStorage.setItem('ap_using',JSON.stringify(USING)); }catch(e){}
+  refresh();
+}
+function resetBande(){
+  USING=null;
+  try{ localStorage.removeItem('ap_using'); }catch(e){}
+  refresh();
+}
+
 let RXCOV=null;                   // l'ultima copertura risolta: soggetto e progetto
 let RXNIGHT=null;                 // la notte risolta: la usano barra, scheda e piano
 let RXPR=null, RXDV=null;         // ultima prescrizione e ultima catena derivata.
@@ -7032,12 +7202,23 @@ function renderRx(np){
        impossibile nessuna strada e' percorribile: qui il filtro serve davvero, e
                    si dice quale. La prescrizione resta comunque, perche' e' cio'
                    che il soggetto chiede e sapere quanto costa e' informazione. */
-  const filtNote = pr.missing && pr.missing.length
-    ? `<div class="rx-warn bad"><b>Per questo oggetto ti serve un filtro ${esc(pr.missing.join(' e '))}.</b>
+  /* «Spento da te» e «non posseduto» chiedono due rimedi diversi — un clic o un
+     acquisto — e il messaggio non deve confonderli. `missingOff` porta le bande che
+     hai in ruota ma hai deciso di non usare. */
+  const off = (pr.missingOff||[]).filter(b=>(pr.missing||[]).indexOf(b)>=0);
+  const nonHai = (pr.missing||[]).filter(b=>off.indexOf(b)<0);
+  const filtNote = off.length && !nonHai.length
+    ? `<div class="rx-warn"><b>Hai spento ${esc(off.join(' e '))}, e ogni tecnica di questo
+        oggetto ${off.length>1?'li richiede':'lo richiede'}.</b> La prescrizione qui sotto e' quella
+        completa: serve a vedere che cosa comporterebbe. Per riprenderla davvero riaccendi
+        ${off.length>1?'quei riquadri':'quel riquadro'} in <b>Filtri selezionati</b>, qui a fianco.</div>`
+    : pr.missing && pr.missing.length
+    ? `<div class="rx-warn bad"><b>Per questo oggetto ti serve un filtro ${esc(nonHai.concat(off).join(' e '))}.</b>
         Ogni tecnica che la scheda prevede lo richiede: non e' una questione di ore.
         La prescrizione qui sotto e' quella completa — serve a sapere che cosa
         comporterebbe — ma con la ruota di adesso ${pr.missing.length>1?'quei canali':'quel canale'}
-        non ${pr.missing.length>1?'sono':'e'} riprendibil${pr.missing.length>1?'i':'e'}.
+        non ${pr.missing.length>1?'sono':'e'} riprendibil${pr.missing.length>1?'i':'e'}.${
+        off.length?` (${esc(off.join(' e '))} ce l'hai ma ${off.length>1?'sono spenti':'e spento'}.)`:''}
         Se il filtro ce l'hai e non l'ho registrato, aggiungilo da <b>Filtri</b>.</div>`
     : (pr.filterLimited&&pr.blocked&&pr.blocked.length
       ? `<div class="rx-warn"><b>Strategia scelta sui filtri che hai.</b>
@@ -8554,6 +8735,12 @@ const sumBlock=(k,v,n)=>`<div class="sumb"><div class="sumk">${k}</div>`+
   `<div class="sumv">${v}</div>${n?`<div class="sumn">${n}</div>`:''}</div>`;
 const KNOWN_BAND=['Ha','OIII','SII','L','RGB','R','G','B'];
 const fchip=b=>`<span class="fchip fc-${KNOWN_BAND.indexOf(b)>=0?b:'def'}">${esc(b)}</span>`;
+/* Lo stesso riquadro, ma acceso o spento e cliccabile. Non e' un pannello nuovo:
+   e' quello che c'era, con dentro un <button> vero — tab, Invio, Spazio,
+   `aria-pressed`, e un'area toccabile che su telefono resta sopra i 44 px. */
+const fchipToggle=(b,on,tip)=>`<button type="button" class="fchip fc-${
+  KNOWN_BAND.indexOf(b)>=0?b:'def'}${on?'':' off'}" aria-pressed="${on?'true':'false'}"
+  onclick="toggleBanda(${jsAttr(b)})" data-tip="${esc(tip)}">${esc(b)}</button>`;
 const sumDay=d=>{ try{ return d.toLocaleDateString('it-IT',
   {weekday:'short',day:'numeric',month:'short'}); }catch(e){ return d.toDateString(); } };
 
@@ -8620,14 +8807,41 @@ function renderSummary(){
     h+=sumBlock('Strumentazione',SUM_DASH);
   }
 
-  /* --- i filtri posseduti: lettura della lista, nessun calcolo --- */
+  /* --- I FILTRI: non piu' una lista, una scelta ---
+
+     I riquadri erano una vetrina; adesso sono interruttori. Spegnerne uno non
+     toglie il filtro dalla ruota — quella e' la pagina Filtri — dice che stanotte
+     non lo usi, e da li' in poi il motore lo tratta come assente: le strade che lo
+     richiedono escono dalle candidate, con tutte le regole gia' scritte sui corredi
+     parziali che valgono senza una riga in piu'.
+
+     LE BANDE DI UN DUAL-BAND SI ACCENDONO INSIEME, e lo dice il riquadro: con un
+     L-Ultimate davanti Ha e OIII arrivano nella stessa posa, e spegnerne una sola
+     descriverebbe una ripresa che non esiste. E' la stessa fisica per cui la coppia
+     non si spezza nella scelta della strada. */
   const own=DB&&DB.filters?DB.filters.filter(f=>OWNED.indexOf(f.id)>=0):[];
-  const bands=[];
-  own.forEach(f=>{ (f.bands||[f.band]).forEach(b=>{ if(b&&bands.indexOf(b)<0) bands.push(b); }); });
+  const camF=dv?dv.c:null;
+  /* Le bande che questa camera puo' davvero usare: su un sensore a colori la banda
+     larga e' una sola voce, perche' il colore lo fa la matrice. */
+  const bands=own.length?bandePossedute(camF):[];
+  const dualF=camF?dualPass(camF):null;
+  const legate=dualF?(dualF.bands||[]).filter(b=>bands.indexOf(b)>=0):[];
+  const nOn=bands.filter(b=>usaBanda(b)).length;
+  const tipDi=b=>{
+    const on=usaBanda(b);
+    const coppia=legate.indexOf(b)>=0&&legate.length>1;
+    return (on?'In uso. Clicca per non usarlo su questo progetto: le tecniche che lo richiedono usciranno dalle possibili.'
+              :'Spento. Clicca per rimetterlo in uso.')+
+      (coppia?' Con il '+dualF.name+' davanti a una camera a colori, '+legate.join(' e ')+
+              ' arrivano nella stessa posa: si accendono e si spengono insieme.':'')+
+      ' Il filtro resta comunque nella tua ruota — quella si cambia da Filtri.';
+  };
   h+=sumBlock('Filtri selezionati',
-    own.length?`<div class="sumchips">${bands.map(fchip).join('')}</div>`:SUM_DASH,
-    own.length?`${own.length} filtri in ruota`
-              :'Senza filtri il motore non sa quali tecniche siano possibili.');
+    own.length?`<div class="sumchips">${bands.map(b=>fchipToggle(b,usaBanda(b),tipDi(b))).join('')}</div>`:SUM_DASH,
+    own.length?`${nOn===bands.length?'tutte in uso'
+        :`<b>${nOn}</b> bande su ${bands.length} in uso`} &middot; ${own.length} filtri in ruota`+
+      (nOn<bands.length?` &middot; <a href="#" onclick="resetBande();return false">usale tutte</a>`:'')
+      :'Senza filtri il motore non sa quali tecniche siano possibili.');
 
   /* --- il cielo --- */
   if(SITE){
