@@ -5584,7 +5584,29 @@ function evaluate(tg,dv,site,np,state,cov){
   }
 
   // punteggio 0-100 — "resa attesa stanotte"
-  const sWin  = clamp(critHeff/5,0,1);        // la Luna e' gia' dentro
+  /* LA FINESTRA PAGA LA LUNA, NON DUE VOLTE ANCHE I LAMPIONI.
+
+     Qui c'era `critHeff = critH x skyF`, e `skyF` contiene TUTTI E DUE i contributi
+     al fondo: l'inquinamento luminoso e la Luna. Ma l'inquinamento e' gia' dentro il
+     budget — `lpPenalty` gonfia le ore utili di ogni banda, riga 5391 — e da li'
+     arriva alle settimane e quindi a `sFeas`. Lo stesso fatto fisico finiva percio'
+     in DUE dei cinque termini del punteggio, con peso 0.26 + 0.34 = 0.60.
+
+     Il calendario invece paga una volta sola e lo dichiara: `perNight` usa le ore
+     grezze «perche' il cielo e' gia' dentro il budget». Era il punteggio a non
+     essersi accorto della stessa cosa.
+
+     MISURATO, da SQM 21.3 a 17.8, su 8 dei 13 bersagli l'IL muoveva entrambi i
+     termini. M31: 73 -> 28, di cui 24.4 punti da `sWin` e 20.4 da `sFeas`. E non
+     cambiava solo la scala: cambiava l'ORDINE con cui i bersagli vengono proposti —
+     8 inversioni di coppia a SQM 20.0, fino a 24 punti di scarto, con scambio in
+     testa fra NGC 6888 e NGC 7635.
+
+     `moonF` e' esattamente il pezzo che serve: il costo MARGINALE della Luna dato
+     quel cielo, `(1+x_IL)/(1+x_IL+x_Luna)`. La Luna resta contata qui — e' giusto,
+     e' transitoria e non entra nel budget — l'inquinamento no, perche' e' gia'
+     pagato dove si decidono le ore. */
+  const sWin  = clamp(critH*moonF/5,0,1);     // la Luna sì, i lampioni li paga il budget
   /* IL TERMINE DI INQUADRATURA, E PERCHE' DIPENDE DALLA MODALITA'.
 
      `framing()` da' un giudizio estetico: il soggetto rende quando riempie fra

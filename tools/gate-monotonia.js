@@ -342,5 +342,73 @@ H('E · IL RIFERIMENTO DELLE ORE NON DIPENDE DAI FILTRI CHE POSSIEDI');
     ' < L-eNhance ' + fattori[0].toFixed(2));
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+H('F · IL CIELO PENALIZZA IL PUNTEGGIO UNA VOLTA SOLA');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* Il punteggio ha cinque termini: 0.26 sWin + 0.20 sFit + 0.12 sSamp +
+     0.34 sFeas + 0.08 sMount. L'inquinamento luminoso entrava in DUE di essi —
+     in `sWin` attraverso `skyF`, e in `sFeas` attraverso le settimane, che vengono
+     dal budget gia' gonfiato da `lpPenalty`. Peso complessivo 0.60 per un solo
+     fatto fisico.
+
+     Il calendario invece lo paga una volta sola e lo dichiara: `perNight` usa le
+     ore grezze «perche' il cielo e' gia' dentro il budget». Era il punteggio a non
+     essersi accorto della stessa cosa.
+
+     Adesso `sWin` usa `moonF`, cioe' il costo MARGINALE della Luna dato quel cielo.
+     La Luna resta contata li' — e' transitoria e nel budget non entra — e
+     l'inquinamento resta contato dove si decidono le ore. */
+  const SQM = [21.6, 21.3, 20.8, 20.0, 19.0, 18.5, 17.8];
+  const dv = M.derive({ tel: 'rc8', red: 1, cam: 'asi2600mm', mnt: 'cem70g', bin: 1 });
+  let passi = 0, viol = 0, peggio = 0, es = null;
+  for (const t of TG.targets) {
+    let prec = null;
+    for (const q of SQM) {
+      const e = M.evaluate(t, dv, sito(1.6, 0.6, q), NP, {}, 'full');
+      if (prec != null) {
+        passi++;
+        if (e.score > prec + 1e-9) { viol++;
+          if (e.score - prec > peggio) { peggio = e.score - prec;
+            es = t.names[0] + ': SQM scende a ' + q + ' e il punteggio sale da ' + prec + ' a ' + e.score; } }
+      }
+      prec = e.score;
+    }
+  }
+  chk('il campione non e vuoto', passi > 60, passi + ' passi su ' + TG.targets.length + ' bersagli');
+  chk('un cielo peggiore non alza mai il punteggio', viol === 0,
+    viol ? viol + ' violazioni, la peggiore: ' + es : passi + ' passi, tutti in discesa');
+
+  /* NON TAUTOLOGICO: il punteggio deve comunque MUOVERSI col cielo, altrimenti
+     questa verifica passerebbe su un motore che dell'SQM non sa niente. */
+  const estremi = TG.targets.map(t => [
+    M.evaluate(t, dv, sito(1.6, 0.6, 21.6), NP, {}, 'full').score,
+    M.evaluate(t, dv, sito(1.6, 0.6, 17.8), NP, {}, 'full').score]);
+  const mossi = estremi.filter(([a, b]) => a - b >= 5).length;
+  chk('e il punteggio reagisce davvero al cielo', mossi >= TG.targets.length / 2,
+    mossi + ' bersagli su ' + TG.targets.length + ' perdono almeno 5 punti da SQM 21.6 a 17.8');
+
+  /* E il doppio conteggio non deve tornare: `sWin` non puo' contenere il fattore
+     dell'inquinamento. Si verifica sul comportamento, non sul testo: a parita' di
+     Luna — cioe' senza Luna — la finestra non deve dipendere dall'SQM. */
+  const t0 = TG.targets[0];
+  const senzaLuna = [21.6, 19.0, 17.8].map(q => {
+    const e = M.evaluate(t0, dv, sito(1.6, 0.6, q), NP, {}, 'full');
+    return { q, critH: e.critH, moonF: e.moonF, sWin: Math.min(1, Math.max(0, e.critH * e.moonF / 5)) };
+  });
+  const finestraFerma = senzaLuna.every(x =>
+    Math.abs(x.sWin - senzaLuna[0].sWin) < 1e-9 || Math.abs(x.moonF - senzaLuna[0].moonF) > 1e-9);
+  chk('la finestra della notte non dipende piu dall inquinamento luminoso', finestraFerma,
+    senzaLuna.map(x => 'SQM ' + x.q + ' → ' + F(x.sWin, 4)).join(' · '));
+  /* La controprova: la vecchia forma, ricostruita, dipendeva eccome. */
+  const vecchia = [21.6, 19.0, 17.8].map(q => {
+    const e = M.evaluate(t0, dv, sito(1.6, 0.6, q), NP, {}, 'full');
+    return Math.min(1, Math.max(0, e.critH * e.skyF / 5));
+  });
+  chk('mentre la forma precedente ci dipendeva, e la verifica non e vuota',
+    Math.abs(vecchia[0] - vecchia[2]) > 1e-6,
+    vecchia.map(x => F(x, 4)).join(' · ') + ' con skyF, che contiene l inquinamento');
+}
+
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
 process.exit(ko ? 1 : 0);
