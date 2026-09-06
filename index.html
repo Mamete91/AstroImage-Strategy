@@ -27,6 +27,13 @@
   --ok:#3fb950; --warn:#d29922; --bad:#f85149;
   --acc:#3b82f6; --acc-rgb:59,130,246;
   --acc2:#38bdf8; --acc2-rgb:56,189,248;
+  /* IL TASTO CHE AVVIA TUTTO HA UN COLORE SUO, e non e' l'accento.
+     Ogni altro tasto pieno dell'app e' blu: se lo fosse anche questo, l'unica azione
+     che fa partire il motore starebbe in mezzo a tutte le altre. Non e' nemmeno il
+     rosso di `--bad`, che qui vuol dire «qualcosa non va» — quello resta libero per
+     dirlo. E' piu' saturo e piu' scuro, cosi' il testo bianco ci sta sopra con un
+     contrasto di 4.6:1 invece di 3.5. */
+  --go:#e5261a; --go-rgb:229,38,26; --go-fg:#ffffff;
 
   /* Il colore come LINGUAGGIO, non come decorazione: una funzione, un colore, in
      tutta l'app. Chi impara che il viola e' la configurazione lo sa anche nella
@@ -55,6 +62,12 @@ html[data-night="1"]{
   --ha:#ff6b6b; --oiii:#c96b6b; --sii:#e08a5a; --lum:#ff9e9e; --rgb:#c07070;
   --ok:#c05a5a; --warn:#d07a4a; --bad:#ff5555; --acc:#ff7a6b; --acc-rgb:255,122,107;
   --acc2:#ff9a80; --acc2-rgb:255,154,128;
+  /* Di notte e' gia' tutto rosso, per non buttare via l'adattamento dell'occhio, e
+     un rosso in piu' non distinguerebbe niente. Qui il tasto stacca per SATURAZIONE
+     — e' la cosa piu' satura dello schermo — e resta con il testo scuro come ogni
+     altro pieno della modalita' notte: un testo bianco su un tasto grande, al buio,
+     e' la sola cosa che rovina davvero mezz'ora di adattamento. */
+  --go:#ff2a1a; --go-rgb:255,42,26; --go-fg:#1a0000;
   /* Il linguaggio dei colori vale anche di notte, ma non a scapito dell'occhio:
      le stesse cinque funzioni restano distinguibili dentro la gamma del rosso.
      Un verde o un viola pieni qui vanificherebbero mezz'ora di adattamento. */
@@ -811,7 +824,29 @@ td.archcell{max-width:120px}
 .ha-v.short{color:var(--warn)}
 .ha-n{font-size:11.5px;color:var(--dim);line-height:1.45}
 .hero-num input{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
-.hero-go{font-size:15px;font-weight:600;padding:0 var(--s6);align-self:stretch;min-height:56px}
+.hero-go{font-size:16px;font-weight:700;padding:0 var(--s6);align-self:stretch;min-height:56px;
+  min-width:132px;background:var(--go);border-color:var(--go);color:var(--go-fg);
+  /* ACCESO vuol dire che emette luce, non che e' colorato. Tre strati, e nessuno
+     cambia la scatola — sono ombre, quindi il tasto misura uguale su ogni schermo:
+       il filo interno chiaro   da' spessore al pieno e lo stacca dal fondo
+       l'anello stretto         e' il bordo che il rosso da solo non fa vedere
+       l'alone largo e rosso    e' la luce che cade intorno, e fa il resto  */
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),
+             0 0 0 3px rgba(var(--go-rgb),.30),
+             0 6px 22px rgba(var(--go-rgb),.34), var(--elev);
+  letter-spacing:.02em}
+.hero-go:hover{filter:brightness(1.08);border-color:var(--go);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.26),
+             0 0 0 4px rgba(var(--go-rgb),.38),
+             0 8px 26px rgba(var(--go-rgb),.44), var(--elev)}
+.hero-go:active{filter:brightness(.94);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),
+             0 0 0 2px rgba(var(--go-rgb),.34), var(--elev-lo)}
+/* Il fuoco da tastiera deve restare visibile SOPRA il rosso: un anello chiaro, che
+   non e' ne' il rosso del tasto ne' il blu dell'accento. */
+.hero-go:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.hero-go[disabled],.hero-go.off{box-shadow:none}
+@media(prefers-reduced-motion:reduce){.hero-go{transition:none}}
 
 /* La notte di riferimento: sta accanto al bersaglio perche' e' l'altra meta'
    della domanda, non una proprieta' del telescopio. */
@@ -856,11 +891,54 @@ td.archcell{max-width:120px}
 @media(prefers-reduced-motion:reduce){.bestcard{transition:none}.bestcard:hover{transform:none}}
 @media(max-width:720px){
   .hero-input input{font-size:18px;padding:14px 0}
-  .hero-go{min-height:48px;width:100%}
+  /* A tutta larghezza l'etichetta a 16px si perde in mezzo al rosso: qui il tasto e'
+     largo tre volte, e la parola deve pesare quanto la sua importanza. L'altezza
+     resta 48 — e' la stessa del segmentato qui sotto, e la mano e' una sola. */
+  .hero-go{min-height:48px;width:100%;font-size:17px;min-width:0}
   .hero-num{max-width:none;flex:1 1 130px}
   /* Su un telefono si preme col pollice: 32px sono pochi, e il tasto principale
      qui accanto ne usa gia' 48. Stessa misura, stessa mano. */
   .hc-seg span{min-height:44px;font-size:13px}
+
+  /* E LA STESSA MANO PREME ANCHE TUTTO IL RESTO.
+
+     Misurato a 375px, scheda per scheda: i tasti funzione stavano a 39px, le tendine
+     a 36, i campi numerici a 38, e «Pulisci» a 23. Nessuno di questi e' irraggiungibile
+     — si prendono, con un po' di mira — ma questa app si usa in campo, al buio, con i
+     guanti e il telefono in una mano sola, e li' la mira non c'e'. Quarantaquattro
+     pixel sono la misura sotto la quale l'errore di tocco diventa la norma, ed e' la
+     stessa che il segmentato qui sopra usa gia'.
+
+     Vale per cio' che si PREME. Le caselle di spunta restano quelle che sono: il loro
+     bersaglio vero e' l'etichetta che le contiene, gia' alta 41px per tutta la riga —
+     ingrandire il quadratino non aggiungerebbe niente e romperebbe l'allineamento. */
+  button,select,
+  input[type=number],input[type=text],input[type=date],input[type=time],
+  input[type=search],input:not([type]){min-height:44px}
+  /* Il cursore non si preme, si trascina: la sua altezza e' un'altra cosa. */
+  input[type=range],input[type=checkbox],input[type=radio]{min-height:0}
+  /* «Pulisci» e i tasti minuti in fondo a un riquadro: restano secondari nell'aspetto,
+     non nella raggiungibilita'. */
+  .clr,button.clr{min-height:40px;padding-left:var(--s3);padding-right:var(--s3)}
+  /* Le tendine native su iOS ignorano l'altezza se non hanno un padding vero. */
+  select{padding-top:9px;padding-bottom:9px}
+
+  /* UNA TABELLA PIU' LARGA DELLO SCHERMO SCORRE GIA', MA NON LO DICE.
+
+     `.tablewrap` ha `overflow-x:auto` e funziona — misurato, 326 px visibili su 720 —
+     solo che sul bordo destro una tabella tagliata sembra tagliata, non scorrevole, e
+     chi legge non prova nemmeno a trascinarla. Le due ombre compaiono solo dal lato in
+     cui c'e' ancora qualcosa: sono `background-attachment: scroll`, quindi restano
+     ferme al bordo mentre il contenuto scorre, e le due maschere `local` scorrono col
+     contenuto e le coprono quando si arriva in fondo. Nessun JavaScript, e niente da
+     mantenere. */
+  .tablewrap{
+    background:
+      linear-gradient(to right, var(--surface) 40%, rgba(0,0,0,0)) left center / 28px 100% no-repeat local,
+      linear-gradient(to left,  var(--surface) 40%, rgba(0,0,0,0)) right center / 28px 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.45), rgba(0,0,0,0)) left center / 14px 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.45), rgba(0,0,0,0)) right center / 14px 100% no-repeat scroll;
+  }
 }
 
 /* =====================================================================
@@ -1160,7 +1238,7 @@ td.archcell{max-width:120px}
               <div class="ha-v" id="rxHours">&mdash;</div>
               <div class="ha-n" id="rxNeed">scegli un oggetto</div>
             </div>
-            <button class="primary hero-go" id="rxGo">Prescrivi</button>
+            <button class="hero-go" id="rxGo">Prescrivi</button>
           </div>
         </div>
       </div>
@@ -9186,10 +9264,10 @@ function renderRx(np){
      non e' alto o basso: non c'e'. Dirlo vale piu' che mostrare due trattini. */
   const costoNote = pr.roadTotalsProject.ideal==null
    ? `<p class="small" style="margin:10px 0 0"><b>Il costo per intero.</b>
-    Non si può calcolare: la tecnica di questa scheda chiede
-    <b>${esc((pr.missing||[]).join(' e ')||'un canale')}</b>, e con questa camera e questi
-    filtri quel canale non si riprende. Le ore qui sotto sono quelle dei canali che
-    puoi davvero acquisire.</p>`
+    Non si può calcolare, perché la tecnica di questa scheda chiede un canale che con
+    questa camera non riprendi: ${(pr.missing||[]).map(b=>perCheManca(b,derive(CFG).c))
+      .join(' · ')||'ti manca un filtro'}.
+    Le ore qui sotto sono quelle dei canali che puoi davvero acquisire.</p>`
    : `<p class="small" style="margin:10px 0 0"><b>Il costo per intero.</b>
     Le tecniche possibili per questo oggetto costano <b>${fmt(pr.roadTotalsProject.floor,1)} h</b>
     al minimo e <b>${fmt(pr.roadTotalsProject.ideal,1)} h</b> per il livello-obiettivo, su questa
@@ -9802,6 +9880,37 @@ function rxStrategyHtml(expo,dv,pr,panels){
 /* LE TECNICHE FRA CUI SCEGLIERE, accanto alle tre modalita' perche' e' li' che
    sta la decisione: le modalita' dicono COME riprendi, questa dice CHE COSA. La
    scheda dell'oggetto le racconta gia' con pro e contro; qui si possono premere. */
+/* PERCHE' QUEL CANALE NON SI FA, detto con il nome della cosa che manca.
+
+   «Quanto costi non si sa» e' vero e non serve a niente: chi legge vuole sapere il
+   motivo, e il motivo il motore ce l'ha. Si guarda il catalogo, non solo la ruota:
+
+   - se per quel sensore NESSUN filtro del catalogo apre quella banda, allora non e'
+     questione di comprare: non esiste. E' il caso di R, G e B davanti a una matrice
+     di Bayer — separare i colori con tre filtri su un sensore che li separa gia' non
+     si fa — ed e' il caso di ogni narrowband a banda singola.
+   - se invece un filtro c'e' e semplicemente non ce l'hai, dirti «non esiste» sarebbe
+     falso, e falso proprio dove l'app potrebbe esserti utile: il SII su una camera a
+     colori si fa, con un duo-banda SII+OIII come l'Askar Colour Magic D2. Allora si
+     nomina quello.
+
+   Il nome del sensore lo diciamo come lo dice chi riprende: OSC. */
+function perCheManca(band,cam){
+  const matrice=!!(cam&&cam.cfa_penalty);
+  const dove=matrice?'OSC':'monocromatica';
+  const apre=f=>f.band===band||(f.bands&&f.bands.includes(band));
+  const inCatalogo=DB.filters.filter(f=>apre(f)&&adattoA(f,cam));
+  if(!inCatalogo.length) return `non esistono filtri ${band} per ${dove}`;
+  const posseduti=inCatalogo.filter(f=>OWNED.includes(f.id));
+  if(!posseduti.length){
+    const q=inCatalogo.slice().sort((a,b)=>selectivity(a)-selectivity(b))[0];
+    return `per il ${band} su ${dove} serve un filtro come ${esc(q.name)}, e non ce l'hai`;
+  }
+  /* Posseduto e adatto, ma comunque non montato: la banda e' spenta nei riquadri.
+     «il Ha», «il OIII»: l'articolo davanti a una sigla non si azzecca, e non serve. */
+  return `il canale ${band} è spento in «Filtri selezionati»`;
+}
+
 function rxRoadHtml(pr){
   if(!pr||!pr.roadChoices||pr.roadChoices.length<2) return '';
   const t=RXTG;                         // il bersaglio a cui la prescrizione si riferisce
@@ -9814,6 +9923,9 @@ function rxRoadHtml(pr){
     const on=pr.roadPicked&&pr.road.id===c.id;
     const presa=!pr.roadPicked&&pr.road.id===c.id;
     const manca=c.manca&&c.manca.length?c.manca.join(' e '):null;
+    const cam=(DB.cameras.find(x=>x.id===CFG.cam)||DB.cameras[0]);
+    const perche=(c.manca&&c.manca.length)
+      ? c.manca.map(b=>perCheManca(b,cam)).join(' · ') : null;
     /* «Ti servirebbe» non impedisce di premere: la scelta e' tua, e vedere che
        cosa comporterebbe e' esattamente il motivo per cui la si prova. */
     return `<button class="roadcard${on?' on':''}${presa?' now':''}${manca?' lack':''}"
@@ -9824,7 +9936,7 @@ function rxRoadHtml(pr){
           :presa?'<span class="pill p-dim">la prende il motore</span>':''}</div>
       <div class="rc-w">${esc(c.when||'')}</div>
       <div class="rc-n">${c.ideal==null
-        ? `<span class="p-bad">quanto costi non si sa: ${esc(manca||'manca un filtro')}</span>`
+        ? `<span class="p-bad">${perche||'manca un filtro'}</span>`
         : `${fmt(c.ideal,1)} h per farla piena${
             manca?` <span class="p-bad">· ti servirebbe ${esc(manca)}</span>`:''}`}</div>
     </button>`;

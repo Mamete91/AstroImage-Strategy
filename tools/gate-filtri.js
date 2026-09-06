@@ -731,5 +731,86 @@ H('J · E AL CONTRARIO: LA BANDA STRETTA SINGOLA E L LRGB SONO DA MONOCROMATICA'
     tC / tM > 4, 'la matrice impiega x' + F(tC / tM, 2) + ' del tempo della monocromatica');
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+H('K · QUANDO UN CANALE MANCA, IL MOTIVO CHE SI LEGGE DEV ESSERE QUELLO VERO');
+// ════════════════════════════════════════════════════════════════════════════
+{
+  /* La card di una tecnica non percorribile diceva «quanto costi non si sa»: vero e
+     inutile. Adesso dice PERCHE', e il perche' lo calcola `perCheManca` guardando il
+     catalogo — non la sola ruota. Sono tre risposte diverse e vanno tenute distinte,
+     perche' una sola sbagliata manda a comprare una cosa che non esiste, o dice che
+     non esiste una cosa che l'app stessa elenca:
+
+       nessun filtro del catalogo serve quel sensore  ->  non esiste, e' un fatto
+       esiste ma non ce l'hai                         ->  si nomina, cosi' sai cosa
+       ce l'hai ma la banda e' spenta                 ->  e' una tua scelta, si riaccende
+
+     `perCheManca` vive nella fetta UI, quindi si estrae dal sorgente e si esegue
+     contro il motore e il catalogo VERI: cosi' la prova non e' su una copia. */
+  const K = motore([], []);
+  const uiSrc = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8')
+    .split('<script>')[1].split('</script>')[0];
+  const i0 = uiSrc.indexOf('function perCheManca(');
+  chk('la funzione che spiega esiste', i0 >= 0);
+  const corpo = uiSrc.slice(i0, uiSrc.indexOf('\n}', i0) + 2);
+  const ctxK = { DB: K.DB, OWNED: [], adattoA: K.adattoA, selectivity: K.selectivity, esc: x => x };
+  const perCheManca = new Function(...Object.keys(ctxK),
+    corpo + '\nreturn perCheManca;')(...Object.values(ctxK));
+  const cfa = K.DB.cameras.find(c => c.id === 'asi2600mc');
+  const mono = K.DB.cameras.find(c => c.id === 'asi2600mm');
+  const conRuota = v => { ctxK.OWNED.length = 0; v.forEach(x => ctxK.OWNED.push(x)); };
+  /* La ruota va cambiata DENTRO il contesto della funzione, non fuori. */
+  const perChe = (b, cam, ruota) => {
+    const c2 = { ...ctxK, OWNED: (ruota || []).slice() };
+    return new Function(...Object.keys(c2), corpo + '\nreturn perCheManca;')
+      (...Object.values(c2))(b, cam);
+  };
+
+  /* 1 · R, G e B davanti a una matrice di Bayer: non e' che non ce l'hai, e' che non
+     esistono. Un sensore che i colori li separa gia' non si riprende con tre filtri
+     colore, e infatti il catalogo non ne ha nemmeno uno marcato per la matrice. */
+  for (const b of ['R', 'G', 'B']) {
+    const m = perChe(b, cfa, K.DB.default_filters);
+    chk('  ' + b + ' su matrice: il motivo e che non esistono', /non esistono filtri/.test(m), m);
+  }
+  /* E la premessa si verifica invece di darla per buona. */
+  const senzaCfa = K.DB.filters.filter(f => (f.band === 'R' || (f.bands || []).includes('R')) && K.adattoA(f, cfa));
+  chk('  e infatti il catalogo non ne elenca nessuno per la matrice', senzaCfa.length === 0);
+
+  /* 2 · IL SII SU MATRICE NON E' LO STESSO CASO, ed e' l'errore che questa sezione
+     esiste per impedire. Un duo-banda SII+OIII per camere a colori esiste e sta in
+     catalogo: dire «non esistono filtri SII per OSC» sarebbe smentito dall'elenco
+     filtri dell'app stessa, e manderebbe via chi invece potrebbe comprarlo. */
+  const duoSII = K.DB.filters.filter(f => (f.band === 'SII' || (f.bands || []).includes('SII')) && K.adattoA(f, cfa));
+  chk('esiste in catalogo un filtro che apre il SII su una matrice',
+    duoSII.length > 0, duoSII.map(f => f.name).join(', '));
+  const mSII = perChe('SII', cfa, K.DB.default_filters);
+  chk('  quindi il motivo NON e «non esistono»', !/non esistono/.test(mSII), mSII);
+  chk('  ed e nominato quello che ti servirebbe',
+    duoSII.some(f => mSII.indexOf(f.name) >= 0), mSII);
+
+  /* 3 · Posseduto e adatto ma non montato: e' una scelta di chi riprende, e il testo
+     deve rimandare li' invece di far credere a una mancanza. */
+  const mSpento = perChe('Ha', mono, ['ha3', 'lum']);
+  chk('quando il filtro ce l hai, il motivo e che la banda e spenta',
+    /spento/.test(mSpento) && !/non esistono|serve un filtro/.test(mSpento), mSpento);
+
+  /* 4 · E il nome del sensore e' quello che usa chi riprende. */
+  chk('il testo chiama le cose come le chiama chi riprende',
+    /OSC/.test(mSII) && /monocromatica/.test(perChe('SII', mono, ['lum'])),
+    mSII + '  ·  ' + perChe('SII', mono, ['lum']));
+
+  /* 5 · Nessuna risposta vuota, su nessuna banda e su nessuno dei due sensori. */
+  let vuote = 0;
+  for (const b of ['Ha', 'OIII', 'SII', 'L', 'R', 'G', 'B'])
+    for (const cam of [cfa, mono])
+      for (const ruota of [[], K.DB.default_filters, ['lum'], ['lult']]) {
+        const m = perChe(b, cam, ruota);
+        if (!m || typeof m !== 'string' || m.length < 8) vuote++;
+      }
+  chk('e non esiste combinazione che resti senza spiegazione', vuote === 0,
+    56 + ' combinazioni banda x sensore x ruota, ' + vuote + ' senza risposta');
+}
+
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
 process.exit(ko ? 1 : 0);
