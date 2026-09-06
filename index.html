@@ -825,7 +825,10 @@ td.archcell{max-width:120px}
 .ha-n{font-size:11.5px;color:var(--dim);line-height:1.45}
 .hero-num input{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
 .hero-go{font-size:16px;font-weight:700;padding:0 var(--s6);align-self:stretch;min-height:56px;
-  min-width:132px;background:var(--go);border-color:var(--go);color:var(--go-fg);
+  /* `min` invece di un'eccezione nel breakpoint: su uno schermo stretto il tasto si
+     ferma alla larghezza disponibile invece di sfondarla, e non serve una regola in
+     piu' da tenere allineata a mano. */
+  min-width:min(132px,100%);background:var(--go);border-color:var(--go);color:var(--go-fg);
   /* ACCESO vuol dire che emette luce, non che e' colorato. Tre strati, e nessuno
      cambia la scatola — sono ombre, quindi il tasto misura uguale su ogni schermo:
        il filo interno chiaro   da' spessore al pieno e lo stacca dal fondo
@@ -892,35 +895,38 @@ td.archcell{max-width:120px}
 @media(max-width:720px){
   .hero-input input{font-size:18px;padding:14px 0}
   /* A tutta larghezza l'etichetta a 16px si perde in mezzo al rosso: qui il tasto e'
-     largo tre volte, e la parola deve pesare quanto la sua importanza. L'altezza
-     resta 48 — e' la stessa del segmentato qui sotto, e la mano e' una sola. */
-  .hero-go{min-height:48px;width:100%;font-size:17px;min-width:0}
+     largo tre volte, e la parola deve pesare quanto la sua importanza. L'altezza resta
+     48 — e' la stessa del segmentato qui sotto, e la mano e' una sola. */
+  .hero-go{min-height:48px;width:100%;font-size:17px}
   .hero-num{max-width:none;flex:1 1 130px}
   /* Su un telefono si preme col pollice: 32px sono pochi, e il tasto principale
      qui accanto ne usa gia' 48. Stessa misura, stessa mano. */
   .hc-seg span{min-height:44px;font-size:13px}
 
-  /* E LA STESSA MANO PREME ANCHE TUTTO IL RESTO.
+  /* UNA MISURA SOLA PER TUTTO QUELLO CHE SI PREME: 44px.
 
-     Misurato a 375px, scheda per scheda: i tasti funzione stavano a 39px, le tendine
-     a 36, i campi numerici a 38, e «Pulisci» a 23. Nessuno di questi e' irraggiungibile
-     — si prendono, con un po' di mira — ma questa app si usa in campo, al buio, con i
-     guanti e il telefono in una mano sola, e li' la mira non c'e'. Quarantaquattro
-     pixel sono la misura sotto la quale l'errore di tocco diventa la norma, ed e' la
-     stessa che il segmentato qui sopra usa gia'.
+     Sul telefono i comandi stavano a tre altezze diverse — 39 i tasti, 38 i campi, 36
+     le tendine — e la differenza si vedeva: righe che non si allineavano, tasti che
+     sembravano buttati li'. Non era una questione di dimensione, era di ritmo.
 
-     Vale per cio' che si PREME. Le caselle di spunta restano quelle che sono: il loro
-     bersaglio vero e' l'etichetta che le contiene, gia' alta 41px per tutta la riga —
-     ingrandire il quadratino non aggiungerebbe niente e romperebbe l'allineamento. */
+     Adesso e' un numero solo, ed e' lo stesso che il segmentato qui sopra usa gia':
+     44px si prendono anche al buio, con i guanti, il telefono in una mano sola.
+
+     E le caselle di spunta restano quelle che sono: il loro bersaglio vero e'
+     l'etichetta che le contiene, gia' alta per tutta la riga — ingrandire il
+     quadratino non aggiungerebbe niente e romperebbe l'allineamento. */
   button,select,
   input[type=number],input[type=text],input[type=date],input[type=time],
   input[type=search],input:not([type]){min-height:44px}
-  /* Il cursore non si preme, si trascina: la sua altezza e' un'altra cosa. */
+  /* Quello che non si preme non segue la regola: il cursore si trascina, la spunta ha
+     la sua etichetta. */
   input[type=range],input[type=checkbox],input[type=radio]{min-height:0}
   /* «Pulisci» e i tasti minuti in fondo a un riquadro: restano secondari nell'aspetto,
-     non nella raggiungibilita'. */
+     non nella raggiungibilita'. Un filo piu' bassi degli altri, e con l'imbottitura
+     laterale che serve a non farli diventare due lettere in mezzo al bordo. */
   .clr,button.clr{min-height:40px;padding-left:var(--s3);padding-right:var(--s3)}
-  /* Le tendine native su iOS ignorano l'altezza se non hanno un padding vero. */
+  /* Le tendine native su iOS ignorano l'altezza se non hanno un'imbottitura vera: senza
+     questa riga il `min-height` qui sopra non le tocca affatto. */
   select{padding-top:9px;padding-bottom:9px}
 
   /* UNA TABELLA PIU' LARGA DELLO SCHERMO SCORRE GIA', MA NON LO DICE.
@@ -929,9 +935,9 @@ td.archcell{max-width:120px}
      solo che sul bordo destro una tabella tagliata sembra tagliata, non scorrevole, e
      chi legge non prova nemmeno a trascinarla. Le due ombre compaiono solo dal lato in
      cui c'e' ancora qualcosa: sono `background-attachment: scroll`, quindi restano
-     ferme al bordo mentre il contenuto scorre, e le due maschere `local` scorrono col
-     contenuto e le coprono quando si arriva in fondo. Nessun JavaScript, e niente da
-     mantenere. */
+     ferme al bordo mentre il contenuto scorre, mentre le due maschere `local` scorrono
+     col contenuto e le coprono quando si arriva in fondo. Nessun JavaScript, e niente
+     da mantenere. */
   .tablewrap{
     background:
       linear-gradient(to right, var(--surface) 40%, rgba(0,0,0,0)) left center / 28px 100% no-repeat local,
