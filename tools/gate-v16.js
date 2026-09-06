@@ -163,18 +163,36 @@ H('4 · DOVE LA CORREZIONE ATTERRA DAVVERO: mono contro matrice');
    B.M.timeFactor(dB,'RGB',180)<A.M.timeFactor(dA,'RGB',180),true,
    '×'+f(A.M.timeFactor(dA,'RGB',180),2)+' → ×'+f(B.M.timeFactor(dB,'RGB',180),2));
  /* v1.6 chiudeva qui con "L resta invariata", ed era vero allora: la larghezza era
-    gia' 250 contro 250 e il termine mancante non la toccava. In v1.7 L si muove di
-    circa l'8%, e NON per la larghezza — per il LIVELLO della curva a matrice,
-    riportato alla trasmissione del colorante misurata. L'affermazione originale
-    resta verificabile nella sua forma esatta: sulla larghezza, RGB si muove di un
-    ordine di grandezza piu' di L. */
+    gia' 250 contro 250 e il termine mancante non la toccava. Poi L si e' mossa, e la
+    soglia con cui si misurava quel movimento — meno del 15% — e' stata scritta quando
+    il confronto era ancora SPORCO.
+
+    Sporco perche' i due motori montavano vetri diversi. Fino a poco fa, su una camera
+    a colori, la scelta automatica per la L prendeva la luminanza pura, mentre il
+    motore del 2023 prendeva l'anti-inquinamento: si confrontavano 300 nm a 0.95
+    contro 250 a 0.92 e si chiamava «residuo del colorante» anche quel pezzo. Da
+    quando la luminanza pura e' dichiarata filtro da monocromatica, tutt e due montano
+    l'IDAS, e la premessa del confronto si puo' finalmente verificare invece di
+    sperarla — e' la prima delle tre righe qui sotto.
+
+    A vetro uguale i due movimenti restano distinti e dicono cose diverse, ed e'
+    questo che il blocco deve mostrare: RGB CALA — quasi il 90% di tempo in meno, ed
+    e' il termine di larghezza che v1.6 aveva rimesso al suo posto — mentre L SALE di
+    circa un terzo. Il segno opposto e' la firma: se fosse ancora larghezza, sarebbero
+    scesi tutti e due. L sale perche' il livello della curva a matrice e' stato
+    riportato alla trasmissione del colorante misurata, e li' la matrice costa di piu'
+    di quanto il modello vecchio credesse. */
+ const vetroA=(A.M.bandSpec('L',dA.c)||{}).filter, vetroB=(B.M.bandSpec('L',dB.c)||{}).filter;
+ chk('i due motori montano lo stesso vetro, quindi il confronto e sul motore',
+   !!vetroA&&!!vetroB&&vetroA.id===vetroB.id,true,
+   'L attraverso '+((vetroA||{}).id)+' su tutt e due');
  const dL=B.M.timeFactor(dB,'L',180)/A.M.timeFactor(dA,'L',180)-1;
  const dRGB=1-B.M.timeFactor(dB,'RGB',180)/A.M.timeFactor(dA,'RGB',180);
- chk('la larghezza tocca RGB e non L: RGB si muove molto di piu',
-   dRGB>5*Math.abs(dL),true,'RGB '+(100*dRGB).toFixed(0)+'% contro L '+(100*dL).toFixed(1)+
-   '%, cioe x'+(dRGB/Math.abs(dL)).toFixed(1));
- chk('e il residuo su L e il livello del colorante, non la larghezza',
-   Math.abs(dL)<0.15,true,'+'+(100*dL).toFixed(1)+'% dalla correzione di livello v1.7');}
+ chk('la larghezza scarica su RGB, che cala di quasi tutto il suo tempo',
+   dRGB>0.5,true,'RGB '+(100*dRGB).toFixed(0)+'% di tempo in meno');
+ chk('e su L il movimento ha il segno opposto: non e larghezza, e livello',
+   dL>0&&dRGB>0,true,'L +'+(100*dL).toFixed(1)+'% contro RGB -'+(100*dRGB).toFixed(0)+
+   '%: una larghezza che mancava li avrebbe fatti scendere tutt e due');}
 
 /* ═══ 5 ═══ */
 H('5 · CFA BANDA STRETTA — i tre sintomi dichiarati');

@@ -594,19 +594,23 @@ H('IL RIFERIMENTO NON DIPENDE DA CHI LO INTERROGA');
     bandeRif.every(b => Math.abs(RIF.M.timeFactor(dvR, b) - 1) < 1e-12),
     bandeRif.map(b => b + ' ' + RIF.M.timeFactor(dvR, b).toFixed(6)).join(' · '));
 
-  /* L'IDAS va IMPOSTO col ruolo, non sperato. Da quando la scelta automatica
-     preferisce, per un ruolo di banda larga, il filtro che raccoglie di piu' —
-     larghezza x trasmissione — un IDAS in ruota non viene piu' scelto da solo per la
-     luminanza: vince il `lum`, che e' piu' largo. Per interrogare il denominatore
-     serve che il numeratore usi davvero l'IDAS. */
+  /* IL FILTRO DEL SONDAGGIO DEVE ESSERE UNO CHE QUELLA CAMERA MONTA. Qui c'era un
+     IDAS imposto col ruolo, e non serve piu': la camera di riferimento e' una
+     monocromatica e un anti-inquinamento davanti a una monocromatica non si avvita
+     nemmeno per scelta. Il ruolo verrebbe rifiutato, il numeratore tornerebbe sul
+     `lum` del riferimento e uscirebbe 1.0000 — lo stesso numero che il difetto
+     produceva, per un motivo tutto diverso: il sondaggio non distinguerebbe piu' il
+     caso sano dal caso rotto. Un Ha da 3 nm sulla luminanza e' invece una scelta
+     lecita su una monocromatica, e il denominatore che deve restare fermo e' lo
+     stesso. */
   const ALT = conRuota(DBx.default_filters);
-  ALT.M.ruoli({ L: 'idas' });
+  ALT.M.ruoli({ L: 'ha3' });
   const dvA = ALT.M.derive({ tel: DBx.reference_config.telescope, red: DBx.reference_config.reducer,
                              cam: DBx.reference_config.camera, mnt: 'am5', bin: 1 });
   chk('e la banda stretta resta uno anche con una ruota piu ricca: il metro non si muove',
     ['Ha', 'OIII', 'SII'].every(b => Math.abs(ALT.M.timeFactor(dvA, b) - 1) < 1e-12),
     ['Ha', 'OIII', 'SII'].map(b => b + ' ' + ALT.M.timeFactor(dvA, b).toFixed(6)).join(' · '));
-  chk('mentre la luminanza attraverso un IDAS costa piu del lum del riferimento',
+  chk('mentre la luminanza attraverso un altro vetro costa piu del lum del riferimento',
     ALT.M.timeFactor(dvA, 'L') > 1.05,
     'L ' + ALT.M.timeFactor(dvA, 'L').toFixed(4) + ' contro 1.000000 del riferimento');
 }

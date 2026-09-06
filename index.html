@@ -5476,13 +5476,25 @@ const ownedFilters=()=>DB.filters.filter(f=>OWNED.includes(f.id)&&
    `USING`: la pagina la imposta, il motore la legge. Vuota significa «scegli tu»,
    che resta il comportamento predefinito. */
 let ROLES={};
-const roleFilter=band=>{
+const roleFilter=(band,cam)=>{
   const id=ROLES&&ROLES[band];
   if(!id) return null;
   const f=DB.filters.find(x=>x.id===id);
   /* Una scelta vale finche' il filtro e' posseduto e la banda e' accesa: se hai
-     tolto la spunta al filtro, la scelta non puo' resuscitarlo. */
-  return (f&&OWNED.indexOf(f.id)>=0)?f:null;
+     tolto la spunta al filtro, la scelta non puo' resuscitarlo.
+
+     E finche' quel sensore quel filtro lo puo' usare. La scelta esplicita e'
+     sovrana su tutto quello che il motore avrebbe deciso da solo, ma non e' sovrana
+     sul vetro: un Ha da 3 nm davanti a una matrice di Bayer, o un dual-band davanti
+     a una monocromatica, non sono preferenze discutibili — sono acquisizioni che
+     non si fanno. Onorarle in silenzio vorrebbe dire prescrivere una nottata che
+     non si puo' eseguire, che e' esattamente il difetto per cui i ruoli sono nati.
+     `ROLES` in interfaccia e' gia' per camera, quindi qui si intercetta il caso
+     che l'interfaccia non copre: una scelta salvata prima, o rimasta appesa a una
+     camera cambiata sotto. Quando la scelta non e' eseguibile si torna alla scelta
+     automatica, che sa gia' rispondere «nessun filtro» quando e' il caso. */
+  if(!(f&&OWNED.indexOf(f.id)>=0)) return null;
+  return adattoA(f,cam)?f:null;
 };
 /* MULTIBANDA E ANTI-INQUINAMENTO SONO FILTRI PER SENSORI A MATRICE.
 
@@ -5503,7 +5515,19 @@ const roleFilter=band=>{
    Il filtro resta in catalogo e resta spuntabile: sparisce dalle CANDIDATURE su una
    camera senza matrice, che e' un'altra cosa. Se e' l'unica cosa che hai, il motore
    ti dira' che quel canale non lo puoi fare — che e' la verita'. */
-const adattoA=(f,cam)=>!(f&&f.for_cfa)||!!(cam&&cam.cfa_penalty);
+const adattoA=(f,cam)=>{
+  if(!f) return true;
+  const matrice=!!(cam&&cam.cfa_penalty);
+  /* E vale nei due versi. Al contrario del precedente: davanti a una matrice di Bayer
+     un narrowband SINGOLO lo vede un fotosito su quattro — misurato, un Ha da 7 nm
+     costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B
+     davanti a una matrice che i colori li separa gia buttano via tre quarti del
+     sensore per niente. Su una camera a colori si riprende con un multibanda, con un
+     anti-inquinamento, o senza filtro. */
+  if(f.for_cfa) return matrice;
+  if(f.for_mono) return !matrice;
+  return true;
+};
 
 /* L'ORDINE DELLA SCELTA AUTOMATICA, che vale solo quando una scelta esplicita non
    c'e'. E che non puo' essere «il piu' stretto», perche' dipende da COSA STAI
@@ -5564,10 +5588,12 @@ function filterFor(band,cam){
   if(!usaBanda(band)) return null;
   /* LA SCELTA ESPLICITA VIENE PRIMA DI TUTTO, e non viene mai sostituita in
      silenzio. Se chi riprende ha detto «per la L monto questo», il motore monta
-     quello — anche se e' un Ha da 3 nm, anche se un automatismo avrebbe scelto
-     altro. Il resto della catena si adatta da solo: `bandSpec` ricava `narrow`
-     dalla larghezza della finestra, non dal nome della banda. */
-  const scelto=roleFilter(band);
+     quello — anche se e' un Ha da 3 nm su una monocromatica, anche se un
+     automatismo avrebbe scelto altro. Il resto della catena si adatta da solo:
+     `bandSpec` ricava `narrow` dalla larghezza della finestra, non dal nome della
+     banda. L'unico limite e' il sensore, e sta dentro `roleFilter`: quel che quella
+     camera non puo' montare non lo monta nemmeno per scelta. */
+  const scelto=roleFilter(band,cam);
   if(scelto) return scelto;
   const isBB=BB_BANDS.includes(band);
   if(cam.cfa_penalty&&isBB){
@@ -5577,7 +5603,7 @@ function filterFor(band,cam){
        e non per l'RGB, e la prescrizione descriveva un'acquisizione impossibile —
        un filtro montato, due filtri nei conti. Misurato: con il ruolo L su idas,
        filterFor('L') dava idas e filterFor('RGB') dava lum, nella stessa posa. */
-    const montato=roleFilter('L');
+    const montato=roleFilter('L',cam);
     if(montato) return montato;
     // senza scelta: la matrice di Bayer fa gia' da RGB, quindi basta non avere filtri
     const lp=ownedFilters().filter(f=>f.band==='L'&&adattoA(f,cam)).sort((a,b)=>primaIlTuo(a,b,'L'))[0];
@@ -5609,7 +5635,7 @@ function dualPass(cam){
   /* Un dual raccoglie due righe nella stessa posa solo se qualcosa le separa: senza
      matrice non le separa niente, e non c'e' nessun «dual-pass» da dichiarare. */
   if(!cam||!cam.cfa_penalty) return null;
-  const montato=roleFilter('L');
+  const montato=roleFilter('L',cam);
   if(montato&&montato.dual) return montato;
   if(!cam.cfa_penalty) return null;
   const d=ownedFilters().filter(f=>f.dual&&f.bands&&f.bands.includes('Ha')&&f.bands.includes('OIII'))

@@ -204,16 +204,35 @@ H('5 · IL FATTORE TEMPO — dove si muove e dove no');
     e completamente estraneo a cio' che qui si verifica. Valutando entrambi i motori
     a `refSubFor(banda)` il confondente sparisce per costruzione, perche' li' le due
     formule coincidono, e la v1.7 torna misurabile da sola. */
+ /* E LA BANDA CHE SI MUOVE NON SI MUOVE PER v1.7.
+
+    Dopo v1.7 e' arrivata la regola sui sensori: i filtri anti-inquinamento sono per
+    le camere a matrice, e su una monocromatica non sono piu' candidati. Su una mono
+    la L era l'IDAS e adesso e' la luminanza pura — che e' quello che si usa davvero,
+    ed e' un cambio di VETRO, non di formula.
+
+    Un unico scarto aggregato non sa distinguere le due cose: direbbe «mono cambiata»
+    e basta. Si separa percio' banda per banda. Le quattro che il cambio non tocca
+    devono restare identiche al bit, come v1.7 prometteva; la L puo' muoversi, ma solo
+    se il filtro montato e' cambiato, e i due filtri si nominano. */
  const mono=SET.filter(x=>x[3]==='asi2600mm');
- let peggio=0;
+ let peggio=0, peggioL=0, vetri=new Set(), soloL=true;
  for(const [,tel,red,cam] of mono) for(const b of BANDS){
    const tr=B.M.refSubFor(b);
-   const a=A.M.timeFactor(A.M.derive({tel,red,cam,mnt:'am5',bin:1}),b,tr);
-   const bb=B.M.timeFactor(B.M.derive({tel,red,cam,mnt:'am5',bin:1}),b,tr);
-   peggio=Math.max(peggio,Math.abs(bb/a-1));
+   const dA=A.M.derive({tel,red,cam,mnt:'am5',bin:1}), dB=B.M.derive({tel,red,cam,mnt:'am5',bin:1});
+   const a=A.M.timeFactor(dA,b,tr), bb=B.M.timeFactor(dB,b,tr);
+   const d=Math.abs(bb/a-1);
+   if(b==='L'){ peggioL=Math.max(peggioL,d);
+     const fa=(A.M.bandSpec(b,dA.c)||{}).filter, fb=(B.M.bandSpec(b,dB.c)||{}).filter;
+     vetri.add(((fa||{}).id)+' → '+((fb||{}).id));
+     if(fa&&fb&&fa.id===fb.id&&d>1e-9) soloL=false; }
+   else peggio=Math.max(peggio,d);
  }
  console.log('  confronto alla posa del riferimento: '+BANDS.map(b=>b+' '+B.M.refSubFor(b)+'s').join(' '));
- chk('mono contro mono: nessuna variazione',peggio<1e-9,true,'scarto massimo '+(peggio*100).toFixed(6)+'%');
+ chk('mono contro mono: le bande che il cambio di vetro non tocca sono identiche',
+   peggio<1e-9,true,'Ha OIII SII RGB — scarto massimo '+(peggio*100).toFixed(6)+'%');
+ chk('e la L si muove solo perche il vetro davanti e un altro',
+   soloL&&peggioL>0,true,[...vetri].join(', ')+' — scarto '+(peggioL*100).toFixed(4)+'%');
  const dA=A.M.derive({tel:'askar71f',red:0.8,cam:'asi2600mc',mnt:'am5',bin:1});
  const dB=B.M.derive({tel:'askar71f',red:0.8,cam:'asi2600mc',mnt:'am5',bin:1});
  chk('mono contro matrice: la matrice costa di piu, come misurato',

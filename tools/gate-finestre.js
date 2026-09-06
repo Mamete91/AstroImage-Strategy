@@ -316,15 +316,42 @@ H('H · LA LARGHEZZA CHE CONTA È QUELLA DELLA BANDA CHIESTA');
      differenza di `timeFactor` non si semplifica contro la configurazione di
      riferimento, perche' la stessa larghezza compare ai due lati del rapporto. Li'
      l'errore sopravvive intero fino al numero di ore prescritte. */
-  ruota(['lenh', 'ha12']);
-  const perHa = M.filterFor('Ha', OSC.c);
-  chk('per l Ha vince la finestra da 10 nm dell eNhance, non un Ha da 12',
-    perHa && perHa.id === 'lenh', perHa ? perHa.name : 'nessuno');
+  /* IL CONFRONTO SI FA FRA DUE FILTRI CHE QUELLA CAMERA PUO' DAVVERO MONTARE.
 
-  ruota(['lenh', 'o3_12']);
+     Prima qui si mettevano in ruota un L-eNhance e un Ha da 12 nm, su una camera a
+     colori. Quella configurazione non esiste: un narrowband a banda singola e' un
+     filtro da monocromatica e davanti a una matrice di Bayer non e' candidato -
+     quindi l'eNhance vinceva per assenza di avversari e la prova si svuotava.
+
+     La proprieta' da verificare non e' cambiata: fra due filtri, per una banda conta
+     la finestra DI QUELLA banda, non la piu' larga che il filtro possiede. Si mettono
+     percio' in ruota due dual con le finestre INCROCIATE - uno stretto sull'Ha e largo
+     sull'OIII, l'altro il contrario - e si chiede chi vince, banda per banda. Se
+     tornasse il riassunto scalare, il filtro con la finestra larga sarebbe «largo»
+     per tutte e due le bande e perderebbe in entrambe: qui invece il vincitore DEVE
+     cambiare fra l'una e l'altra, ed e' una cosa che un numero solo non sa fare. */
+  const incrociato = (id, nome, wHa, wO3) => ({
+    id, name: nome, band: 'dual', dual: true, bands: ['Ha', 'OIII'],
+    for_cfa: true, for_cfa_source: 'practice', peak_t: 0.9, fwhm_source: 'measured',
+    windows: [{ fwhm_nm: wHa, peak_t: 0.9, lines: [{ band: 'Ha', lambda_nm: 656.28 }] },
+              { fwhm_nm: wO3, peak_t: 0.9, lines: [{ band: 'OIII', lambda_nm: 500.68 }] }] });
+  const strettoHa = incrociato('x_ha', 'Stretto sull Ha', 6, 30);
+  const strettoO3 = incrociato('x_o3', 'Stretto sull OIII', 20, 8);
+  DB.filters.push(strettoHa, strettoO3);
+  ruota(['x_ha', 'x_o3']);
+
+  const perHa = M.filterFor('Ha', OSC.c);
+  chk('per l Ha vince chi ha 6 nm SULL HA, non chi e piu stretto altrove',
+    perHa && perHa.id === 'x_ha', perHa ? perHa.name : 'nessuno');
   const perO3 = M.filterFor('OIII', OSC.c);
-  chk('per l OIII vince invece l OIII da 12, non i 24 nm dell eNhance',
-    perO3 && perO3.id === 'o3_12', perO3 ? perO3.name : 'nessuno');
+  chk('e per l OIII vince l altro: il vincitore cambia con la banda',
+    perO3 && perO3.id === 'x_o3', perO3 ? perO3.name : 'nessuno');
+  const wA = M.bandSpec('Ha', OSC.c).fwhm, wB = M.bandSpec('OIII', OSC.c).fwhm;
+  chk('e al motore arrivano le larghezze delle finestre giuste, non i 30 e i 20',
+    Math.abs(wA - 6) < 1e-9 && Math.abs(wB - 8) < 1e-9,
+    'Ha ' + F(wA, 1) + ' nm, OIII ' + F(wB, 1) + ' nm');
+  DB.filters.splice(DB.filters.indexOf(strettoHa), 1);
+  DB.filters.splice(DB.filters.indexOf(strettoO3), 1);
 
   /* La larghezza che arriva alle ore e' quella della finestra della banda. */
   soloIl('lenh');

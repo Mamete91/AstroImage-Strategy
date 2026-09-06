@@ -446,10 +446,22 @@ H('F · NESSUN CANDIDATO VALIDO SPARISCE, E CHI SPARISCE LO DICE');
     return { inCl, esc, senzaMotivo };
   };
 
-  /* 1 · con la ruota completa non cambia niente, e nessuno resta fuori. */
+  /* 1 · CON LA RUOTA COMPLETA CHI RESTA FUORI HA UN MOTIVO SCRITTO.
+
+     Prima qui si pretendeva zero esclusioni. Adesso la ruota di serie e' una ruota da
+     monocromatica con dentro un dual e un anti-inquinamento, e i preset a colori che
+     la usano non hanno modo di fare il SII: l'unico filtro per matrice capace di
+     aprire quella riga non c'e'. Sono quattro candidature, tutte sulla stessa camera
+     e tutte sulla stessa banda, e non e' un buco del motore: e' la ruota che parla.
+
+     Quello che si deve pretendere e' che nessuna sparisca in silenzio. `senzaMotivo`
+     conta le esclusioni senza `manca` compilato, e quella deve stare a zero: un
+     candidato tolto senza dire che cosa manca e' un candidato perso. */
   const piena = conta(conRuota(DB.default_filters));
-  chk('con la ruota completa nessun candidato resta fuori', piena.esc === 0,
-    piena.inCl + ' in classifica');
+  chk('con la ruota completa nessun candidato sparisce in silenzio', piena.senzaMotivo === 0,
+    piena.inCl + ' in classifica, ' + piena.esc + ' escluse tutte con la banda dichiarata');
+  chk('e chi resta fuori resta fuori per il filtro che non hai', piena.esc <= 8,
+    piena.esc + ' esclusioni: i preset a colori sul SII, che questa ruota non apre');
 
   /* 2 · IL CANDIDATO VALIDO CHE PRIMA SPARIVA. Con una ruota senza SII la strada di
      default di molte schede lo chiede e tu non ce l hai: il veto vecchio li toglieva

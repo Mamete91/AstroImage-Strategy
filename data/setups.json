@@ -1051,7 +1051,10 @@
    "band": "Ha",
    "lambda_nm": 656.3,
    "fwhm_nm": 3.0,
-   "peak_t": 0.9
+   "peak_t": 0.9,
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "ha35",
@@ -1059,7 +1062,10 @@
    "band": "Ha",
    "lambda_nm": 656.3,
    "fwhm_nm": 3.5,
-   "peak_t": 0.9
+   "peak_t": 0.9,
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "ha5",
@@ -1067,7 +1073,10 @@
    "band": "Ha",
    "lambda_nm": 656.3,
    "fwhm_nm": 5.0,
-   "peak_t": 0.92
+   "peak_t": 0.92,
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "ha65",
@@ -1075,7 +1084,10 @@
    "band": "Ha",
    "lambda_nm": 656.3,
    "fwhm_nm": 6.5,
-   "peak_t": 0.94
+   "peak_t": 0.94,
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "ha7",
@@ -1083,7 +1095,10 @@
    "band": "Ha",
    "lambda_nm": 656.3,
    "fwhm_nm": 7.0,
-   "peak_t": 0.9
+   "peak_t": 0.9,
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "ha12",
@@ -1091,7 +1106,10 @@
    "band": "Ha",
    "lambda_nm": 656.3,
    "fwhm_nm": 12.0,
-   "peak_t": 0.95
+   "peak_t": 0.95,
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "o3_3",
@@ -1099,7 +1117,10 @@
    "band": "OIII",
    "lambda_nm": 500.7,
    "fwhm_nm": 3.0,
-   "peak_t": 0.9
+   "peak_t": 0.9,
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "o3_35",
@@ -1107,7 +1128,10 @@
    "band": "OIII",
    "lambda_nm": 500.7,
    "fwhm_nm": 3.5,
-   "peak_t": 0.9
+   "peak_t": 0.9,
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "o3_65",
@@ -1115,7 +1139,10 @@
    "band": "OIII",
    "lambda_nm": 500.7,
    "fwhm_nm": 6.5,
-   "peak_t": 0.94
+   "peak_t": 0.94,
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "o3_12",
@@ -1123,7 +1150,10 @@
    "band": "OIII",
    "lambda_nm": 500.7,
    "fwhm_nm": 12.0,
-   "peak_t": 0.95
+   "peak_t": 0.95,
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "s2_3",
@@ -1131,7 +1161,10 @@
    "band": "SII",
    "lambda_nm": 672.4,
    "fwhm_nm": 3.0,
-   "peak_t": 0.9
+   "peak_t": 0.9,
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "s2_65",
@@ -1139,7 +1172,10 @@
    "band": "SII",
    "lambda_nm": 672.4,
    "fwhm_nm": 6.5,
-   "peak_t": 0.94
+   "peak_t": 0.94,
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "s2_12",
@@ -1147,7 +1183,10 @@
    "band": "SII",
    "lambda_nm": 672.4,
    "fwhm_nm": 12.0,
-   "peak_t": 0.95
+   "peak_t": 0.95,
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "lult",
@@ -1617,7 +1656,10 @@
     400,
     700
    ],
-   "range_source": "intervalli ricavati dalla curva di trasmissione pubblicata da Optolong per il set LRGB. NON sono FWHM certificate: sono i bordi a cui la curva sale e scende, letti sul grafico. Il motore li usa come larghezza equivalente rettangolare, che e' l'approssimazione coerente con il resto della fotometria (anche i filtri a banda stretta entrano cosi'). Optolong dichiara inoltre il rapporto RGB 1:1:1, ed e' quello che il motore usa per ripartire il tempo."
+   "range_source": "intervalli ricavati dalla curva di trasmissione pubblicata da Optolong per il set LRGB. NON sono FWHM certificate: sono i bordi a cui la curva sale e scende, letti sul grafico. Il motore li usa come larghezza equivalente rettangolare, che e' l'approssimazione coerente con il resto della fotometria (anche i filtri a banda stretta entrano cosi'). Optolong dichiara inoltre il rapporto RGB 1:1:1, ed e' quello che il motore usa per ripartire il tempo.",
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "red",
@@ -1630,7 +1672,10 @@
     590,
     700
    ],
-   "range_source": "intervalli ricavati dalla curva di trasmissione pubblicata da Optolong per il set LRGB. NON sono FWHM certificate: sono i bordi a cui la curva sale e scende, letti sul grafico. Il motore li usa come larghezza equivalente rettangolare, che e' l'approssimazione coerente con il resto della fotometria (anche i filtri a banda stretta entrano cosi'). Optolong dichiara inoltre il rapporto RGB 1:1:1, ed e' quello che il motore usa per ripartire il tempo."
+   "range_source": "intervalli ricavati dalla curva di trasmissione pubblicata da Optolong per il set LRGB. NON sono FWHM certificate: sono i bordi a cui la curva sale e scende, letti sul grafico. Il motore li usa come larghezza equivalente rettangolare, che e' l'approssimazione coerente con il resto della fotometria (anche i filtri a banda stretta entrano cosi'). Optolong dichiara inoltre il rapporto RGB 1:1:1, ed e' quello che il motore usa per ripartire il tempo.",
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "grn",
@@ -1643,7 +1688,10 @@
     500,
     580
    ],
-   "range_source": "intervalli ricavati dalla curva di trasmissione pubblicata da Optolong per il set LRGB. NON sono FWHM certificate: sono i bordi a cui la curva sale e scende, letti sul grafico. Il motore li usa come larghezza equivalente rettangolare, che e' l'approssimazione coerente con il resto della fotometria (anche i filtri a banda stretta entrano cosi'). Optolong dichiara inoltre il rapporto RGB 1:1:1, ed e' quello che il motore usa per ripartire il tempo."
+   "range_source": "intervalli ricavati dalla curva di trasmissione pubblicata da Optolong per il set LRGB. NON sono FWHM certificate: sono i bordi a cui la curva sale e scende, letti sul grafico. Il motore li usa come larghezza equivalente rettangolare, che e' l'approssimazione coerente con il resto della fotometria (anche i filtri a banda stretta entrano cosi'). Optolong dichiara inoltre il rapporto RGB 1:1:1, ed e' quello che il motore usa per ripartire il tempo.",
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "blu",
@@ -1656,7 +1704,10 @@
     420,
     510
    ],
-   "range_source": "intervalli ricavati dalla curva di trasmissione pubblicata da Optolong per il set LRGB. NON sono FWHM certificate: sono i bordi a cui la curva sale e scende, letti sul grafico. Il motore li usa come larghezza equivalente rettangolare, che e' l'approssimazione coerente con il resto della fotometria (anche i filtri a banda stretta entrano cosi'). Optolong dichiara inoltre il rapporto RGB 1:1:1, ed e' quello che il motore usa per ripartire il tempo."
+   "range_source": "intervalli ricavati dalla curva di trasmissione pubblicata da Optolong per il set LRGB. NON sono FWHM certificate: sono i bordi a cui la curva sale e scende, letti sul grafico. Il motore li usa come larghezza equivalente rettangolare, che e' l'approssimazione coerente con il resto della fotometria (anche i filtri a banda stretta entrano cosi'). Optolong dichiara inoltre il rapporto RGB 1:1:1, ed e' quello che il motore usa per ripartire il tempo.",
+   "for_mono": true,
+   "for_mono_source": "practice",
+   "for_mono_note": "Filtro per camere MONOCROMATICHE. Davanti a una matrice di Bayer non si usa, e non e una questione di gusto: un narrowband singolo lo vede un fotosito su quattro — misurato, un Ha da 7 nm costa fattore 8.9 su ASI2600MC contro 1.12 su ASI2600MM — e i filtri R, G, B davanti a una matrice che i colori li separa gia buttano via tre quarti del sensore per niente. Su una camera a colori si riprende con multibanda o con un anti-inquinamento, oppure senza filtro."
   },
   {
    "id": "uvir",

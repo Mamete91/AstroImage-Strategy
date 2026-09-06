@@ -1789,11 +1789,32 @@ console.log('      '+['Ha','OIII','SII','L','RGB'].map(b=>
    vince su OpenNGC. In banda stretta cfa_fraction e misurato sulle curve del
    sensore e resta al comando; il modello si calcola per il confronto. */
 const senMC=M.camSpec(mc).sensor;
+/* LA SPEC SI COSTRUISCE, NON SI CHIEDE ALLA RUOTA.
+
+   Questo blocco prendeva la spec da `bandSpec(banda, camera-a-colori)` con la ruota
+   di serie, e su SII ha smesso di funzionare per una ragione che non c'entra con la
+   precedenza fra dato e modello: da quando la banda stretta SINGOLA e' un filtro da
+   monocromatica, una camera a colori con la ruota di serie non ha NESSUN filtro per
+   il SII — per farlo servirebbe un dual SII+OIII, che nella ruota di serie non c'e'.
+   La spec che ne usciva era senza filtro, larga 250 nm, e finiva giustamente sul
+   modello spettrale.
+
+   Quello che si vuole verificare qui e' un'altra cosa: che davanti a una RIGA il
+   valore misurato sulle curve del sensore batta il modello. Si costruisce quindi la
+   spec della riga, che e' l'ingresso vero della funzione, e la ruota non c'entra. */
+const specRiga=(lam)=>({lines:[lam],fwhm:3,T:0.9,narrow:true,windows:1,lineSum:1});
+const LAM_RIGA={Ha:656.28,OIII:500.68,SII:672.4};
 for(const b of ['Ha','OIII','SII']){
-  chk('banda stretta '+b+': vince la misura del sensore',oe(b).eta,senMC.cfa_fraction[b],1e-12);
-  chk('  e il ramo lo dichiara',oe(b).src,'misura del sensore');
-  chk('  e il modello resta disponibile per il confronto',oe(b).model!=null,true);
+  const o=M.oscEfficiency(mc,b,specRiga(LAM_RIGA[b]));
+  chk('banda stretta '+b+': vince la misura del sensore',o.eta,senMC.cfa_fraction[b],1e-12);
+  chk('  e il ramo lo dichiara',o.src,'misura del sensore');
+  chk('  e il modello resta disponibile per il confronto',o.model!=null,true);
 }
+/* E la conseguenza della regola, dichiarata qui perche' e' una decisione di modello:
+   su una camera a colori con la ruota di serie il SII non ha filtro, e la strada SHO
+   non e' percorribile senza un dual che lo apra. */
+chk('su matrice, senza un dual che apra il SII, il canale non ha filtro',
+  M.filterFor('SII',mc),null);
 /* 2026-09, la correzione che conta: un valore EREDITATO non e' un dato. E' l'uscita
    di un modello vecchio e irriproducibile, e non puo' battere per regola quello
    attuale, che si rilancia e si testa. Su un sensore senza misura per canale deve

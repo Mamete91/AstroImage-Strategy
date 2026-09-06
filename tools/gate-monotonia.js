@@ -315,23 +315,44 @@ H('E · IL RIFERIMENTO DELLE ORE NON DIPENDE DAI FILTRI CHE POSSIEDI');
   const K0 = conRuota(DB.reference_config.filters);
   const dv0 = K0.derive({ tel: DB.reference_config.telescope, red: DB.reference_config.reducer,
     cam: DB.reference_config.camera, mnt: 'am5', bin: 1 });
-  /* L'IDAS va IMPOSTO, non sperato. Da quando la scelta automatica preferisce, per
-     un ruolo di banda larga, il filtro che raccoglie di piu' — larghezza x
-     trasmissione — un IDAS in ruota non viene piu' scelto da solo per la luminanza:
-     vince il `lum`, che e' piu' largo. Per interrogare il denominatore serve che il
-     numeratore usi davvero l'IDAS, e il modo giusto e' il meccanismo dei ruoli. */
-  const conIdas = conRuota(DB.reference_config.filters.concat(['idas']));
-  conIdas.ruoli({ L: 'idas' });
-  const dvI = conIdas.derive({ tel: DB.reference_config.telescope, red: DB.reference_config.reducer,
+  /* IL FILTRO DEL SONDAGGIO DEVE ESSERE UNO CHE QUELLA CAMERA MONTA.
+
+     Qui c'era un IDAS, imposto col ruolo. Non serve piu': la camera di riferimento e'
+     una monocromatica, e un anti-inquinamento davanti a una monocromatica non si
+     avvita nemmeno per scelta esplicita. Il ruolo verrebbe rifiutato, il numeratore
+     tornerebbe sul `lum` del riferimento e il fattore uscirebbe 1.0000 — cioe' lo
+     stesso identico valore che il difetto produceva, per un motivo tutto diverso. Un
+     sondaggio che non distingue piu' il caso sano dal caso rotto non e' un sondaggio.
+
+     Si sonda percio' con due filtri che quella camera monta davvero, e la coppia dice
+     piu' di quanto dicesse il singolo. L'UV/IR cut e' l'aggiunta alla ruota: al
+     riferimento non appartiene ed e' appena piu' trasparente del `lum` — 300 nm a
+     0.97 contro 0.95 — quindi la luminanza costa un filo MENO, e il verso non conta,
+     conta che non sia uno. L'Ha da 3 nm messo deliberatamente sulla luminanza e'
+     invece una scelta legittima su una monocromatica, e sposta il fattore di ordini
+     di grandezza. Se il riferimento prendesse in prestito la ruota o i ruoli
+     dell'utente, tutt e due uscirebbero 1.000000 esatto. */
+  const conUvir = conRuota(DB.reference_config.filters.concat(['uvir']));
+  conUvir.ruoli({ L: 'uvir' });
+  const dvI = conUvir.derive({ tel: DB.reference_config.telescope, red: DB.reference_config.reducer,
     cam: DB.reference_config.camera, mnt: 'am5', bin: 1 });
-  const fL = conIdas.timeFactor(dvI, 'L');
-  chk('aggiungere un IDAS alla ruota fa costare di piu la luminanza, non uguale',
-    fL > 1.05, 'L ' + fL.toFixed(4) + ' — col difetto il riferimento prendeva in prestito lo stesso IDAS e usciva 1.0000');
-  /* E le bande che l IDAS non tocca non si muovono di un millesimo. */
+  const fL = conUvir.timeFactor(dvI, 'L');
+  chk('aggiungere un UV/IR alla ruota sposta la luminanza, non la lascia a uno',
+    Math.abs(fL - 1) > 0.01, 'L ' + fL.toFixed(6) +
+    ' — col difetto il riferimento prendeva in prestito lo stesso vetro e usciva 1.000000');
+  const conHa = conRuota(DB.reference_config.filters);
+  conHa.ruoli({ L: 'ha3' });
+  const dvH = conHa.derive({ tel: DB.reference_config.telescope, red: DB.reference_config.reducer,
+    cam: DB.reference_config.camera, mnt: 'am5', bin: 1 });
+  const fH = conHa.timeFactor(dvH, 'L');
+  chk('  e un Ha da 3 nm sulla luminanza, scelta lecita su mono, la sposta di molto',
+    fH > 100 && isFinite(fH), 'L x' + fH.toFixed(0) + ' — il metro sotto e rimasto il lum del riferimento');
+  /* E le bande che quei filtri non toccano non si muovono di un millesimo. */
   const fermi = ['Ha', 'OIII', 'SII'].every(b =>
-    Math.abs(conIdas.timeFactor(dvI, b) - K0.timeFactor(dv0, b)) < 1e-12);
-  chk('mentre la banda stretta, che quel filtro non tocca, resta identica', fermi,
-    ['Ha', 'OIII', 'SII'].map(b => b + ' ' + conIdas.timeFactor(dvI, b).toFixed(6)).join(' · '));
+    Math.abs(conUvir.timeFactor(dvI, b) - K0.timeFactor(dv0, b)) < 1e-12 &&
+    Math.abs(conHa.timeFactor(dvH, b) - K0.timeFactor(dv0, b)) < 1e-12);
+  chk('mentre la banda stretta, che quei filtri non toccano, resta identica', fermi,
+    ['Ha', 'OIII', 'SII'].map(b => b + ' ' + conUvir.timeFactor(dvI, b).toFixed(6)).join(' · '));
 
   /* Non basta che sia fisso: deve valere UNO sulla configurazione di riferimento
      con la sua ruota, altrimenti sarebbe fisso e sbagliato. */

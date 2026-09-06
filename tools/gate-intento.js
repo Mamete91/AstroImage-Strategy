@@ -410,10 +410,36 @@ H('L - la differenza RC8 / Askar e ricostruibile dai fattori dichiarati');
     chk('  '+b+': il rapporto dei tempi e var/collect al quadrato, per definizione',
       eq(tR/tA, (M.varRate(r,TS,0)/M.varRate(a,TS,0))/Math.pow(r.collect/a.collect,2), 1e-9),
       'RC8 impiega x'+(tR/tA).toFixed(3)+' del tempo dell Askar');
-    chk('  '+b+': il vantaggio RC8 viene da apertura e sensore, non dal campo',
+  }
+
+  /* IL CONFRONTO FRA I DUE SENSORI VUOLE LA STESSA STRADA SOTTO I PIEDI.
+
+     Il claim e' che il vantaggio dell'RC8 venga da apertura e sensore. Perche' il
+     rapporto fra i due `k` misuri il SENSORE e non il filtro, davanti ai due sensori
+     deve esserci una finestra della stessa larghezza. Sull'Ha e sull'OIII e' cosi' e
+     la premessa si verifica invece di darla per scontata: la mono monta un narrowband
+     da 3 nm, la matrice un L-Ultimate che sull'una e sull'altra riga apre 3 nm.
+
+     Sul SII no, e non per un difetto: da quando la banda stretta SINGOLA e' un filtro
+     da monocromatica, per fare il SII su una matrice serve un multibanda che apra
+     quella riga, e nella ruota di serie non ce n'e' nessuno. Se qui si lasciasse il
+     SII nel confronto, si metterebbero a paragone 3 nm contro NESSUN filtro - il
+     rapporto dei k crolla a 0.001 - e il numero che ne esce non parla piu' del
+     sensore. Il SII resta percio' come asserzione a se': quello che si pretende li'
+     e' che il motore dichiari l'assenza, non che inventi una strada. */
+  for(const b of ['Ha','OIII']){
+    const a=M.rates(ASK,b,SQM), r=M.rates(RC,b,SQM);
+    const wA=M.bandSpec(b,ASK.c).fwhm, wR=M.bandSpec(b,RC.c).fwhm;
+    chk('  '+b+': i due sensori guardano la stessa larghezza di finestra',
+      Math.abs(wA-wR)<1e-9, wA.toFixed(1)+' nm per tutt e due — '+
+      (M.filterFor(b,ASK.c)||{}).id+' contro '+(M.filterFor(b,RC.c)||{}).id);
+    chk('  '+b+': e li il vantaggio RC8 viene da apertura e sensore, non dal campo',
       (RC.Aeff/ASK.Aeff)>1 && (r.k/a.k)>1,
       'apertura x'+(RC.Aeff/ASK.Aeff).toFixed(2)+', mono contro CFA x'+(r.k/a.k).toFixed(2));
   }
+  chk('  SII: con questa ruota la matrice non ha filtro, e il motore non lo inventa',
+    M.filterFor('SII',ASK.c)===null && !!M.filterFor('SII',RC.c),
+    'mono → '+(M.filterFor('SII',RC.c)||{}).id+', matrice → nessun filtro che apra il SII');
   /* La controprova sul rapporto focale: l'Askar E' piu' veloce per mm2 di
      sensore, e il motore non lo nega - misura semplicemente un'altra cosa. */
   chk('l Askar resta piu veloce per mm2 di sensore, come vuole il rapporto focale',

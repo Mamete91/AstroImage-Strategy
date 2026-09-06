@@ -54,7 +54,7 @@ function motore(extra, owned, roles) {
     console, Math, Date, Object, JSON, isFinite, parseFloat, parseInt, Number, window: {} };
   const M = new Function(...Object.keys(ctx), PURA +
     `return {derive,evaluate,prescribe,nightProfile,effFWHM,filterFor,bandSpec,rates,
-     timeFactor,skyRateFor,filterWindows,windowFor,windowLambda,bandWidth,bandWidthNota,
+     timeFactor,varRate,skyRateFor,filterWindows,adattoA,windowFor,windowLambda,bandWidth,bandWidthNota,
      bandWidthFonte,selectivity,ownedFilters,dualPass,imageYield,planNights,exposurePlan,
      refCfg,conRuotaDiRiferimento,
      subExposure,DB:DB,TG:TG,ruoli:r=>{ROLES=r||{};}};`)(...Object.values(ctx));
@@ -64,6 +64,8 @@ function motore(extra, owned, roles) {
 const SITO = { lat: 46.0167, lon: 10.3333, sqm: 20.5, seeing: 1.6, rms: 0.6, horizonMin: 20, clearFrac: 0.35 };
 const sano = v => typeof v === 'number' && isFinite(v);
 const W = o => o;
+/* Chi, del campionario, quella camera lo ammette: serve solo al messaggio. */
+const che_ammessi = casi => casi.map(c => c[0]).join(', ') + ', ognuno sul sensore che lo usa';
 
 /* IL CAMPIONARIO. Non sono dati di prodotto: sono FORME, una per ogni tipologia che
    il commercio produce davvero. Servono a provare il contenitore, non a descrivere
@@ -157,16 +159,39 @@ H('B · LA SCELTA ESPLICITA DI UN RUOLO NON VIENE MAI SOSTITUITA');
   const ruota = ['lum', 'idas', 'ha3', 'o3_3', 'lqef', 'red', 'grn', 'blu'];
   const casi = [['lum', 'la luminanza classica'], ['idas', 'un anti-inquinamento'],
                 ['lqef', 'un quad-band senza larghezza'], ['ha3', 'un Ha da 3 nm, scelta deliberata']];
-  let rispettati = 0;
+  /* LA SCELTA E' SOVRANA SU TUTTO QUELLO CHE IL MOTORE AVREBBE DECISO DA SOLO, e
+     ha un limite solo: il vetro. Prima qui si pretendeva che ogni scelta valesse su
+     ogni camera, e mezzo campionario chiedeva l'impossibile — la luminanza pura e
+     l'Ha da 3 nm davanti a una matrice di Bayer, l'anti-inquinamento e il quad-band
+     davanti a una monocromatica. Onorarle avrebbe voluto dire prescrivere nottate
+     che non si eseguono.
+
+     Percio' si verificano tutt e due i rami, e il secondo e' quello che prima non
+     c'era: dove il sensore ammette il filtro la scelta e' esatta e non viene mai
+     sostituita; dove non lo ammette la scelta non passa, e quello che si monta al
+     suo posto e' comunque un filtro che quella camera puo' montare — mai un altro
+     narrowband travestito da scelta dell'utente. */
+  let onorati = 0, rifiutati = 0;
   for (const [id, che] of casi) for (const cam of ['asi2600mm', 'asi2600mc']) {
     const M = motore([], ruota, { L: id });
     const dv = M.derive({ tel: 'rc8', red: 1, cam, mnt: 'am5', bin: 1 });
+    const f = M.DB.filters.find(x => x.id === id);
+    const ammesso = M.adattoA(f, dv.c);
     const ff = M.filterFor('L', dv.c);
-    if (ff && ff.id === id) rispettati++;
-    else chk('il ruolo L resta ' + id + ' su ' + cam, false, 'ha scelto ' + (ff && ff.id));
+    if (ammesso) {
+      if (ff && ff.id === id) onorati++;
+      else chk('il ruolo L resta ' + id + ' su ' + cam, false, 'ha scelto ' + (ff && ff.id));
+    } else {
+      const ripiego = ff && (ff.id === '__none' || M.adattoA(M.DB.filters.find(x => x.id === ff.id), dv.c));
+      if (ff && ff.id !== id && ripiego) rifiutati++;
+      else chk('il ruolo L = ' + id + ' su ' + cam + ' doveva essere rifiutato con un ripiego valido',
+        false, 'ha montato ' + (ff && ff.id));
+    }
   }
-  chk('ogni scelta esplicita del ruolo L viene rispettata', rispettati === casi.length * 2,
-    rispettati + ' su ' + casi.length * 2 + ' — ' + casi.map(c => c[0]).join(', ') + ', mono e colori');
+  chk('dove il sensore lo ammette, la scelta esplicita non viene mai sostituita',
+    onorati === 4, onorati + ' su 4 — ' + che_ammessi(casi));
+  chk('e dove non lo ammette non passa, ma non lascia il posto a un altro impossibile',
+    rifiutati === 4, rifiutati + ' su 4 rifiutati con un filtro che quella camera monta');
 
   /* E la scelta cambia davvero la fisica a valle, altrimenti sarebbe decorativa. */
   const M1 = motore([], ruota, { L: 'lum' }), M2 = motore([], ruota, { L: 'ha3' });
@@ -322,6 +347,10 @@ H('G · CHI SCEGLIE IL FILTRO E CHI LO VALUTA DEVONO DIRE LA STESSA COSA');
   const orePer = (ruota, ruolo, band, sqm, cam) => {
     const K = motore([], ruota, ruolo ? { [band]: ruolo } : {});
     const dv = K.derive({ tel: 'askar71f', red: 1, cam, mnt: 'am5', bin: 1 });
+    /* Se quel sensore quel filtro non lo monta, il ruolo non viene onorato e le ore
+       che uscirebbero sarebbero di un ALTRO filtro. Attribuirle al filtro chiesto e'
+       il modo piu' silenzioso di sbagliare una misura: meglio nessun numero. */
+    if (ruolo) { const m = K.filterFor(band, dv.c); if (!m || m.id !== ruolo) return null; }
     const st = { lat: 46.0167, lon: 10.3333, sqm, seeing: 1.6, rms: 0.9, horizonMin: 20, clearFrac: 0.35 };
     st.fwhm = K.effFWHM(1.6, 0.9);
     const np = K.nightProfile(new Date(2026, 8, 11), st.lat, st.lon);
@@ -337,8 +366,11 @@ H('G · CHI SCEGLIE IL FILTRO E CHI LO VALUTA DEVONO DIRE LA STESSA COSA');
     if (!auto) continue;
     const ore = {};
     for (const id of BB) ore[id] = orePer(BB.concat(['red', 'grn', 'blu']), id, 'L', sqm, cam);
+    /* Due candidati bastano a metterli in disaccordo, e su una monocromatica sono
+       esattamente due: di questi sette filtri di banda larga cinque sono da matrice.
+       Chiederne tre buttava via meta' del campione — tutti i passaggi su mono. */
     const validi = Object.entries(ore).filter(([, v]) => sano(v));
-    if (validi.length < 3) continue;
+    if (validi.length < 2) continue;
     confronti++;
     const migliore = validi.sort((a, b) => a[1] - b[1])[0];
     const scelto = ore[auto];
@@ -358,12 +390,15 @@ H('G · CHI SCEGLIE IL FILTRO E CHI LO VALUTA DEVONO DIRE LA STESSA COSA');
 
   /* La verifica non e' vuota: con la regola precedente — il piu' stretto — la
      divergenza c'era, e si ricostruisce qui. */
+  /* Sulla matrice, che e' dove questi sette filtri di banda larga stanno davvero
+     tutti insieme: la monocromatica ne ammette due, e con due soli il difetto
+     «vince il piu' stretto» non ha nemmeno lo spazio per manifestarsi. */
   const K0 = motore([], BB.concat(['red', 'grn', 'blu']));
-  const dv0 = K0.derive({ tel: 'askar71f', red: 1, cam: 'asi2600mm', mnt: 'am5', bin: 1 });
-  const piuStretto = K0.ownedFilters().filter(f => f.band === 'L')
+  const dv0 = K0.derive({ tel: 'askar71f', red: 1, cam: 'asi2600mc', mnt: 'am5', bin: 1 });
+  const piuStretto = K0.ownedFilters().filter(f => f.band === 'L' && K0.adattoA(f, dv0.c))
     .sort((a, b) => K0.bandWidth(a, 'L') - K0.bandWidth(b, 'L'))[0];
-  const oreStretto = orePer(BB.concat(['red', 'grn', 'blu']), piuStretto.id, 'L', 20.8, 'asi2600mm');
-  const oreScelto = orePer(BB.concat(['red', 'grn', 'blu']), (K0.filterFor('L', dv0.c) || {}).id, 'L', 20.8, 'asi2600mm');
+  const oreStretto = orePer(BB.concat(['red', 'grn', 'blu']), piuStretto.id, 'L', 20.8, 'asi2600mc');
+  const oreScelto = orePer(BB.concat(['red', 'grn', 'blu']), (K0.filterFor('L', dv0.c) || {}).id, 'L', 20.8, 'asi2600mc');
   chk('e la regola precedente divergeva davvero, quindi non passa per vacuita',
     oreStretto > oreScelto * 1.2,
     'il piu stretto (' + piuStretto.id + ') chiederebbe ' + F(oreStretto) + ' h contro ' +
@@ -385,11 +420,23 @@ H('G · CHI SCEGLIE IL FILTRO E CHI LO VALUTA DEVONO DIRE LA STESSA COSA');
      luminanza solo perche' e' piu' selettivo: e' uno strumento con un altro ruolo.
      Restare scegliibile a mano e' un'altra cosa, ed e' voluto. */
   const Km = motore([], ['lum', 'ha3', 'o3_3', 's2_3', 'red', 'grn', 'blu']);
+  const STRETTI = ['ha3', 'o3_3', 's2_3'];
+  /* La ruota qui sopra e' una ruota da monocromatica: da quando la banda stretta
+     singola e l'LRGB sono filtri per sensori senza matrice, davanti a una camera a
+     colori non c'e' NIENTE da avvitare. La risposta giusta li' non e' «la luminanza»
+     - quella luminanza non e' candidata - ma «nessun filtro»: la matrice di Bayer il
+     colore lo fa gia' da sola, e riprendere nudi e' un'acquisizione vera, non un
+     ripiego. L'invariante che si voleva difendere resta e vale su tutt'e due: un
+     narrowband non diventa la luminanza automatica solo perche' e' piu' selettivo. */
+  const attesa = { asi2600mm: 'lum', asi2600mc: '__none' };
   for (const cam of ['asi2600mm', 'asi2600mc']) {
     const d = Km.derive({ tel: 'askar71f', red: 1, cam, mnt: 'am5', bin: 1 });
     const l = (Km.filterFor('L', d.c) || {}).id;
-    chk('e una banda stretta non diventa mai luminanza da sola (' + cam + ')', l === 'lum',
-      'ruolo L automatico -> ' + l);
+    chk('e una banda stretta non diventa mai luminanza da sola (' + cam + ')',
+      STRETTI.indexOf(l) < 0, 'ruolo L automatico -> ' + l);
+    chk('  e la risposta e quella che quel sensore consente', l === attesa[cam],
+      cam === 'asi2600mm' ? 'la luminanza che ha in ruota'
+                          : 'niente da avvitare: il colore lo fa la matrice');
   }
 }
 
@@ -435,11 +482,21 @@ H('H · LE CONSEGUENZE DEI RUOLI, DOVE NON DEVONO ARRIVARE E DOVE SI');
     (K2.bandSpec('RGB', osc.c).filter || {}).id === 'idas',
     'L → ' + (K2.filterFor('L', osc.c) || {}).id + ' · RGB → ' + (K2.filterFor('RGB', osc.c) || {}).id);
   /* Su monocromatica invece i filtri si cambiano davvero, e L e RGB sono due pose
-     diverse: li' la scelta per la L non deve toccare il colore. */
+     diverse: li' la scelta per la L non deve toccare il colore. Il ruolo con cui si
+     prova dev'essere pero' uno che quella camera monta: l'anti-inquinamento e' un
+     filtro da matrice e su un sensore mono non si avvita nemmeno per scelta. Si usa
+     percio' l'UV/IR cut, che e' l'unico vetro del catalogo buono per tutt e due, e
+     resta una scelta vera perche' l'automatico, da solo, monterebbe l'altro. */
+  const K3 = motore([], ['lum', 'uvir', 'idas', 'red', 'grn', 'blu'], { L: 'lum' });
+  const K3auto = motore([], ['lum', 'uvir', 'idas', 'red', 'grn', 'blu']);
+  const mono3 = K3.derive({ tel: 'rc8', red: 1, cam: 'asi2600mm', mnt: 'am5', bin: 1 });
   chk('mentre su monocromatica restano due pose diverse, e il colore non segue la L',
-    (K2.filterFor('L', mono.c) || {}).id === 'idas' &&
-    (K2.filterFor('RGB', mono.c) || {}).id === 'grn',
-    'L → ' + (K2.filterFor('L', mono.c) || {}).id + ' · RGB → ' + (K2.filterFor('RGB', mono.c) || {}).id);
+    (K3.filterFor('L', mono3.c) || {}).id === 'lum' &&
+    (K3.filterFor('RGB', mono3.c) || {}).id === 'grn',
+    'L → ' + (K3.filterFor('L', mono3.c) || {}).id + ' · RGB → ' + (K3.filterFor('RGB', mono3.c) || {}).id);
+  chk('  e li la scelta e una scelta: senza, l automatico monterebbe un altro vetro',
+    (K3auto.filterFor('L', mono3.c) || {}).id !== 'lum',
+    'senza ruolo → ' + (K3auto.filterFor('L', mono3.c) || {}).id);
 
   /* 3 · E IL DUAL CHE RACCOGLIE INSIEME e' quello montato, non il piu' selettivo
      che possiedi. Prima la posa del canale che decide l'immagine veniva calcolata
@@ -544,6 +601,100 @@ H('I · MULTIBANDA E ANTI-INQUINAMENTO SONO PER I SENSORI A MATRICE');
   chk('e su matrice quel costo non esiste: la maschera le separa',
     Math.abs(rdc.R_b - ruc.R_b) / ruc.R_b < 0.01,
     F(rdc.R_b, 6) + ' contro ' + F(ruc.R_b, 6));
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+H('J · E AL CONTRARIO: LA BANDA STRETTA SINGOLA E L LRGB SONO DA MONOCROMATICA');
+// ════════════════════════════════════════════════════════════════════════════
+{
+  /* La sezione I dice che multibanda e anti-inquinamento sono per i sensori a
+     matrice. La regola vale nei due sensi, e questo e' l'altro: una camera a colori
+     con la matrice di Bayer non monta un Ha da 3 nm, un OIII, un SII, e non monta
+     nemmeno i canali L, R, G, B. Non perche' sia vietato: perche' non si fa.
+
+     Il perche' e' la maschera. Alla riga dell'Ha risponde circa un fotosito su
+     quattro, quindi tre quarti del sensore stanno al buio per tutta la posa. E i
+     canali R, G, B davanti a una matrice che i colori li separa gia' li rifanno una
+     seconda volta, buttando via lo stesso tre quarti per niente. */
+  const MONOSOLO = ['ha3', 'o3_3', 's2_3', 'lum', 'red', 'grn', 'blu'];
+  const Kj = motore([], MONOSOLO);
+  const perMono = Kj.DB.filters.filter(f => f.for_mono).map(f => f.id);
+  chk('il catalogo dichiara quali filtri sono da monocromatica', perMono.length >= 15,
+    perMono.length + ' filtri, fonte dichiarata: la pratica');
+  const entrambe = Kj.DB.filters.filter(f => !f.for_mono && !f.for_cfa).map(f => f.id);
+  chk('e resta dichiarato chi puo stare davanti a tutt e due i sensori',
+    entrambe.length > 0 && entrambe.every(id => !/^(ha|o3|s2)/.test(id)),
+    'per entrambe: ' + entrambe.join(' ') + ' — nessun narrowband fra questi');
+
+  const mono = Kj.derive({ tel: 'rc8', red: 1, cam: 'asi2600mm', mnt: 'am5', bin: 1 });
+  const cfa = Kj.derive({ tel: 'rc8', red: 1, cam: 'asi2600mc', mnt: 'am5', bin: 1 });
+
+  /* Sulle righe la camera a colori non ha niente da avvitare, e il motore lo dice
+     invece di sostituire in silenzio un vetro qualunque. */
+  const righe = ['Ha', 'OIII', 'SII'];
+  const suCfa = righe.map(b => Kj.filterFor(b, cfa.c));
+  chk('con una ruota da mono, su matrice le righe non hanno filtro',
+    suCfa.every(f => !f), righe.map((b, i) => b + '→' + (suCfa[i] ? suCfa[i].id : 'nessuno')).join(' '));
+  const suMono = righe.map(b => Kj.filterFor(b, mono.c));
+  chk('  mentre sulla monocromatica la stessa ruota le apre tutte',
+    suMono.every(f => !!f), righe.map((b, i) => b + '→' + (suMono[i] ? suMono[i].id : 'nessuno')).join(' '));
+
+  /* E sulla banda larga la risposta giusta non e' «la luminanza»: e' «niente». */
+  const lC = Kj.filterFor('L', cfa.c), rgbC = Kj.filterFor('RGB', cfa.c);
+  chk('e sulla banda larga la matrice riprende nuda, che e la sua acquisizione vera',
+    lC && lC.id === '__none' && rgbC && rgbC.id === '__none',
+    'L → ' + (lC || {}).id + ', RGB → ' + (rgbC || {}).id);
+  chk('  mentre la monocromatica monta la luminanza e i tre canali',
+    (Kj.filterFor('L', mono.c) || {}).id === 'lum' && !!Kj.filterFor('RGB', mono.c),
+    'L → lum, RGB → ' + (Kj.filterFor('RGB', mono.c) || {}).id);
+
+  /* NEMMENO PER SCELTA ESPLICITA, e vale nei due versi. Il ruolo e' sovrano su
+     quello che il motore avrebbe deciso da solo, non sul vetro: `ROLES` in
+     interfaccia e' gia' per camera, ma una scelta salvata prima della regola, o
+     rimasta appesa a una camera cambiata sotto, arriverebbe fin qui. */
+  const conRuolo = (roles, wheel) => motore([], wheel, roles);
+  const Ka = conRuolo({ L: 'ha3' }, ['ha3', 'idas']);
+  const cfaA = Ka.derive({ tel: 'rc8', red: 1, cam: 'asi2600mc', mnt: 'am5', bin: 1 });
+  const monoA = Ka.derive({ tel: 'rc8', red: 1, cam: 'asi2600mm', mnt: 'am5', bin: 1 });
+  chk('un Ha da 3 nm scelto a mano non si avvita su una matrice',
+    (Ka.filterFor('L', cfaA.c) || {}).id !== 'ha3',
+    'ruolo L = ha3 → ' + (Ka.filterFor('L', cfaA.c) || {}).id + ' (si torna alla scelta automatica)');
+  chk('  e sulla monocromatica quella stessa scelta viene onorata',
+    (Ka.filterFor('L', monoA.c) || {}).id === 'ha3', 'ruolo L = ha3 → ha3');
+  const Kb = conRuolo({ L: 'lult' }, ['lult', 'lum']);
+  const monoB = Kb.derive({ tel: 'rc8', red: 1, cam: 'asi2600mm', mnt: 'am5', bin: 1 });
+  const cfaB = Kb.derive({ tel: 'rc8', red: 1, cam: 'asi2600mc', mnt: 'am5', bin: 1 });
+  chk('e nell altro verso: un dual scelto a mano non si avvita su una monocromatica',
+    (Kb.filterFor('L', monoB.c) || {}).id !== 'lult',
+    'ruolo L = lult → ' + (Kb.filterFor('L', monoB.c) || {}).id);
+  chk('  mentre sulla matrice quella scelta e la sua ragione d essere',
+    (Kb.filterFor('L', cfaB.c) || {}).id === 'lult' && !!Kb.dualPass(cfaB.c),
+    'ruolo L = lult → lult, e dualPass lo dichiara');
+
+  /* LA RAGIONE FISICA, misurata dove resta raggiungibile: un Ha da 3 nm aggiunto a
+     mano, che nessuno ha marcato per la monocromatica, usato davanti a una matrice.
+     Il segnale che arriva e' quello del quarto di fotositi che a 656 nm risponde, e
+     il tempo per lo stesso SNR si moltiplica. Questo numero non e' un'opinione sulla
+     pratica: e' la pratica che diventa un conto. */
+  const libero = { id: 'z_ha3', name: 'Ha 3 nm senza etichetta', band: 'Ha', user: true,
+    peak_t: 0.9, fwhm_source: 'measured',
+    windows: [W({ fwhm_nm: 3, peak_t: 0.9, lines: [{ band: 'Ha', lambda_nm: 656.28 }] })] };
+  const Kf = motore([libero], ['z_ha3']);
+  const fm = Kf.derive({ tel: 'rc8', red: 1, cam: 'asi2600mm', mnt: 'am5', bin: 1 });
+  const fc = Kf.derive({ tel: 'rc8', red: 1, cam: 'asi2600mc', mnt: 'am5', bin: 1 });
+  chk('senza etichetta il filtro sta davanti a tutt e due, ed e giusto cosi',
+    (Kf.filterFor('Ha', fm.c) || {}).id === 'z_ha3' && (Kf.filterFor('Ha', fc.c) || {}).id === 'z_ha3',
+    'la regola sta nei dati, non in un divieto scritto nel motore');
+  const ra = Kf.rates(fm, 'Ha', 20.8), rb = Kf.rates(fc, 'Ha', 20.8);
+  const TSj = 600;
+  const tM = Kf.varRate(ra, TSj, 0) / (ra.collect * ra.collect);
+  const tC = Kf.varRate(rb, TSj, 0) / (rb.collect * rb.collect);
+  console.log('       Ha 3 nm, stesso tubo: segnale mono ' + F(ra.k, 4) +
+    ', matrice ' + F(rb.k, 4) + '  (x' + F(rb.k / ra.k, 3) + ')');
+  chk('e alla matrice arriva solo la frazione di fotositi che a 656 nm risponde',
+    rb.k / ra.k < 0.45, 'x' + F(rb.k / ra.k, 3) + ' del segnale della monocromatica');
+  chk('  che in tempo per lo stesso SNR vale un fattore grande, non un dettaglio',
+    tC / tM > 4, 'la matrice impiega x' + F(tC / tM, 2) + ' del tempo della monocromatica');
 }
 
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
