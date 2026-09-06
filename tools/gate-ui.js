@@ -308,5 +308,25 @@ console.log('\n--- F · il marchio, e l intestazione che lo tiene a portata ---'
   chk('e riporta in cima', /scrollTo/.test(corpo));
 }
 
+/* ═══ G · IL PESO DEL CANALE CRITICO VA DETTO ═══
+   Il riparto favorisce il canale che decide l'immagine finche' le ore non bastano
+   a tutti. E' una priorita' dichiarata e difendibile, ma il piano ne mostrava il
+   RISULTATO senza dire che una parte dello sbilanciamento veniva da li' — e sopra
+   le ore che bastano a tutti il peso sparisce da solo, quindi l'effetto era
+   invisibile proprio a chi confronta due piani. Il valore non si tocca: si dice. */
+console.log('\n--- G · il peso del canale critico e dichiarato ---');
+{
+  chk('il peso e una costante con un nome, non un numero sparso',
+    /const CRIT_WEIGHT=1\.35;/.test(html.replace(/\n/g, '')));
+  const usi = (script.match(/1\.35/g) || []).length;
+  chk('e il numero nudo non ricompare nel riparto',
+    !/critical\s*\?\s*1\.35\s*:/.test(script), usi + ' occorrenze di 1.35 nel file');
+  chk('il motore misura quanto il peso ha spostato', /critPeso/.test(script));
+  chk('e lo confronta con il riparto a peso uguale', /senzaPeso/.test(script));
+  chk('l interfaccia lo dichiara con i due numeri',
+    /pesoNota/.test(script) && /invece delle/.test(script));
+  chk('e la nota compare nel corpo dei risultati', /\$\{filtNote\}\$\{pesoNota\}/.test(script));
+}
+
 console.log(`\n${pass} verifiche superate, ${fail} fallite\n`);
 process.exit(fail?1:0);

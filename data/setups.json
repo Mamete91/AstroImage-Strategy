@@ -1723,7 +1723,17 @@
   "camera": "asi2600mm",
   "description": "Tecnosky 115/800 con riduttore 0.80x (640 mm, f/5.6) + ASI2600MM",
   "sqm_zenith": 21.3,
-  "sqm_note": "Il cielo sotto cui valgono le ore scritte nelle schede. Prima non era dichiarato e il fattore di inquinamento luminoso non aveva uno zero. 21.3 = Bortle 3, montagna in una notte pulita: e' il cielo della pratica da cui vengono le soglie (AstroBin, forum). Cambiarlo sposta il calendario di TUTTI gli oggetti, non le ore per canale."
+  "sqm_note": "Il cielo sotto cui valgono le ore scritte nelle schede. Prima non era dichiarato e il fattore di inquinamento luminoso non aveva uno zero. 21.3 = Bortle 3, montagna in una notte pulita: e' il cielo della pratica da cui vengono le soglie (AstroBin, forum). Cambiarlo sposta il calendario di TUTTI gli oggetti, non le ore per canale.",
+  "filters": [
+   "ha3",
+   "o3_3",
+   "s2_3",
+   "lum",
+   "red",
+   "grn",
+   "blu"
+  ],
+  "filters_note": "La ruota sotto cui valgono le ore scritte nelle schede. Prima non era dichiarata, e la posa di riferimento — il denominatore di ogni fattore di conversione — finiva per essere calcolata con i filtri di CHI USA L'APP: due utenti con ruote diverse ottenevano riferimenti diversi per lo stesso oggetto, e cambiando filtri a sessione avviata il vecchio valore restava congelato. Un riferimento che dipende da chi lo interroga non e' un riferimento. Narrowband 3 nm piu' il set LRGB Optolong: e' la ruota coerente con la camera monocromatica di riferimento e con il rapporto 1:1:1 dichiarato per l'RGB."
  },
  "presets": [
   {

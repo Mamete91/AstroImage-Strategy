@@ -448,6 +448,95 @@ H('OGNI POSA CONSIGLIATA DEVE ESSERE CALIBRABILE');
                     : Object.keys(tetti).sort((a, b) => a - b).join(' · ') + ' s');
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+H('IL RIFERIMENTO NON DIPENDE DA CHI LO INTERROGA');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* La posa del riferimento e' il denominatore di ogni `timeFactor`, cioe' il metro
+     con cui le ore delle schede vengono riscalate sulla tua strumentazione. Si
+     calcolava pero' con `filterFor`, che legge la ruota di CHI USA L'APP: con i
+     filtri da 3 nm usciva 600 s, con un L-eNhance 120 s, e da li' cambiavano le ore
+     prescritte. Il valore veniva poi memoizzato e mai invalidato, quindi cambiando
+     filtri a sessione avviata restava congelato quello di prima: lo stesso caso
+     fisico dava numeri diversi a seconda dell'ORDINE in cui lo si era interrogato.
+
+     Un metro che cambia con chi misura non e' un metro. */
+  const fsx = require('fs'), pathx = require('path');
+  const ROOTx = pathx.join(__dirname, '..');
+  const srcx = fsx.readFileSync(pathx.join(ROOTx, 'index.html'), 'utf8');
+  const purex = srcx.split('<script>')[1].split('</script>')[0]
+    .split('/* =====================================================================\n   UI')[0];
+  const DBx = JSON.parse(fsx.readFileSync(pathx.join(ROOTx, 'data', 'setups.json'), 'utf8'));
+  const TGx = JSON.parse(fsx.readFileSync(pathx.join(ROOTx, 'data', 'targets.json'), 'utf8'));
+  const CATx = JSON.parse(fsx.readFileSync(pathx.join(ROOTx, 'data', 'catalog.json'), 'utf8'));
+  const CITx = JSON.parse(fsx.readFileSync(pathx.join(ROOTx, 'data', 'cities.json'), 'utf8'));
+
+  chk('la ruota di riferimento e dichiarata nei dati',
+    Array.isArray(DBx.reference_config && DBx.reference_config.filters) &&
+    DBx.reference_config.filters.length > 0,
+    (DBx.reference_config.filters || []).join(' '));
+  chk('e ogni suo filtro esiste nel catalogo',
+    (DBx.reference_config.filters || []).every(id => DBx.filters.some(f => f.id === id)));
+
+  /* Il metro va misurato con ruote diverse: se cambia, non e' un metro. */
+  const conRuota = ruota => {
+    const OWNEDx = ruota.slice();
+    const ctxx = { DB: DBx, TG: TGx, CAT: CATx.objects, CITIES: CITx.cities, OWNED: OWNEDx,
+      console, Math, Date, Object, JSON, isFinite, parseFloat, parseInt, Number, window: {} };
+    const Mx = new Function(...Object.keys(ctxx), purex +
+      `return {refSubFor,derive,evaluate,prescribe,nightProfile,effFWHM};`)(...Object.values(ctxx));
+    return { rif: ['Ha', 'OIII', 'SII', 'L'].map(b => Mx.refSubFor(b)), M: Mx, OWNED: OWNEDx };
+  };
+  const RUOTE = [
+    ['3 nm', ['ha3', 'o3_3', 's2_3', 'lum', 'red', 'grn', 'blu']],
+    ['12 nm', ['ha12', 'o3_12', 's2_12', 'lum', 'red', 'grn', 'blu']],
+    ['L-eNhance', ['lenh', 'lum', 'red', 'grn', 'blu']],
+    ['L-Ultimate', ['lult', 'idas']],
+    ['di serie', DBx.default_filters],
+  ];
+  const primo = conRuota(RUOTE[0][1]).rif;
+  let diverse = [];
+  for (const [nome, r] of RUOTE) {
+    const v = conRuota(r).rif;
+    console.log('       ' + String(nome).padEnd(12) + 'posa di riferimento ' + v.join(' · ') + ' s');
+    if (v.join(',') !== primo.join(',')) diverse.push(nome);
+  }
+  chk('la posa di riferimento e la stessa con qualunque ruota', diverse.length === 0,
+    diverse.length ? 'cambia con: ' + diverse.join(', ') : 'identica su ' + RUOTE.length + ' ruote');
+
+  /* E non deve restare congelata: cambiare ruota a sessione avviata deve dare lo
+     stesso risultato di una sessione nata gia' cosi'. */
+  const A = conRuota(['ha12', 'o3_12', 's2_12', 'lum', 'red', 'grn', 'blu']);
+  const B = conRuota(['ha3', 'o3_3', 's2_3', 'lum', 'red', 'grn', 'blu']);
+  B.M.refSubFor('Ha'); B.M.refSubFor('OIII');            // fissa la cache con la vecchia ruota
+  B.OWNED.length = 0; ['ha12', 'o3_12', 's2_12', 'lum', 'red', 'grn', 'blu'].forEach(x => B.OWNED.push(x));
+  const stx = { lat: 46.0167, lon: 10.3333, sqm: 20.8, seeing: 1.6, rms: 0.6, horizonMin: 20, clearFrac: 0.35 };
+  stx.fwhm = A.M.effFWHM(1.6, 0.6);
+  const npx = A.M.nightProfile(new Date(2026, 8, 11), stx.lat, stx.lon);
+  const ore = K => {
+    const dv = K.M.derive({ tel: 'tecnosky115', red: 0.80, cam: 'asi2600mm', mnt: 'am5', bin: 1 });
+    const t = TGx.targets.find(x => /Velo/i.test(x.names.join(' ')));
+    const pr = K.M.prescribe(K.M.evaluate(t, dv, stx, npx, {}), 6.4, dv, 1);
+    const g = {};
+    for (const a of pr.alloc) for (const b of (a.bands || [a.id])) g[b] = (g[b] || 0) + a.hours / (a.bands || [a.id]).length;
+    return g.OIII || 0;
+  };
+  const oA = ore(A), oB = ore(B);
+  console.log('       nata con i 12 nm ' + F(oA, 3) + ' h   ·   passata ai 12 nm ' + F(oB, 3) + ' h');
+  chk('cambiare ruota a sessione avviata non lascia il metro congelato',
+    Math.abs(oA - oB) < 1e-6, 'scarto ' + F(Math.abs(oA - oB), 4) + ' h');
+
+  /* Il metro deve restare neutro su se stesso. */
+  const R = conRuota(DBx.default_filters);
+  const dvR = R.M.derive({ tel: DBx.reference_config.telescope, red: DBx.reference_config.reducer,
+                           cam: DBx.reference_config.camera, mnt: 'am5', bin: 1 });
+  chk('e la configurazione di riferimento vale ancora uno su se stessa',
+    ['Ha', 'OIII', 'SII', 'L'].every(b => {
+      const t = R.M.refSubFor(b);
+      return Math.abs(M.timeFactor(dvR, b, t) - 1) < 1e-9;
+    }));
+}
+
 console.log('\n'+(ko?'\x1b[31m':'\x1b[32m')+ok+' verifiche superate, '+ko+' fallite\x1b[0m');
 if(ko) process.exitCode=1;
 module.exports={ok,ko};

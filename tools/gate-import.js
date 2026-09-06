@@ -355,5 +355,58 @@ H('I - le note curate: documentazione, non prescrizione');
   }
 }
 
+H('provenienza delle ORE, non solo delle righe');
+{
+  /* CONTRIBUTING.md rende `confidence` e `source` obbligatori perche' il database
+     non «degeneri in folklore». La regola pero' era applicata solo alle etichette
+     di forza: le ORE — cioe' gli unici numeri che il piano mostra davvero — erano
+     l'unica famiglia esente. Su 65 voci di budget, source e confidence comparivano
+     zero volte, mentre sotto `lines` comparivano 76.
+
+     Non e' una formalita': l'ora prescritta e' il numero su cui si decide quante
+     notti spendere, e senza provenienza non c'e' modo di discuterla. */
+  const TG = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'targets.json'), 'utf8'));
+  const VOC = ['alta', 'media-alta', 'media', 'bassa'];   // il vocabolario di CONTRIBUTING.md
+  let voci = 0, senzaSrc = [], senzaConf = [], fuoriVoc = [], srcVuota = [];
+  for (const t of TG.targets) {
+    for (const [ch, v] of Object.entries(t.budget || {})) {
+      voci++;
+      const dove = t.id + '/' + ch;
+      if (!v.source) senzaSrc.push(dove);
+      else if (String(v.source).trim().length < 12) srcVuota.push(dove);
+      if (!v.confidence) senzaConf.push(dove);
+      else if (VOC.indexOf(v.confidence) < 0) fuoriVoc.push(dove + '=' + v.confidence);
+    }
+  }
+  chk('ogni voce di budget dichiara da dove viene il numero', senzaSrc.length === 0,
+    senzaSrc.length ? senzaSrc.slice(0, 4).join(', ') : voci + ' voci');
+  chk('e nessuna se la cava con una sigla', srcVuota.length === 0, srcVuota.slice(0, 4).join(', '));
+  chk('ogni voce di budget dichiara la propria confidenza', senzaConf.length === 0,
+    senzaConf.slice(0, 4).join(', '));
+  chk('e usa il vocabolario di CONTRIBUTING.md', fuoriVoc.length === 0,
+    fuoriVoc.length ? fuoriVoc.slice(0, 4).join(', ') : VOC.join(' · '));
+
+  /* La confidenza non si assegna a sentimento: nessuna di queste ore e' misurata
+     su questo oggetto, quindi nessuna puo' dichiararsi «alta». */
+  const troppo = [];
+  for (const t of TG.targets)
+    for (const [ch, v] of Object.entries(t.budget || {}))
+      if (v.confidence === 'alta' || v.confidence === 'media-alta') troppo.push(t.id + '/' + ch);
+  chk('nessuna ora si dichiara misurata: non lo e', troppo.length === 0,
+    troppo.slice(0, 4).join(', '));
+
+  /* E deve restare agganciata a un fatto verificabile del dato: «media» solo dove
+     esiste una motivazione scritta per quel canale. */
+  const incoerenti = [];
+  for (const t of TG.targets)
+    for (const [ch, v] of Object.entries(t.budget || {})) {
+      const motivata = !!(v.note || v.warning);
+      if (motivata !== (v.confidence === 'media')) incoerenti.push(t.id + '/' + ch);
+    }
+  chk('la confidenza segue la presenza di una motivazione scritta',
+    incoerenti.length === 0, incoerenti.length ? incoerenti.slice(0, 5).join(', ')
+      : 'media dove c e la nota, bassa dove non c e');
+}
+
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
 process.exit(ko ? 1 : 0);

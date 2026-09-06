@@ -1839,7 +1839,10 @@ function camSpec(cam){
   return spec;
 }
 /* Da chiamare quando cambia il CATALOGO, non quando cambia una camera. */
-camSpec.reset=()=>{ _specGen++; _dye=null; };
+camSpec.reset=()=>{ _specGen++; _dye=null;
+  /* La posa di riferimento dipende dal catalogo, non da chi guarda: se il
+     catalogo cambia va ricalcolata, se cambia la ruota no. */
+  if(typeof resetRefSub==='function') resetRefSub(); };
 
 /* Quello che la CAMERA vede: silicio per colorante. Su un mono il colorante
    vale 1 esatto. Su una matrice la curva non e' piu' un dato indipendente da
@@ -2092,15 +2095,40 @@ function cfaFraction(cam,band){
    120 in RGB: il numero cablato non era il suo.
 
    Si calcola invece di assumerlo, una volta sola per banda. */
-const _refSub={};
+/* LA POSA DEL RIFERIMENTO, che e' il denominatore di ogni `timeFactor`.
+
+   DIFETTO CORRETTO. Questa posa si calcolava con `subExposure` sul setup di
+   riferimento, ma la larghezza della finestra la sceglie `filterFor`, che legge
+   `ownedFilters()` — cioe' LA RUOTA DI CHI USA L'APP. Il riferimento finiva quindi
+   per dipendere da chi lo interrogava: con i filtri da 3 nm usciva 600 s, con un
+   L-eNhance 120 s, e da li' cambiavano le ore prescritte. Peggio, il risultato
+   veniva memoizzato e non piu' invalidato: cambiando filtri a sessione avviata il
+   valore restava quello di prima, e lo stesso caso fisico dava numeri diversi a
+   seconda dell'ORDINE in cui lo si era interrogato.
+
+   Un riferimento che dipende da chi lo interroga non e' un riferimento. Ora la
+   ruota di riferimento e' dichiarata nei dati — `reference_config.filters` — e qui
+   la si impone per il tempo del calcolo, ripristinando subito dopo quella vera.
+   Si azzera anche `USING`, perche' un riquadro spento e' pur sempre uno stato di
+   chi guarda, non del riferimento. */
+let _refSub={};
+const resetRefSub=()=>{ _refSub={}; };
 function refSubFor(band){
   if(_refSub[band]!=null) return _refSub[band];
   const r=refCfg();
   let v;
+  const ruotaVera=OWNED.slice(), usoVero=(typeof USING!=='undefined')?USING:null;
   try{
+    const rif=(DB.reference_config&&DB.reference_config.filters)||DB.default_filters||[];
+    OWNED.length=0; rif.forEach(x=>OWNED.push(x));
+    if(typeof USING!=='undefined') USING=null;
     const st={sqm:r.sqm,seeing:1.6,rms:0.6,fwhm:effFWHM(1.6,0.6)};
     v=subExposure(r.dv,st,band,{hours:8,noStrategy:true}).sec;
   }catch(e){ v=TSUB_NOMINAL(band); }
+  finally{
+    OWNED.length=0; ruotaVera.forEach(x=>OWNED.push(x));
+    if(typeof USING!=='undefined') USING=usoVero;
+  }
   return (_refSub[band]=v||TSUB_NOMINAL(band));
 }
 
@@ -2452,7 +2480,7 @@ function costGroups(parts,dual){
    al proprio obiettivo, con il critico che pesa di più. È l'ordine in cui
    le ore rendono di più, ed evita di regalare la ventesima ora all'RGB
    mentre l'OIII è a metà strada. */
-function fillBudget(groups,hours){
+function fillBudget(groups,hours,o){
   const pri=groups.slice().sort((a,b)=>
     ((b.critical?1:0)-(a.critical?1:0)) || ((b.share||0)-(a.share||0)) || (a.floor-b.floor));
   /* PIU' ORE, MENO CANALI — l'assurdita' che questo blocco produceva.
@@ -2496,6 +2524,11 @@ function fillBudget(groups,hours){
      e lì senza pesi — altrimenti a budget esatto il critico sfonderebbe il
      proprio utile rubando ore agli altri, che è il contrario del voluto. */
   const step=Math.max(hours/800,1e-5);
+  /* Il peso e' una scelta dichiarata, non un numero sparso nel codice: sotto
+     budget l'ora rende di piu' sul canale che decide l'immagine. Vive qui perche'
+     l'interfaccia lo deve poter NOMINARE, e perche' misurare quanto vale su una
+     prescrizione richiede di poterlo spegnere. */
+  const peso=(o&&o.senzaPeso)?1:CRIT_WEIGHT;
   const fillTo=(cap,weighted)=>{
     for(let i=0;i<1600&&left>1e-9;i++){
       let best=null,worst=Infinity;
@@ -2503,7 +2536,7 @@ function fillBudget(groups,hours){
         if(got[g.id]<=0) continue;
         const lim=cap(g);
         if(got[g.id]>=lim-1e-9) continue;
-        const r=got[g.id]/Math.max(lim,1e-6)/(weighted&&g.critical?1.35:1);
+        const r=got[g.id]/Math.max(lim,1e-6)/(weighted&&g.critical?peso:1);
         if(r<worst){worst=r;best=g;}
       }
       if(!best) return;
@@ -2516,6 +2549,19 @@ function fillBudget(groups,hours){
   fillTo(g=>g.sat,false);
   return {got,dropped,unused:left,order:pri};
 }
+
+/* QUANTO PESA DI PIU' IL CANALE CHE DECIDE L'IMMAGINE, sotto budget.
+
+   Non e' fisica: e' una priorita' editoriale, e come tale va dichiarata invece che
+   subita. Sotto budget l'ora rende di piu' sul canale critico, quindi il
+   riempimento lo serve prima. La conseguenza pero' e' che il piano mostra il
+   rapporto fra i canali MOLTIPLICATO per questo numero rispetto a quello che la
+   scheda dichiara — e sopra le ore che bastano a tutti sparisce da solo, il che lo
+   rende invisibile proprio a chi confronta due piani diversi.
+
+   Chi guarda un piano deve poter vedere che una parte dello sbilanciamento non
+   viene dall'oggetto ma da questa regola. */
+const CRIT_WEIGHT=1.35;
 
 /* Le "ore equivalenti di riferimento": le voci di `expect` sono scritte per
    la configurazione di riferimento, quindi vanno riportate lì prima di
@@ -2713,6 +2759,19 @@ function prescribe(e,hours,dv,panels,opts){
   const groups=costGroups(chosen.parts,dual);
   const critG=groups.find(g=>g.critical)||groups[0];
   const fill=fillBudget(groups,hours);
+  /* QUANTO HA SPOSTATO IL PESO DEL CANALE CRITICO. Lo si misura rifacendo lo
+     stesso riempimento con il peso spento: la differenza e' esattamente cio' che
+     l'interfaccia deve poter dichiarare. Non cambia nulla di cio' che si prescrive
+     — `fill` resta quello vero — serve solo a poterlo spiegare. */
+  let critPeso=null;
+  try{
+    const senza=fillBudget(groups,hours,{senzaPeso:true});
+    const gc=groups.find(g=>g.critical);
+    if(gc){
+      const con=fill.got[gc.id]||0, sen=senza.got[gc.id]||0;
+      if(con>sen+1e-6) critPeso={id:gc.id,con,senza:sen,peso:CRIT_WEIGHT};
+    }
+  }catch(err){}
   /* «SOTTO IL PAVIMENTO», non «buttato via».
 
      Prima questi due stati si leggevano da `fill.dropped`, perche' un canale che
@@ -2840,6 +2899,10 @@ function prescribe(e,hours,dv,panels,opts){
           /* Vero quando una strada a riga singola e' stata scartata perche' con il
              tuo dual-band sarebbe la stessa ripresa della strada accoppiata. */
           coppiaImposta,
+          /* Il canale critico ha ricevuto piu' ore perche' pesa di piu': quante
+             erano con il peso e quante sarebbero state senza. Null quando il peso
+             non ha spostato niente — sopra le ore che bastano a tutti sparisce. */
+          critPeso,
           alloc,spent,unused:Math.max(0,hours-spent),critGroup:critG.id,needed,short,
           expect:exp,nights,weeks,hours,
           /* `spent` e `hours` restano PER PANNELLO — e' cosi' che li usano posa,
@@ -6641,7 +6704,9 @@ const G={
  conf_alta:'Misurato su questo oggetto specifico, oppure ricavato da una survey che lo copre. È il grado di fiducia più alto.',
  conf_media:'Non misurato su questo oggetto: dedotto da oggetti della stessa classe fisica, con riscontri fotografici concordi. Può sbagliare di un fattore 2.',
  conf_bassa:'Stima per somiglianza con oggetti dello stesso tipo, senza verifiche su questo in particolare. Può sbagliare anche di un fattore 3-5: usala per decidere se vale la pena provare, non per pianificare al minuto.',
- crit:'Il canale che decide se l\'immagine riesce. Se resta sotto la sua soglia, aggiungere ore agli altri non serve a niente.',
+ crit:'Il canale che decide se l\'immagine riesce. Se resta sotto la sua soglia, aggiungere ore agli altri non serve a niente. '+
+   'Finche\u2019 le ore non bastano a tutti riceve anche una priorita\u2019 nel riparto \u2014 pesa 1,35 volte gli altri \u2014 '+
+   'quindi una parte dello sbilanciamento che vedi non viene dall\'oggetto ma da questa regola. Sopra le ore che bastano a tutti sparisce da sola.',
  floor:'Sotto questa soglia il canale non va nemmeno iniziato: restituisce rumore colorato, non segnale. Le ore spese qui sono perse due volte, perché poi tocca lavorare per spegnere quel rumore.',
  useful:'Il punto in cui il canale dà quello che può dare. Oltre, si continua a guadagnare ma sempre più lentamente.',
  samp_ok:'La dimensione del pixel è ben accoppiata al seeing del tuo cielo: non stai buttando via dettaglio né sprecando ore su pixel che non vedono nulla di nuovo.',
@@ -7554,6 +7619,21 @@ function renderRx(np){
      hai in ruota ma hai deciso di non usare. */
   const off = (pr.missingOff||[]).filter(b=>(pr.missing||[]).indexOf(b)>=0);
   const nonHai = (pr.missing||[]).filter(b=>off.indexOf(b)<0);
+  /* IL PESO DEL CANALE CRITICO, DETTO. Il riparto favorisce il canale che decide
+     l'immagine finche' le ore non bastano a tutti: e' una scelta dichiarata e
+     difendibile, ma finora il piano mostrava il risultato senza dire che una parte
+     dello sbilanciamento veniva da li'. Sopra le ore che bastano a tutti il peso
+     non morde e la riga non compare — ed e' proprio questo che lo rendeva
+     invisibile a chi confronta due piani. */
+  const cp = pr.critPeso;
+  const pesoNota = cp
+    ? `<div class="rx-warn"><b>Il canale che decide l’immagine ha la precedenza.</b>
+        Finche’ le ore non bastano a tutti, <b>${esc(cp.id)}</b> pesa
+        ${String(cp.peso).replace('.',',')} volte gli altri nel riparto: qui riceve
+        <b>${fmt(cp.con,1)} h</b> invece delle <b>${fmt(cp.senza,1)} h</b> che gli
+        toccherebbero a peso uguale. E’ una priorità di questo motore, non una
+        richiesta della scheda, e sopra le ore che bastano a tutti sparisce da sola.</div>`
+    : '';
   const filtNote = off.length && !nonHai.length
     ? `<div class="rx-warn"><b>Hai spento ${esc(off.join(' e '))}, e ogni tecnica di questo
         oggetto ${off.length>1?'li richiede':'lo richiede'}.</b> La prescrizione qui sotto e' quella
@@ -7823,7 +7903,7 @@ function renderRx(np){
           `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u.replace(/^https?:\/\//,'').split('/')[0])}</a>`).join(' &middot; ')}</p>`:''}
       </div></details>`;
   })();
-  out.innerHTML=`${filtNote}<div class="rx ${L.cls}">
+  out.innerHTML=`${filtNote}${pesoNota}<div class="rx ${L.cls}">
     <div class="rxhead">
       <h3>${head} <span class="pill ${L.pill}" style="vertical-align:middle">${L.k}</span></h3>
       ${actions}
