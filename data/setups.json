@@ -1160,7 +1160,28 @@
     "Ha",
     "OIII"
    ],
-   "dual": true
+   "dual": true,
+   "windows": [
+    {
+     "fwhm_nm": 3.0,
+     "lines": [
+      {
+       "band": "OIII",
+       "lambda_nm": 500.68
+      }
+     ]
+    },
+    {
+     "fwhm_nm": 3.0,
+     "lines": [
+      {
+       "band": "Ha",
+       "lambda_nm": 656.28
+      }
+     ]
+    }
+   ],
+   "windows_source": "Optolong dichiara 3 nm su entrambe le righe. A 3 nm nella finestra blu ci sta la sola 5007: la 4959 dista 4.8 nm e resta fuori."
   },
   {
    "id": "lext",
@@ -1173,7 +1194,32 @@
     "Ha",
     "OIII"
    ],
-   "dual": true
+   "dual": true,
+   "windows": [
+    {
+     "fwhm_nm": 7.0,
+     "lines": [
+      {
+       "band": "OIII",
+       "lambda_nm": 495.89
+      },
+      {
+       "band": "OIII",
+       "lambda_nm": 500.68
+      }
+     ]
+    },
+    {
+     "fwhm_nm": 7.0,
+     "lines": [
+      {
+       "band": "Ha",
+       "lambda_nm": 656.28
+      }
+     ]
+    }
+   ],
+   "windows_source": "Optolong dichiara 7 nm su entrambe le righe, con l'Hbeta escluso."
   },
   {
    "id": "lenh",
@@ -1186,7 +1232,36 @@
     "Ha",
     "OIII"
    ],
-   "dual": true
+   "dual": true,
+   "windows": [
+    {
+     "fwhm_nm": 24.0,
+     "lines": [
+      {
+       "band": "Hb",
+       "lambda_nm": 486.13
+      },
+      {
+       "band": "OIII",
+       "lambda_nm": 495.89
+      },
+      {
+       "band": "OIII",
+       "lambda_nm": 500.68
+      }
+     ]
+    },
+    {
+     "fwhm_nm": 10.0,
+     "lines": [
+      {
+       "band": "Ha",
+       "lambda_nm": 656.28
+      }
+     ]
+    }
+   ],
+   "windows_source": "Optolong dichiara 10 nm sull'Ha e circa 24 nm sulla regione che contiene Hbeta e le due righe dell'OIII: e' l'unico dei tre a lasciar passare l'Hbeta, ed e' la ragione per cui il suo canale blu raccoglie piu' cielo degli altri."
   },
   {
    "id": "alpt",
@@ -1199,7 +1274,32 @@
     "Ha",
     "OIII"
    ],
-   "dual": true
+   "dual": true,
+   "windows": [
+    {
+     "fwhm_nm": 5.0,
+     "lines": [
+      {
+       "band": "OIII",
+       "lambda_nm": 495.89
+      },
+      {
+       "band": "OIII",
+       "lambda_nm": 500.68
+      }
+     ]
+    },
+    {
+     "fwhm_nm": 5.0,
+     "lines": [
+      {
+       "band": "Ha",
+       "lambda_nm": 656.28
+      }
+     ]
+    }
+   ],
+   "windows_source": "Antlia ALP-T: 5 nm dichiarati su entrambe le righe."
   },
   {
    "id": "nbz",
@@ -1212,7 +1312,32 @@
     "Ha",
     "OIII"
    ],
-   "dual": true
+   "dual": true,
+   "windows": [
+    {
+     "fwhm_nm": 12.0,
+     "lines": [
+      {
+       "band": "OIII",
+       "lambda_nm": 495.89
+      },
+      {
+       "band": "OIII",
+       "lambda_nm": 500.68
+      }
+     ]
+    },
+    {
+     "fwhm_nm": 12.0,
+     "lines": [
+      {
+       "band": "Ha",
+       "lambda_nm": 656.28
+      }
+     ]
+    }
+   ],
+   "windows_source": "IDAS NBZ: larghezza dichiarata unica per le due bande."
   },
   {
    "id": "nbz2",
@@ -1225,7 +1350,28 @@
     "Ha",
     "OIII"
    ],
-   "dual": true
+   "dual": true,
+   "windows": [
+    {
+     "fwhm_nm": 4.0,
+     "lines": [
+      {
+       "band": "OIII",
+       "lambda_nm": 500.68
+      }
+     ]
+    },
+    {
+     "fwhm_nm": 4.0,
+     "lines": [
+      {
+       "band": "Ha",
+       "lambda_nm": 656.28
+      }
+     ]
+    }
+   ],
+   "windows_source": "IDAS NBZ-II Ultra: 4 nm dichiarati su entrambe."
   },
   {
    "id": "svd",
@@ -1238,7 +1384,32 @@
     "Ha",
     "OIII"
    ],
-   "dual": true
+   "dual": true,
+   "windows": [
+    {
+     "fwhm_nm": 7.0,
+     "lines": [
+      {
+       "band": "OIII",
+       "lambda_nm": 495.89
+      },
+      {
+       "band": "OIII",
+       "lambda_nm": 500.68
+      }
+     ]
+    },
+    {
+     "fwhm_nm": 7.0,
+     "lines": [
+      {
+       "band": "Ha",
+       "lambda_nm": 656.28
+      }
+     ]
+    }
+   ],
+   "windows_source": "SVBony SV220: 7 nm dichiarati su entrambe."
   },
   {
    "id": "zwoduo",
@@ -1251,7 +1422,32 @@
     "Ha",
     "OIII"
    ],
-   "dual": true
+   "dual": true,
+   "windows": [
+    {
+     "fwhm_nm": 7.0,
+     "lines": [
+      {
+       "band": "OIII",
+       "lambda_nm": 495.89
+      },
+      {
+       "band": "OIII",
+       "lambda_nm": 500.68
+      }
+     ]
+    },
+    {
+     "fwhm_nm": 7.0,
+     "lines": [
+      {
+       "band": "Ha",
+       "lambda_nm": 656.28
+      }
+     ]
+    }
+   ],
+   "windows_source": "ZWO Duo-Band: 7 nm dichiarati su entrambe."
   },
   {
    "id": "askard1",
@@ -1264,7 +1460,32 @@
     "Ha",
     "OIII"
    ],
-   "dual": true
+   "dual": true,
+   "windows": [
+    {
+     "fwhm_nm": 6.0,
+     "lines": [
+      {
+       "band": "OIII",
+       "lambda_nm": 495.89
+      },
+      {
+       "band": "OIII",
+       "lambda_nm": 500.68
+      }
+     ]
+    },
+    {
+     "fwhm_nm": 6.0,
+     "lines": [
+      {
+       "band": "Ha",
+       "lambda_nm": 656.28
+      }
+     ]
+    }
+   ],
+   "windows_source": "Askar Colour Magic D1, Ha + OIII: 6 nm dichiarati."
   },
   {
    "id": "askard2",
@@ -1277,7 +1498,32 @@
     "SII",
     "OIII"
    ],
-   "dual": true
+   "dual": true,
+   "windows": [
+    {
+     "fwhm_nm": 6.0,
+     "lines": [
+      {
+       "band": "OIII",
+       "lambda_nm": 495.89
+      },
+      {
+       "band": "OIII",
+       "lambda_nm": 500.68
+      }
+     ]
+    },
+    {
+     "fwhm_nm": 6.0,
+     "lines": [
+      {
+       "band": "SII",
+       "lambda_nm": 672.44
+      }
+     ]
+    }
+   ],
+   "windows_source": "Askar Colour Magic D2, SII + OIII: la finestra rossa contiene il sulfuro 672.4, non l'idrogeno."
   },
   {
    "id": "altri",
@@ -1290,7 +1536,36 @@
     "Ha",
     "OIII"
    ],
-   "dual": true
+   "dual": true,
+   "windows": [
+    {
+     "fwhm_nm": 25.0,
+     "lines": [
+      {
+       "band": "Hb",
+       "lambda_nm": 486.13
+      },
+      {
+       "band": "OIII",
+       "lambda_nm": 495.89
+      },
+      {
+       "band": "OIII",
+       "lambda_nm": 500.68
+      }
+     ]
+    },
+    {
+     "fwhm_nm": 25.0,
+     "lines": [
+      {
+       "band": "Ha",
+       "lambda_nm": 656.28
+      }
+     ]
+    }
+   ],
+   "windows_source": "Antlia Triband RGB Ultra: banda larga per un triband, la larghezza dichiarata vale per entrambe le regioni."
   },
   {
    "id": "lum",

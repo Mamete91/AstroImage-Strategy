@@ -1275,13 +1275,57 @@ chk('e la sua finestra e stretta',spDual.narrow,true);
 /* Il difetto: `filterFor('Ha+OIII')` non trovava niente e si ripiegava sui 250 nm
    della banda larga. Il fondo usciva ~100x troppo alto e la posa ~10x troppo corta,
    proprio sulla configurazione OSC + dual-band, la piu' diffusa che esista. */
-chk('un dual-band da 3 nm non raccoglie il cielo come una luminanza',skyL/skyDual>20,true);
-chk('su OSC ogni fotosito vede una sola delle due righe',spDual.windows,1);
-chk('su mono le vede entrambe',M.bandSpec('Ha+OIII',dvMON.c).windows,2);
+/* La guardia contro il vecchio difetto resta, ma con la soglia che le compete.
+   Se il gruppo ricadesse sui 250 nm della banda larga il rapporto crollerebbe a
+   circa 1: chiedere che stia sopra 10 lo intercetta con margine. Il valore atteso
+   e' calcolabile — 300 nm di luminanza contro 6 nm di dual, moltiplicati per
+   OSC_BB perche' su matrice il fotosito vede un terzo dello spettro largo — e vale
+   circa 17. Prima ne usciva il doppio, ma solo perche' del dual si contava una
+   finestra sola su due. */
+chk('un dual-band da 3 nm non raccoglie il cielo come una luminanza',skyL/skyDual>10,true);
+
+/* UN DUAL APRE DUE FINESTRE, E LE APRE INSIEME.
+   Il numero di finestre dice quanto vetro e' trasparente, non chi lo guarda: su una
+   matrice di Bayer a dire quali fotositi vedono quale finestra e' la frazione di
+   mosaico, che vale circa 0.37 a 656 nm e 0.64 a 500 nm. Confondere le due cose
+   faceva sparire del tutto la finestra dell'OIII — dal fondo cielo e dal mosaico —
+   e il gruppo era un Ha travestito da dual proprio sulla configurazione piu'
+   diffusa che esista. */
+chk('il gruppo dichiara le due finestre che il vetro apre',spDual.windows,2);
+chk('e le dichiara anche su monocromatica',M.bandSpec('Ha+OIII',dvMON.c).windows,2);
+
+/* L'IDENTITA' CHE NON PUO' NON VALERE: se le due finestre raccolgono nella stessa
+   posa, il cielo del gruppo E' la somma del cielo dei due canali. Su monocromatica
+   torna esatta; su matrice resta un margine di qualche punto percentuale, perche'
+   il gruppo valuta la QE al centro della finestra e il singolo canale sulla riga —
+   sull'L-eNhance il centro della finestra blu cade a 494 nm e la riga a 500.7. */
+for(const [dvX,labX,tolX] of [[dvMON,'mono',0.01],[dvOSC,'OSC',0.05]]){
+  const bHa=M.rates(dvX,'Ha',20.8).R_b, bO3=M.rates(dvX,'OIII',20.8).R_b;
+  const bGR=M.rates(dvX,'Ha+OIII',20.8).R_b;
+  console.log(`      ${labX}: cielo Ha ${bHa.toFixed(5)} + OIII ${bO3.toFixed(5)} = `+
+    `${(bHa+bO3).toFixed(5)}, gruppo ${bGR.toFixed(5)}`);
+  chk(`su ${labX} il cielo del gruppo e la somma dei due canali`,
+    Math.abs(bGR-(bHa+bO3))/(bHa+bO3)<tolX,true);
+}
+
 const exDual=M.subExposure(dvOSC,{lat:45.95,lon:10.2,sqm:20.8,seeing:1.6,rms:0.9,fwhm:2.2},'Ha+OIII',{});
 console.log(`      posa consigliata sul dual-band: ${exDual.sec} s (vincolo: ${exDual.binding})`);
 chk('e la posa consigliata e da banda stretta, non da luminanza',exDual.sec>=300,true);
-chk('servirebbero pose oltre i venti minuti per sommergere il rumore',exDual.tSwamp>1200,true);
+
+/* LA POSA SEGUE LA SELETTIVITA', ed e' una relazione monotona, non un numero magico:
+   piu' stretta e' la finestra, meno cielo entra, piu' a lungo bisogna posare per
+   sommergere il rumore di lettura. Un modello che desse la stessa posa a un 3 nm e a
+   un 24 nm non starebbe misurando niente — ed e' quello che faceva, perche' del dual
+   guardava solo la finestra dell'Ha. */
+const swampDi=id=>{ const salva=OWNED.slice(); OWNED.length=0; OWNED.push(id);
+  const t=M.subExposure(dvOSC,{lat:45.95,lon:10.2,sqm:20.8,seeing:1.6,rms:0.9,fwhm:2.2},
+    'Ha+OIII',{}).tSwamp;
+  OWNED.length=0; salva.forEach(x=>OWNED.push(x)); return t; };
+const tw3=swampDi('lult'), tw7=swampDi('lext'), tw24=swampDi('lenh');
+console.log(`      tempo per sommergere il rumore: 3 nm ${Math.round(tw3)} s · `+
+  `7 nm ${Math.round(tw7)} s · 10/24 nm ${Math.round(tw24)} s`);
+chk('per sommergere il rumore servono minuti, non secondi',tw3>300,true);
+chk('e il filtro piu selettivo ne chiede di piu, sempre',tw3>tw7&&tw7>tw24,true);
 
 console.log('\n--- geometria: una dimensione sola non deve produrre NaN ---');
 const oneDim={id:'x',names:['x'],size_arcmin:[20],ra_deg:0,dec_deg:0};

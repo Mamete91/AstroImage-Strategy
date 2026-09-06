@@ -1903,6 +1903,28 @@ function oscEfficiency(cam,band,sp){
   const resp=cs?cs.resp:null;
   const decl=cs?cs.cfaFraction(band):null;
   const misurato=decl!=null&&(cs.campi.cfa||{}).esito==='misura';
+  /* PIU' FINESTRE, PIU' FRAZIONI DI MOSAICO. A 656 nm risponde circa un terzo dei
+     fotositi, a 500 nm quasi due terzi: e' la ragione fisica per cui un dual-band
+     funziona su una camera a colori, ed e' esattamente quello che prendere
+     `lines[0]` per tutto il gruppo cancellava.
+     Le due finestre non pesano allo stesso modo sulle due grandezze: il CIELO e' un
+     continuo e pesa con la larghezza, il SEGNALE e' di riga e pesa con le righe.
+     Servono quindi due efficienze, non una — `rates` le usa dove vanno. */
+  if(sp.narrow&&sp.sub&&sp.sub.length>1){
+    let ns=0,ds=0,ng=0,dg=0,tutte=true;
+    for(const x of sp.sub){
+      const fr=mosaicFrac(x.lam,resp); if(fr==null){tutte=false;break;}
+      const q=qeAt(cam,x.lam)*x.T;
+      const pCielo=q*x.fwhm, pSegn=q*(x.ls!=null?x.ls:1);
+      ns+=pCielo*fr; ds+=pCielo; ng+=pSegn*fr; dg+=pSegn;
+    }
+    if(tutte&&ds>0&&dg>0){
+      const eSky=ns/ds, eSig=ng/dg;
+      return {eta:eSky,etaSky:eSky,etaSig:eSig,src:'modello spettrale, per finestra',
+        model:eSky,declared:decl,
+        conf:'media (±35%: la fuga nel rosso non e misurata su questo sensore)'};
+    }
+  }
   if(sp.narrow){
     const lam=sp.lines[0], model=mosaicFrac(lam,resp);
     const green=lam>=470&&lam<=580;                 // dove il modello e' solido
@@ -1956,7 +1978,13 @@ function rates(dv,band,sqm){
   /* UNA sola correzione di mosaico, non due moltiplicate. Vale identica su
      segnale e cielo: misurarli con efficienze diverse era un errore. */
   const oe=oscEfficiency(dv.c,band,sp);
+  /* Una sola correzione di mosaico per grandezza, ma non necessariamente LA STESSA
+     per cielo e segnale: quando le finestre sono due e cadono su frazioni di
+     matrice diverse, il cielo pesa con le larghezze e il segnale con le righe.
+     Dove la finestra e' una sola le due coincidono e tutto resta com'era. */
   const cfa=oe.eta;
+  const cfaSky=oe.etaSky!=null?oe.etaSky:cfa;
+  const cfaSig=oe.etaSig!=null?oe.etaSig:cfa;
   const osc=1;                                   // assorbito in oe: non si moltiplica piu'
   /* CORRETTO 2026-09 (v1.6). Prima era  k = qeAt x T x eta,  senza la larghezza di
      banda — mentre il cielo la conteneva. Per una RIGA e' giusto cosi'; per un
@@ -1965,7 +1993,7 @@ function rates(dv,band,sqm){
      matrice con una finestra da 250: 2.78x che finiva tutto sul cielo e niente sul
      segnale. La larghezza ora entra da bandThroughput(), dalla stessa funzione e
      con la stessa convenzione del fondo, cosi' le due non possono divergere. */
-  const k=bandThroughput(dv,sp,'signal')*cfa;
+  const k=bandThroughput(dv,sp,'signal')*cfaSig;
   /* Dove il modello NON e' validato lo dichiara, invece di restituire un numero
      sicuro di se'. Banda larga su matrice: OSC_BB e f_CFA si sovrappongono. Per L
      la scheda dichiara f_CFA=1.00 e il conto e' pulito (il fattore ~8.8x della 2600MC
@@ -1977,7 +2005,7 @@ function rates(dv,band,sqm){
   return {sp,lam,cfa,osc,k,validated,oe,
     om:dv.scale*dv.scale,                                   // arcsec²/px
     collect:(dv.Aeff/100)*k,                                // cm² adimensionalizzati
-    R_b:skyRateFor(dv,band,sqm,{spec:sp,mosaic:true})*cfa,  // e-/px/s, media sul mosaico
+    R_b:skyRateFor(dv,band,sqm,{spec:sp,mosaic:true})*cfaSky,// e-/px/s, media sul mosaico
     R_d:(dv.c.dark_e_s||0)*dv.bin*dv.bin,                   // e-/px/s
     RN :dv.rnEff||dv.c.read_noise_e||0};                    // e- per lettura
 }
@@ -3545,6 +3573,78 @@ const PHOT_V0=1008;
    quindi moltiplicarla per i 300 nm della luminanza conterebbe tre volte. */
 const OSC_BB=0.34;
 
+/* LE FINESTRE DI UN FILTRO, E LE RIGHE CHE CI STANNO DENTRO.
+
+   La distinzione e' fisica, e il motore non ce l'aveva:
+       finestra = quanto CIELO passa   → una larghezza, una trasmissione
+       riga     = quale SEGNALE passa  → il contenuto di quella finestra
+
+   Un dual-band apre due finestre, e non e' detto che siano larghe uguali:
+   l'L-eNhance dichiara 10 nm sull'Ha e circa 24 nm sulla regione che contiene
+   l'Hbeta e le due righe dell'OIII. Tre righe dentro UNA finestra non sono tre
+   finestre: il vetro e' uno solo e la sua trasmissione si conta una volta.
+
+   Il catalogo dichiara le finestre; per i filtri che non lo fanno — tutti quelli
+   a banda singola, e qualunque voce vecchia — se ne sintetizza una dai campi di
+   sempre, cosi' il resto del motore non si accorge della differenza. */
+function filterWindows(f){
+  if(!f) return [];
+  if(Array.isArray(f.windows)&&f.windows.length) return f.windows;
+  const bande=f.bands||[f.band];
+  return bande.filter(Boolean).map(b=>({fwhm_nm:f.fwhm_nm,peak_t:f.peak_t,
+    lines:[{band:b,lambda_nm:f.lambda_nm!=null&&bande.length===1?f.lambda_nm:(BAND_LAMBDA[b]||550)}]}));
+}
+/* La finestra che porta una banda. Su un dual SII+OIII l'OIII e nella finestra
+   blu e il sulfuro in quella rossa: chiedere «di che larghezza e' l'OIII» ha una
+   risposta sola, ed e' quella della SUA finestra. */
+function windowFor(f,band){
+  for(const w of filterWindows(f)) if((w.lines||[]).some(l=>l.band===band)) return w;
+  return null;
+}
+/* La lunghezza d'onda di una finestra NON e' un dato del catalogo: sarebbe un
+   centroide inventato. Si ricava dalle righe che la finestra contiene, che e'
+   l'unica informazione che si possiede davvero. Dentro una finestra la QE varia
+   pochissimo — fra 486 e 501 nm una 2600MC passa da 0.753 a 0.757 — quindi un
+   solo punto di valutazione e' piu' che sufficiente. */
+function windowLambda(w){
+  const L=(w.lines||[]).map(x=>x.lambda_nm).filter(x=>x!=null);
+  return L.length?L.reduce((a,b)=>a+b,0)/L.length:null;
+}
+/* Quanto SEGNALE di una data banda porta una finestra.
+
+   Due righe dell'OIII nascono dallo stesso livello superiore, e il loro rapporto
+   non e' una misura ma una costante atomica: 4959 vale 1/2.98 di 5007. Una
+   finestra da 3 nm prende solo la 5007, una da 7 o da 24 le prende entrambe, e
+   raccoglie quindi un terzo di segnale in piu'. E' un vantaggio reale della banda
+   larga, e finora il motore non lo vedeva.
+
+   L'Hbeta e' un caso diverso e va trattato diversamente. Passa davvero, nella
+   finestra larga dell'L-eNhance, ed e' lei a giustificarne i 24 nm nel FONDO
+   CIELO. Ma non e' OIII: accreditarla al canale OIII vorrebbe dire gonfiare un
+   canale con il segnale di un altro elemento, e i rapporti fra i canali nascono
+   dalla forza dell'OIII dichiarata nella scheda del bersaglio. Resta quindi
+   registrata nel dato — e pesa dove deve pesare, sul cielo — ma non contribuisce
+   al segnale finche' il catalogo dei bersagli non dira' quanto Hbeta hanno. */
+const OIII_4959_SU_5007=1/2.98;         // probabilita' di transizione, non una misura
+const HB_NEL_CANALE_OIII=0;             // registrata, non accreditata: vedi sopra
+function lineStrength(l){
+  if(!l) return 0;
+  if(l.band==='Hb') return HB_NEL_CANALE_OIII;
+  if(l.band==='OIII'&&l.lambda_nm!=null&&Math.abs(l.lambda_nm-495.89)<0.8) return OIII_4959_SU_5007;
+  return 1;
+}
+const windowStrength=(w,band)=>(w&&w.lines||[])
+  .filter(l=>band==null||l.band===band).reduce((a,l)=>a+lineStrength(l),0);
+/* Quanto e' selettivo un filtro: la sua finestra PIU' LARGA, non la piu' stretta
+   e nemmeno una media. E' il numero che conta quando si sceglie fra due filtri,
+   perche' e' li' che entra piu' cielo. Sull'L-eNhance vale 24 nm, non i 10
+   dell'Ha con cui il catalogo lo riassume. */
+function selectivity(f){
+  if(!f) return Infinity;
+  const w=filterWindows(f);
+  return w.length?Math.max.apply(null,w.map(x=>x.fwhm_nm||0)):(f.fwhm_nm||0);
+}
+
 /* Il modo di guadagno adatto alla banda. Banda stretta → il rumore di lettura
    è il nemico e il pozzetto non serve, perché attraverso 3 nm anche le stelle
    sono deboli. Banda larga → il contrario. Se la camera non dichiara i modi si
@@ -3576,11 +3676,34 @@ function gainModeFor(cam,band,opts){
 function bandSpec(band,cam){
   if(band==='Ha+OIII'||band==='HaOIII'){
     const f=dualPass(cam)||ownedFilters().filter(x=>x.dual)
-              .sort((a,b)=>a.fwhm_nm-b.fwhm_nm)[0];
+              .sort((a,b)=>selectivity(a)-selectivity(b))[0];
     if(f){
-      const lines=(f.bands||['Ha','OIII']).map(b=>BAND_LAMBDA[b]||550);
-      return {lines,fwhm:f.fwhm_nm,T:f.peak_t!=null?f.peak_t:0.9,filter:f,
-              dual:true,narrow:f.fwhm_nm<50,windows:cam.cfa_penalty?1:lines.length};
+      /* UNA SOTTO-BANDA PER FINESTRA. Prima il gruppo prendeva `lines[0]`, cioe'
+         656.3 nm, e con esso la larghezza dell'Ha, la QE dell'Ha e la frazione di
+         mosaico dell'Ha: la finestra dell'OIII non entrava ne' nel fondo cielo ne'
+         nel mosaico, e il gruppo era un Ha travestito da dual. Su una camera a
+         matrice e' il caso d'uso piu' diffuso che esista, ed e' proprio li' che la
+         differenza e' massima, perche' a 656 nm risponde circa un terzo dei
+         fotositi e a 500 nm quasi due terzi.
+         Le finestre raccolgono INSIEME, non a turno: `windows` conta quante sono, e
+         bandThroughput ne fa la media — media per numero uguale somma. Chi vede
+         quale finestra, su un sensore a matrice, lo dice oscEfficiency. */
+      const bande=f.bands||['Ha','OIII'];
+      const viste=[], sub=[];
+      for(const b of bande){
+        const w=windowFor(f,b);
+        if(!w||viste.indexOf(w)>=0) continue;         // una finestra si conta una volta
+        viste.push(w);
+        sub.push({band:b,lam:windowLambda(w)||BAND_LAMBDA[b]||550,fwhm:w.fwhm_nm,
+                  T:w.peak_t!=null?w.peak_t:(f.peak_t!=null?f.peak_t:0.9),
+                  w:1,ls:windowStrength(w,null)||1,win:w});
+      }
+      if(sub.length){
+        const larga=Math.max.apply(null,sub.map(x=>x.fwhm));
+        return {lines:sub.map(x=>x.lam),fwhm:larga,
+                T:sub.reduce((a,x)=>a+x.T,0)/sub.length,filter:f,sub,
+                dual:true,narrow:larga<50,windows:sub.length};
+      }
     }
   }
   /* RGB su MONOCROMATICA non e' una banda sola: e' un insieme SEQUENZIALE di tre
@@ -3607,9 +3730,19 @@ function bandSpec(band,cam){
     }
   }
   const f=filterFor(band,cam);
-  const w=f?f.fwhm_nm:BB_NM;
-  return {lines:[BAND_LAMBDA[band]||550],fwhm:w,
-          T:f?(f.peak_t!=null?f.peak_t:0.9):0.97,filter:f||null,
+  /* LA LARGHEZZA E' QUELLA DELLA FINESTRA CHE PORTA QUESTA BANDA, non quella con
+     cui il catalogo riassume il filtro. Chiedere l'OIII attraverso un L-eNhance
+     dava 10 nm — la finestra dell'Ha — mentre la finestra dell'OIII e' 24: il
+     fondo cielo usciva meno della meta' del vero, proprio nel canale piu' fragile. */
+  const wn=f?windowFor(f,band):null;
+  const w=wn?wn.fwhm_nm:(f?f.fwhm_nm:BB_NM);
+  const T=wn&&wn.peak_t!=null?wn.peak_t:(f?(f.peak_t!=null?f.peak_t:0.9):0.97);
+  /* E il segnale e' quello delle righe di QUESTA banda che quella finestra
+     contiene: a 3 nm la sola OIII 5007, a 7 o 24 anche la 4959. */
+  const ls=wn?(windowStrength(wn,band)||1):1;
+  return {lines:[wn&&windowLambda(wn)!=null&&(wn.lines||[]).length===1
+                   ?windowLambda(wn):(BAND_LAMBDA[band]||550)],fwhm:w,
+          T,filter:f||null,lineSum:ls,
           dual:false,narrow:w<50,windows:1};
 }
 /* Il prodotto spettrale della banda: QE(lambda) x T_filtro x larghezza, mediato
@@ -3621,12 +3754,16 @@ function bandSpec(band,cam){
        solo quanto cielo ci entra dentro. E' esattamente il motivo per cui la banda
        stretta funziona, e il motivo per cui questa correzione non la tocca. */
 function bandThroughput(dv,sp,kind){
-  const subs=sp.sub||[{lam:sp.lines[0],fwhm:sp.fwhm,T:sp.T,w:1}];
+  const subs=sp.sub||[{lam:sp.lines[0],fwhm:sp.fwhm,T:sp.T,w:1,ls:sp.lineSum}];
   const line=(kind==='signal')&&sp.narrow;
   let tot=0,wsum=0;
   for(const x of subs){
     const w=x.w!=null?x.w:1;
-    tot+=w*qeAt(dv.c,x.lam)*x.T*(line?1:x.fwhm*10);   // larghezza in angstrom
+    /* Su una RIGA il segnale non scala con la larghezza — e' il motivo per cui la
+       banda stretta funziona — ma scala con QUANTE righe la finestra contiene:
+       una finestra larga prende anche l'OIII 4959 accanto alla 5007. */
+    const ls=x.ls!=null?x.ls:1;
+    tot+=w*qeAt(dv.c,x.lam)*x.T*(line?ls:x.fwhm*10);   // larghezza in angstrom
     wsum+=w;
   }
   return wsum>0?tot/wsum:0;
@@ -3646,6 +3783,17 @@ const specQE=(dv,sp)=>sp.lines.reduce((a,l)=>a+qeAt(dv.c,l),0)/sp.lines.length;
      - MOSAICO (o.mosaic): la media sul mosaico, che serve alla fotometria per
        arcsec². La corregge oscEfficiency() a valle, quindi qui NON si applica
        OSC_BB: applicarlo due volte era esattamente il difetto da cui parte tutto. */
+/* LIMITE NOTO E MISURATO, non corretto qui. Il fondo cielo si ricava dall'SQM, che
+   e' una brillanza in banda V, e lo si assume PIATTO in lunghezza d'onda: lo stesso
+   numero di fotoni per angstrom a 500 nm e a 656. Non e' vero, e il motore possiede
+   gia' il dato per saperlo — `skyColour()`, tarata su Benn & Ellison, che pero' oggi
+   usa soltanto la Luna. Rispetto alla V, il cielo per angstrom vale circa 2.26 a
+   656 nm (li' cadono le righe del sodio e l'airglow rosso) e circa 0.67 a 493 nm.
+   Applicarlo cambierebbe le due finestre di un dual in versi opposti e in buona
+   parte si compensa: misurato sull'L-eNhance vale circa il 12% sul fondo totale e
+   una decina di secondi sulla posa. E' quindi una correzione di secondo ordine
+   rispetto a quella delle finestre, ed e' un lavoro a se': va fatta su TUTTE le
+   bande insieme, non su un filtro. */
 function skyRateFor(dv,band,sqm,opts){
   const o=opts||{};
   const sp=o.spec||bandSpec(band,dv.c);
@@ -4648,14 +4796,17 @@ function filterFor(band,cam){
     return ownedFilters().find(f=>f.band==='G');
   }
   const c=ownedFilters().filter(f=>f.band===band||(f.bands&&f.bands.includes(band)));
-  return c.length?c.sort((a,b)=>a.fwhm_nm-b.fwhm_nm)[0]:null;
+  /* Fra due filtri vince il piu' selettivo, e la selettivita' e' quella della
+     finestra PIU' LARGA: un L-eNhance si riassume a 10 nm ma lascia entrare 24 nm
+     di cielo sul blu, e va confrontato per quelli. */
+  return c.length?c.sort((a,b)=>selectivity(a)-selectivity(b))[0]:null;
 }
 /* Un dual-band su sensore a colori raccoglie Ha e OIII nella stessa posa: il tempo
    della strada e' quello del canale piu' difficile, non la somma dei due. */
 function dualPass(cam){
   if(!cam.cfa_penalty) return null;
   const d=ownedFilters().filter(f=>f.dual&&f.bands&&f.bands.includes('Ha')&&f.bands.includes('OIII'))
-    .sort((a,b)=>a.fwhm_nm-b.fwhm_nm)[0];
+    .sort((a,b)=>selectivity(a)-selectivity(b))[0];
   return d||null;
 }
 function feasibility(weeks,missing){
