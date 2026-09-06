@@ -1112,7 +1112,7 @@ td.archcell{max-width:120px}
                       <path d="M12 4v16"/><path d="M5 8h14"/><path d="M5 8 2 15h6Z"/><path d="M19 8l-3 7h6Z"/></svg>
                     <b>Equilibrio</b><span class="gc-tick" aria-hidden="true">&check;</span></span>
                   <span class="gc-d">Si ferma dove il fondo cielo ha coperto il rumore di
-                    lettura: oltre quel punto allungare compra meno del dieci per cento.</span></span></label>
+                    lettura: oltre quel punto allungare guadagna meno del dieci per cento.</span></span></label>
               <label class="goalcard">
                 <input type="radio" name="rxStrat" id="rxStratDin" value="dinamica">
                 <span class="gc">
@@ -1121,8 +1121,8 @@ td.archcell{max-width:120px}
                          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/></svg>
                     <b>Dinamica</b><span class="gc-tick" aria-hidden="true">&check;</span></span>
-                  <span class="gc-d">Nessuna stella di campo va a fondo scala, e i fotogrammi
-                    sono più numerosi. Non promette più risoluzione.</span></span></label>
+                  <span class="gc-d">Nessuna stella di campo alla magnitudine protetta va a fondo
+                    scala, e i fotogrammi sono più numerosi. Non promette più risoluzione.</span></span></label>
             </div>
           </fieldset>
           <div class="hero-row">
@@ -1130,10 +1130,10 @@ td.archcell{max-width:120px}
             <div class="hero-cov">
               <div class="hc-k">Copertura del soggetto</div>
               <div class="hc-seg" role="radiogroup" aria-label="Copertura del soggetto">
-                <label data-tip="Il motore considera l'intera estensione del target. Se il soggetto supera il campo del setup, calcola automaticamente il mosaico e il relativo tempo complessivo.">
+                <label data-tip="Il motore considera l'intera estensione del soggetto. Se questa supera il campo del setup, calcola il mosaico e il tempo complessivo che comporta.">
                   <input type="radio" name="rxCov" id="rxCovFull" value="full" checked>
                   <span>Soggetto completo</span></label>
-                <label data-tip="Il target può essere più grande del campo del telescopio. Il motore non presume che tu voglia fotografarlo interamente: l'integrazione viene riferita alla porzione scelta nell'inquadratura.">
+                <label data-tip="Il soggetto può essere più grande del campo del telescopio. Il motore non presume che tu voglia riprenderlo per intero: l'integrazione è riferita alla porzione che hai inquadrato.">
                   <input type="radio" name="rxCov" id="rxCovFrame" value="framing">
                   <span>Inquadratura libera</span></label>
               </div>
@@ -1158,7 +1158,7 @@ td.archcell{max-width:120px}
           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m12 3 2.6 5.6 6 .8-4.4 4.2 1.1 6.1L12 16.8 6.7 19.7l1.1-6.1L3.4 9.4l6-.8Z"/></svg></span>
         <div class="ch-txt">
-          <h2>Stasera da qui questi sono i migliori</h2>
+          <h2>I migliori di stanotte, da qui</h2>
           <div class="ch-sub">Un clic e li prescrivo. Ordinati dal motore su <b>questa</b>
             configurazione e su <b>questa</b> notte, non in assoluto.</div>
         </div>
@@ -1325,7 +1325,7 @@ td.archcell{max-width:120px}
         </div>
         <p class="small muted" style="margin:14px 0 0">
           Non trovi il tuo strumento? Ogni tendina finisce con <b>+ Aggiungi…</b>: ti chiede solo
-          i numeri che servono davvero e resta salvato. Non serve toccare il codice.
+          i numeri che servono davvero, e lo strumento resta salvato.
         </p>
       </div>
     </div>
@@ -1390,7 +1390,7 @@ td.archcell{max-width:120px}
         </div>
       </div>
       <div class="card-body">
-        <div class="subhead">Popolamento automatico dai master</div>
+        <div class="subhead">Lettura automatica dai master</div>
         <div class="drop" id="drop">Trascina qui la cartella dei master (o clicca)<br>
           <span class="small">Filtro ed esposizione vengono letti dal nome file — nessun inserimento manuale</span>
           <input type="file" id="fileIn" webkitdirectory multiple hidden>
@@ -2419,15 +2419,15 @@ function binAdvice(cfg,fwhm){
     return {best:1,cls:cur===1?'p-warn':'p-bad',k:cur===1?'bin 1':'torna a bin 1',opts:o,
       txt: cur===1
         ? `Sei già sottocampionato a bin 1 (${sc(1)} con FWHM ${fmt(fwhm,2)}″). Binnare peggiora e basta: se il vincolo è il tempo, il problema è la focale corta, non il binning.`
-        : `A bin ${cur} sei a ${sc(cur)} con una FWHM di ${fmt(fwhm,2)}″: stai buttando via risoluzione a piene mani. Qui è già sottocampionato a bin 1 (${sc(1)}), quindi binnare non è un compromesso, è solo perdita. E non stai nemmeno guadagnando tempo: il binning non cambia le ore che servono, cambia solo il dettaglio che porti a casa.`};
+        : `A bin ${cur} sei a ${sc(cur)} con una FWHM di ${fmt(fwhm,2)}″: stai buttando via risoluzione. Qui sei già sottocampionato a bin 1 (${sc(1)}), quindi binnare non è un compromesso, è solo perdita. E non stai nemmeno guadagnando tempo: il binning non cambia le ore che servono, cambia solo il dettaglio che porti a casa.`};
   if(cur===best)
     return {best,cls:'p-ok',k:'bin '+best,opts:o,
       txt: best===1
         ? `Bin 1 è la scelta giusta con questa FWHM: ${sc(1)} è dentro l'intervallo corretto. Bin 2 (${sc(2)}) non ti farebbe finire prima — le ore per arrivare alla stessa profondità sono le stesse — e butterebbe via risoluzione che stanotte il cielo ti sta dando.`
-        : `Bin ${best} ti tiene in campionamento corretto (${sc(best)}): rispetto a bin 1 la stessa luce arriva su ${gain(1,best)} volte meno pixel, quindi meno file da scaricare e da calibrare. Le ore per arrivare alla stessa profondità non cambiano. ${BIN_REVERSIBLE}`};
+        : `Bin ${best} ti tiene in campionamento corretto (${sc(best)}): rispetto a bin 1 la stessa luce arriva su ${gain(1,best)} volte meno pixel, quindi file più leggeri da scaricare e da calibrare. Le ore per arrivare alla stessa profondità non cambiano. ${BIN_REVERSIBLE}`};
   if(best>cur)
     return {best,cls:'p-warn',k:'valuta bin '+best,opts:o,
-      txt:`A bin ${cur} sei a ${sc(cur)} contro una FWHM di ${fmt(fwhm,2)}″: stai spendendo ore per raccogliere dettaglio che seeing e guida hanno già distrutto. Bin ${best} porta la scala a ${sc(best)} — campionamento ${at(best).samp.k} — con ${gain(cur,best)} volte meno pixel per la stessa area di cielo. Non accorcia il progetto: quello che guadagni è dettaglio meglio accoppiato al seeing, file più leggeri e meno tempo di calibrazione. ${BIN_REVERSIBLE}`};
+      txt:`A bin ${cur} sei a ${sc(cur)} contro una FWHM di ${fmt(fwhm,2)}″: stai campionando dettaglio che seeing e guida hanno già distrutto. Bin ${best} porta la scala a ${sc(best)} — campionamento ${at(best).samp.k} — con ${gain(cur,best)} volte meno pixel per la stessa area di cielo. Non accorcia il progetto: quello che guadagni è dettaglio meglio accoppiato al seeing, file più leggeri e meno tempo di calibrazione. ${BIN_REVERSIBLE}`};
   return {best,cls:'p-warn',k:'torna a bin '+best,opts:o,
     txt:`Bin ${cur} ti porta a ${sc(cur)}, sotto il campionamento che questa FWHM (${fmt(fwhm,2)}″) permetterebbe: non stai risparmiando ore — il binning non le cambia — e stai perdendo risoluzione che avresti potuto tenere. Bin ${best} (${sc(best)}) è il compromesso corretto stanotte.`};
 }
@@ -3543,7 +3543,7 @@ function planNights(pr,e,dv,nights,opts){
   const W=bounds.windows;
 
   if(!live.length) return {ok:false,reason:{code:'vuoto',
-    msg:'Con queste ore il canale che decide l’immagine non arriva al suo minimo: non c’è un piano da distribuire.'},
+    msg:'Con queste ore il canale che decide l’immagine non arriva alla sua soglia: non c’è un piano da distribuire.'},
     bounds,nights:[],windows:W};
   if(bounds.unreachable) return {ok:false,reason:{code:'irraggiungibile',
     msg:`Da qui l’oggetto non offre abbastanza ore: ${fmt(bounds.capacity,1)} h in `+
@@ -3766,7 +3766,7 @@ function planNights(pr,e,dv,nights,opts){
          : x.dMagV<=0.05 ? 'cielo buio'
          : worst>0.85 ? 'la Luna non disturba questi canali'
          : worst>0.6  ? 'Luna presente, tollerabile'
-         : 'Luna pesante su questa notte'};
+         : 'Luna pesante su questi canali'};
   });
   const leftover=items.reduce((a,x)=>a+Math.max(0,x.left),0);
   /* `reason` resta per chi legge il campo, ma non e' piu' un veto: e' il primo
@@ -4496,7 +4496,7 @@ function exposureStrategies(dv,site,band,opts){
 }
 const STRATEGIES=[
   {id:'resa',       label:'Resa',       tip:'Massima efficienza fotometrica: la posa piu\' lunga che i limiti fisici concedono. Meno ore di orologio per la stessa profondita\'.'},
-  {id:'equilibrio', label:'Equilibrio', tip:'Si ferma dove il fondo cielo ha sommerso il rumore di lettura: oltre quel punto allungare compra meno del dieci per cento. Dove il fondo non ci arriva coincide con Resa, e lo dice.'},
+  {id:'equilibrio', label:'Equilibrio', tip:'Si ferma dove il fondo cielo ha sommerso il rumore di lettura: oltre quel punto allungare guadagna meno del dieci per cento. Dove il fondo non ci arriva coincide con Resa, e lo dice.'},
   {id:'dinamica',   label:'Dinamica',   tip:'Nessuna stella di campo alla magnitudine protetta va a fondo scala, e i fotogrammi sono piu\' numerosi. NON promette piu\' risoluzione: quella la decidono ottica, seeing e guida.'}];
 const strategyOf=id=>STRATEGIES.find(s=>s.id===id)||STRATEGIES[0];
 
@@ -4547,7 +4547,7 @@ function exposurePlan(pr,dv,site,opts){
       if(deep.mag>best.mag+0.05) best=deep;
     }
     pick[cls]={...best,cls,bands:bs.map(x=>x.band),
-      why: cls==='nb' ? 'banda stretta: il fondo cielo non raggiunge mai il rumore di lettura, quindi vince il modo che quel rumore ce l\'ha piu\' basso'
+      why: cls==='nb' ? 'banda stretta: il fondo cielo non raggiunge mai il rumore di lettura, quindi vince il modo che ha quel rumore piu\' basso'
                       : 'banda larga: il cielo sommerge il rumore in fretta, quindi vince il modo che lascia posare piu\' a lungo prima di saturare le stelle'};
   }
   const map={};
@@ -5145,7 +5145,7 @@ function dualPass(cam){
 }
 function feasibility(weeks,missing){
   if(missing.length) return {k:'manca '+missing.join(' e '),cls:'p-bad',score:0.05,
-    why:'Non hai un filtro per questa banda: la strada consigliata non è percorribile.'};
+    why:'Manca il filtro per la banda richiesta: la tecnica consigliata non è percorribile.'};
   if(!isFinite(weeks)) return {k:'fuori portata',cls:'p-bad',score:0,
     why:'La finestra utile che resta dopo il cielo è troppo corta perché un progetto '+
         'abbia senso: o l\'oggetto non sale abbastanza, o l\'inquinamento luminoso si '+
@@ -5157,7 +5157,7 @@ function feasibility(weeks,missing){
   if(weeks<=14) return {k:'lungo',cls:'p-warn',score:.3,
     why:'Diversi mesi di notti serene: verifica che la finestra stagionale duri abbastanza.'};
   return {k:'fuori portata',cls:'p-bad',score:.03,
-    why:'Servirebbe più di una stagione. Da questo cielo e con questo strumento non è un progetto realistico.'};
+    why:'Servirebbe più di una stagione. Da questo cielo e con questa configurazione non è un progetto realistico.'};
 }
 
 /* ---------- notte ---------- */
@@ -5929,7 +5929,7 @@ function openGearManager(pending){
         <span class="n"><b>${esc(x.name)}</b>${inUso?' <span class="pill p-dim">in uso</span>':''}
           <div class="small muted">${gearOneLine(k,x)}</div></span>
         ${chiede
-          ? `<span class="small p-warn" style="align-self:center;margin-right:6px">Eliminarla?</span>
+          ? `<span class="small p-warn" style="align-self:center;margin-right:6px">Elimino?</span>
              <button class="chip fn fn-bad" onclick="gearDelFromManager('${k}','${x.id}')">Sì, elimina</button>
              <button class="chip fn fn-cfg" onclick="openGearManager()">Annulla</button>`
           : `<button class="chip fn fn-cfg" onclick="openGearForm('${k}','${x.id}')">Modifica</button>
@@ -5967,7 +5967,7 @@ function openGearForm(kind,editId){
     const ty=item&&item.optic_type||'rifrattore';
     body+=`<p class="small muted">Servono quattro numeri. Il tipo di ottica precompila ostruzione
       e trasmissione con valori tipici: se conosci quelli del tuo esemplare, correggili — sono
-      l'unico ingrediente stimato nel calcolo del tempo.</p>
+      gli unici valori stimati nel calcolo del tempo.</p>
       <div class="row"><label class="f" style="flex:2;min-width:200px">Nome
         <input id="gf_name" list="dlTel" autocomplete="off" value="${item?esc(item.name):''}" placeholder="es. Sky-Watcher Esprit 100ED"></label>
         <label class="f" style="flex:1.4;min-width:180px">Tipo di ottica<select id="gf_type">
@@ -6003,7 +6003,7 @@ function openGearForm(kind,editId){
         ${fld('px','Pixel µm',item?item.pixel_um:'','type="number" step="0.01"')}
         ${fld('w','Larghezza px',item?item.width_px:'','type="number" step="1"')}
         ${fld('h','Altezza px',item?item.height_px:'','type="number" step="1"')}
-        ${fld('rn','Read noise e⁻',item?item.read_noise_e:'1.5','type="number" step="0.1"')}
+        ${fld('rn','Rumore di lettura e⁻',item?item.read_noise_e:'1.5','type="number" step="0.1"')}
         ${fld('qe','QE di picco %',item?Math.round((item.qe_peak||interp(item.qe||{},500))*100):80,'type="number" step="1"')}
       </div>`;
   }
@@ -6081,7 +6081,7 @@ function openGearForm(kind,editId){
       $('gf_sub').value=hit.max_sub_s;
     }
     $('gf_err').innerHTML='<span class="pill p-ok">dal catalogo</span> <span class="muted">'+
-      'Campi compilati da «'+esc(hit.name)+'». Puoi usarlo cosi\' com\'e\' dalla tendina, '+
+      'Campi compilati da «'+esc(hit.name)+'». Puoi usarlo così com\'è dalla tendina, '+
       'oppure modificarlo e salvarlo come tuo.</span>';
   });
   if(kind==='tel') $('gf_type').addEventListener('change',()=>{
@@ -6094,7 +6094,7 @@ function saveGear(kind,editId){
   const v=id=>$('gf_'+id)?$('gf_'+id).value.trim():'';
   const num=id=>parseFloat(v(id));
   const name=v('name');
-  const bad=m=>{$('gf_err').innerHTML=`<span class="pill p-bad">manca</span> <span class="muted">${m}</span>`;return null};
+  const bad=m=>{$('gf_err').innerHTML=`<span class="pill p-bad">controlla</span> <span class="muted">${m}</span>`;return null};
   if(!name) return bad('Serve un nome.');
   let obj;
 
@@ -6512,7 +6512,7 @@ function openTargetForm(editId,prefillName){
       $('tf_arch_note').innerHTML=`<span class="pill p-dim">non determinato</span>
         <span class="muted">Scrivi il nome: se l'oggetto è in catalogo la classe la
         riconosco io. Altrimenti scegliela tu — senza, non propongo nessuna ripartizione delle ore,
-        perché sarebbe inventato.</span>`;
+        perché sarebbe inventata.</span>`;
       return;
     }
     const crit=Object.entries(a.default_budget||{}).find(([,v])=>v.critical);
@@ -6570,12 +6570,12 @@ function parseAngle(txt,isRA){
 
 function saveTarget(editId){
   const g=id=>$('tf_'+id).value.trim();
-  const bad=m=>{$('tf_err').innerHTML=`<span class="pill p-bad">manca</span> <span class="muted">${m}</span>`};
+  const bad=m=>{$('tf_err').innerHTML=`<span class="pill p-bad">controlla</span> <span class="muted">${m}</span>`};
   const name=g('name'); if(!name) return bad('Serve un nome.');
   if(!editId){
     const cur=findCurated(name);
     if(cur) return bad(`«${esc(cur.names[0])}» ha già una scheda curata: aprila dall'elenco invece di ricrearla.`);
-    if(UTGT.some(t=>norm(t.names[0])===norm(name))) return bad('Hai gia\' un oggetto con questo nome.');
+    if(UTGT.some(t=>norm(t.names[0])===norm(name))) return bad('Hai già un oggetto con questo nome.');
   }
   const ra=parseAngle(g('ra'),true), dec=parseAngle(g('dec'),false);
   if(!isFinite(ra)||ra<0||ra>=360) return bad('Ascensione retta non valida (0–360°, oppure 20h50.8m).');
@@ -6726,7 +6726,7 @@ function filtGroups(){
   const bb=DB.filters.filter(f=>!f.dual&&BB_BANDS.includes(f.band));
   return [['Banda stretta monocromatica','Un filtro per riga. Più stretto significa meno inquinamento luminoso e meno Luna, ma anche meno segnale a parità di posa.',nb],
           ['Dual-band e multiband','Pensati per i sensori a colori: raccolgono due righe nella stessa posa. Con un sensore a colori il tempo della strada HOO diventa quello del canale più difficile, non la somma dei due.',du],
-          ['Banda larga','Su sensore monocromatico servono per LRGB. Su sensore a colori la matrice di Bayer fa già da RGB: qui contano solo come filtri anti-inquinamento.',bb]];
+          ['Banda larga','Su sensore monocromatico servono per LRGB. Su sensore a colori la matrice di Bayer fa già da RGB: qui contano solo come filtri contro l\'inquinamento luminoso.',bb]];
 }
 function openFilters(){
   $('filtBody').innerHTML=`<h3>I tuoi filtri</h3>
@@ -6829,26 +6829,26 @@ const G={
  crit:'Il canale che decide se l\'immagine riesce. Se resta sotto la sua soglia, aggiungere ore agli altri non serve a niente. '+
    'Finche\u2019 le ore non bastano a tutti riceve anche una priorita\u2019 nel riparto \u2014 pesa 1,35 volte gli altri \u2014 '+
    'quindi una parte dello sbilanciamento che vedi non viene dall\'oggetto ma da questa regola. Sopra le ore che bastano a tutti sparisce da sola.',
- floor:'Sotto questa soglia il canale non va nemmeno iniziato: restituisce rumore colorato, non segnale. Le ore spese qui sono perse due volte, perché poi tocca lavorare per spegnere quel rumore.',
+ floor:'Sotto questa soglia il canale non va nemmeno iniziato: restituisce rumore colorato, non segnale. Le ore spese qui sono perse due volte, perché poi tocca lavorare per abbattere quel rumore.',
  useful:'Il punto in cui il canale dà quello che può dare. Oltre, si continua a guadagnare ma sempre più lentamente.',
- samp_ok:'La dimensione del pixel è ben accoppiata al seeing del tuo cielo: non stai buttando via dettaglio né sprecando ore su pixel che non vedono nulla di nuovo.',
+ samp_ok:'La dimensione del pixel è ben accoppiata alla FWHM reale del tuo cielo, seeing e guida insieme: non stai buttando via dettaglio, e non stai distribuendo il segnale su più pixel di quanti ne servano.',
  samp_over:'I pixel sono più fini di quanto il seeing permetta di risolvere: il dettaglio in più non esiste. Non perdi però niente di quello che esiste — su CMOS sommare i pixel in elaborazione dà lo stesso risultato di binnarli in ripresa — e le ore per arrivare a una data profondità sono le stesse. Quello che paghi è spazio su disco e tempo di calibrazione.',
- samp_under:'I pixel sono più grossi del dettaglio che il seeing consentirebbe. Raccogli in fretta, ma perdi risoluzione che il cielo ti stava regalando.',
- fit:'Quanto l\'oggetto riempie il lato corto del campo. Troppo grande vuol dire mosaico; troppo piccolo vuol dire che stai fotografando soprattutto cielo vuoto.',
- fratio:'Focale diviso diametro. È pura geometria e non cambia mai: un RC8 è f/8 e basta. Le perdite di luce sono un\'altra cosa e stanno nella voce accanto.',
- thru:'Quanta luce arriva davvero al sensore dopo l\'ostruzione dello specchio secondario e le riflessioni. Un rifrattore è sopra il 95%, un RC intorno al 70%.',
- tfactor:'Quante volte il tempo, rispetto alla configurazione di riferimento, per arrivare alla stessa profondita\' su un arcsec quadrato di cielo. Entrano la raccolta — apertura efficace, trasmissione, QE alla lunghezza d\'onda, filtro, e su una matrice di Bayer la frazione di fotositi che vede quella riga — e i termini strumentali, buio e rumore di lettura, che sono per pixel e quindi crescono con il quadrato della focale: e\' li\' che il rapporto focale entra davvero. Non entra la scala del pixel come tale: distribuire la stessa luce su piu\' fotositi non e\' una perdita di fotoni, ed e\' il motivo per cui il binning non cambia queste ore. Il fattore dipende dalla posa, perche\' il rumore di lettura si paga a ogni scatto e non si integra nel tempo: non e\' una proprieta\' del telescopio ma della strategia di ripresa, e la posa usata e\' scritta accanto al numero.',
+ samp_under:'I pixel sono più grossi del dettaglio che il seeing consentirebbe: la risoluzione che il cielo ti stava dando non entra nell\'immagine, e non la recuperi in elaborazione.',
+ fit:'Quanto l\'oggetto riempie il campo nella direzione peggiore. Troppo grande vuol dire mosaico; troppo piccolo vuol dire che stai fotografando soprattutto cielo vuoto.',
+ fratio:'Focale diviso diametro. È pura geometria: un RC8 è f/8 e basta. Le perdite di luce sono un\'altra cosa e stanno nella voce accanto.',
+ thru:'Quanta luce arriva davvero al sensore dopo l\'ostruzione dello specchio secondario e le perdite sulle superfici ottiche. Un rifrattore è sopra il 95%, un RC intorno al 70%.',
+ tfactor:'Quante volte il tempo, rispetto alla configurazione di riferimento, per arrivare alla stessa profondità su un arcsec quadrato di cielo. Entrano la raccolta — apertura efficace, trasmissione, QE alla lunghezza d\'onda, filtro, e su una matrice di Bayer la frazione di fotositi che vede quella riga — e i termini strumentali, buio e rumore di lettura, che sono per pixel e quindi crescono con il quadrato della focale: è lì che il rapporto focale entra davvero. Non entra la scala del pixel come tale: distribuire la stessa luce su più fotositi non è una perdita di fotoni, ed è il motivo per cui il binning non cambia queste ore. Il fattore dipende dalla posa, perché il rumore di lettura si paga a ogni scatto e non si integra nel tempo: non è una proprietà del telescopio ma della strategia di ripresa, e la posa usata è scritta accanto al numero.',
  bortle:'Scala da 1 (cielo naturale) a 9 (centro città). Qui serve solo a impostare l\'SQM: puoi anche scriverlo a mano se lo conosci.',
  lp:'L\'inquinamento luminoso è quasi tutto luce continua. Un filtro da 3 nm ne lascia passare circa l\'1%, una luminanza a banda larga lo prende tutto: per questo da una città le nebulose a emissione restano fattibili e le galassie no.',
- moon:'Conta più la distanza angolare dalla Luna che la sua fase. Una Luna piena a 100 gradi dal soggetto disturba meno di una Luna a metà a 20 gradi.',
- window:'Ore in cui l\'oggetto sta abbastanza alto perché il canale critico valga la pena. La freccia mostra quanto restano dopo Luna e inquinamento luminoso.',
+ moon:'Conta più la distanza angolare dalla Luna che la sua fase. Una Luna piena a 100° dal soggetto disturba meno di una Luna al 50% a 20°.',
+ window:'Ore in cui l\'oggetto sta abbastanza alto perché il canale critico valga la pena. La freccia mostra quante ne restano dopo Luna e inquinamento luminoso.',
  weeks:'Quanto calendario serve, tenendo conto delle ore utili per notte da questo sito e di quante notti sono mediamente serene. È il numero che dice se ha senso aprire il progetto adesso o rimandarlo alla stagione giusta.',
  noscheda:'Oggetto aggiunto da te. Visibilità, inquadratura, Luna e inquinamento luminoso sono calcolati davvero; le ore invece sono una stima per somiglianza di classe.',
  seeing:'Larghezza media delle stelle dovuta alla turbolenza atmosferica, in secondi d\'arco. Non è una costante del posto: cambia da notte a notte e anche nel corso della stessa notte. Mettici quello che misuri sui tuoi sub, non un valore da catalogo.',
  rms:'Errore di inseguimento della montatura, in secondi d\'arco. Dipende da bilanciamento, focale, vento e taratura della guida, quindi il dato del costruttore serve a poco. Si somma in quadratura al seeing e allarga le stelle: quello che scrivi resta legato a questa montatura.',
  arch:'La famiglia fisica a cui appartiene l\'oggetto. È la cosa che conta di più: determina quali righe emette e quindi quale canale è critico.',
  bin:'Quanti pixel sommi in uno in ripresa. Sui CMOS è somma digitale dopo la lettura, non somma di pozzetti prima come sui CCD: il rumore di lettura del pixel binnato cresce come il lato mentre il cielo cresce come il quadrato, quindi il rapporto non si muove e il binning è neutro sul tempo necessario a una data profondità per unità di cielo. Non crea fotoni. Quello che cambia è il campionamento — la scala del pixel, e con essa la risoluzione che porti davvero a casa — il duty cycle, perché meno dati da scaricare vuol dire più pose per ora di orologio, e lo spazio su disco. Puoi riprendere a bin 1 e decidere a nottata finita: binnare in elaborazione dà lo stesso risultato.',
- accessible:'Il progetto in circa metà tempo. Non è una divisione per due: è metà del tempo utile ma mai sotto la soglia, con il canale critico tagliato meno degli altri, perché è quello che decide se l\'immagine si riconosce. Se i minimi si mangiano già quasi tutto il tempo, la versione ridotta non viene mostrata: non esiste.'
+ accessible:'Il progetto in circa metà tempo. Non è una divisione per due: è metà del tempo utile ma mai sotto la soglia, con il canale critico tagliato meno degli altri, perché è quello che decide se l\'immagine si riconosce. Se le soglie si mangiano già quasi tutto il tempo, la versione ridotta non viene mostrata: non esiste.'
 };
 const tip=(txt,key)=>`<span data-tip="${esc(G[key]||key)}">${txt}</span>`;
 // "1 settimane" e' il genere di dettaglio che fa sembrare tutto il resto approssimativo
@@ -6952,7 +6952,7 @@ function autoSQM(){
 }
 
 function detectLocation(){
-  if(!navigator.geolocation){ geoMsg('bad','Questo browser non espone la geolocalizzazione.'); return; }
+  if(!navigator.geolocation){ geoMsg('bad','Questo browser non offre la geolocalizzazione.'); return; }
   geoMsg('dim','Richiesta in corso — il browser sta chiedendo il permesso.');
   navigator.geolocation.getCurrentPosition(
     p=>{
@@ -7008,7 +7008,7 @@ function refresh(){
       ? `<span class="p-ok" data-tip="La guida allarga le stelle di meno del 10%: non è lei il limite.">guida trascurabile</span>`
       : degr<1.35
         ? `<span class="p-warn" data-tip="La guida allarga le stelle del ${Math.round((degr-1)*100)}%. Migliorabile, ma non drammatico.">+${Math.round((degr-1)*100)}% sulla FWHM</span>`
-        : `<span class="p-bad" data-tip="La guida allarga le stelle del ${Math.round((degr-1)*100)}%: a questa focale è lei a limitare il risultato, non il cielo. Ridurre la focale o migliorare la guida vale più che aggiungere ore.">+${Math.round((degr-1)*100)}% — limita la guida</span>`);
+        : `<span class="p-bad" data-tip="La guida allarga le stelle del ${Math.round((degr-1)*100)}%: a questa focale è lei a limitare il risultato, non il cielo. Ridurre la focale o migliorare la guida vale più che aggiungere ore.">+${Math.round((degr-1)*100)}% — limitato dalla guida</span>`);
   /* Il binning chiude la catena: pixel → scala → campionamento → tempo.
      Il consiglio guarda la FWHM reale di stanotte, non il seeing di catalogo. */
   const ba=binAdvice(CFG,fwhm);
@@ -7044,20 +7044,20 @@ function refresh(){
   $('lpMsg').innerHTML=
     `<span class="pill ${SITE.sqm>=21?'p-ok':SITE.sqm>=19.5?'p-warn':'p-bad'}" data-tip="${esc(G.lp)}">Bortle ${bo.n}</span> `+
     (SITE_DEFAULT?`<span class="pill p-warn" data-tip="${esc(
-      'Nessun sito scelto: questo e\' il primo dell\'elenco, non il tuo. Il cielo decide le ore '+
+      'Nessun sito scelto: questo è il primo dell\'elenco, non il tuo. Il cielo decide le ore '+
       'del progetto — la stessa immagine costa il doppio da un cielo peggiore di mezza magnitudine '+
-      '— quindi finche\' non scegli il tuo sito o non scrivi il tuo SQM, le ore qui sotto valgono '+
-      'per un altro posto. Scegli il sito qui accanto, oppure premi Rileva.')}">cielo non tuo: default</span> `:'')+
+      '— quindi finché non scegli il tuo sito o non scrivi il tuo SQM, le ore qui sotto valgono '+
+      'per un altro posto. Scegli il sito qui accanto, oppure premi Rileva posizione.')}">cielo predefinito, non il tuo</span> `:'')+
     `<span class="pill ${$('sqm').dataset.src==='manuale'?'p-ok':'p-dim'}" data-tip="${
       $('sqm').dataset.src==='manuale'
-        ? 'Valore impostato da te: il modello non lo tocca piu\'. Usa Ristima per tornare alla stima automatica.'
-        : 'Valore calcolato dalle coordinate con un modello di inquinamento luminoso. E\' una stima: se hai una misura vera, scrivila nel campo e resta.'
+        ? 'Valore impostato da te: il modello non lo tocca più. Usa Ristima per tornare alla stima automatica.'
+        : 'Valore calcolato dalle coordinate con un modello di inquinamento luminoso. È una stima: se hai una misura vera, scrivila nel campo e resta.'
     }">${$('sqm').dataset.src==='manuale'?'impostato da te':'stimato'}</span> `+
-    `<span class="muted">Con SQM ${fmt(SITE.sqm,1)} l'inquinamento luminoso ti costa `+
-    `<b>×${fmt(1/lpB,1)}</b> il tempo in banda larga e <b>×${fmt(1/lpN,2)}</b> `+
+    `<span class="muted">Con SQM ${fmt(SITE.sqm,1)} l'inquinamento luminoso moltiplica il tempo per `+
+    `<b>×${fmt(1/lpB,1)}</b> in banda larga e <b>×${fmt(1/lpN,2)}</b> `+
     `con filtri da 3 nm, rispetto al cielo di riferimento delle schede (SQM ${fmt(skyRef(),1)}). `+
     (SITE.sqm<19.5
-      ? `Da qui galassie, ammassi e riflessione sono fuori portata, mentre il bicolore Ha/OIII resta praticabile: la banda stretta rifiuta il continuo artificiale.`
+      ? `Da qui galassie, ammassi e nebulose a riflessione sono fuori portata, mentre il bicolore Ha/OIII resta praticabile: la banda stretta rifiuta il continuo artificiale.`
       : SITE.sqm<21
         ? `La banda larga è penalizzata ma non impossibile; la banda stretta è quasi indifferente.`
         : `Cielo buono: nessuna delle due tecniche è limitata dall'IL.`)+
@@ -7165,13 +7165,13 @@ function rxContext(){
      oggetto, l'oggetto non sale abbastanza in nessuna notte dell'orizzonte. */
   let nota='';
   if(rn&&rn.past>0) nota+=` · <span class="off p-warn" data-tip="${esc(
-    'La notte scelta e passata da '+rn.past+' giorn'+(rn.past===1?'o':'i')+
-    '. Il motore la calcola comunque — puo servire a capire cosa si e ripreso — ma non e una notte pianificabile.')
+    'La notte scelta è passata da '+rn.past+' giorn'+(rn.past===1?'o':'i')+
+    '. Il motore la calcola comunque — può servire a capire cosa si è ripreso — ma non è una notte pianificabile.')
     }">notte passata</span>`;
   if(rn&&rn.shift>0) nota+=` · <span class="off p-warn" data-tip="${esc(
-    'Quella notte l\'oggetto non e utilizzabile: resta sotto i '+Math.round(rn.floor||35)+
-    '° oppure ci sta cosi poco che non copre il minimo di '+fmt(rn.minNight||1,1)+
-    ' h. Il motore ha scandito avanti e la prima notte vera e questa, '+rn.shift+
+    'Quella notte l\'oggetto non è utilizzabile: resta sotto i '+Math.round(rn.floor||35)+
+    '° oppure ci sta così poco che non copre il minimo di '+fmt(rn.minNight||1,1)+
+    ' h. Il motore ha scandito le notti successive e la prima notte vera è questa, '+rn.shift+
     ' giorni dopo. Ore, Luna, soglie e piano qui sotto sono di QUESTA notte, non di quella chiesta.'+
     (rn.skipped&&rn.skipped.length?' Prima: '+rn.skipped.slice(0,3).map(k=>
       dayLabel(k.date)+' — '+k.why).join(' · ')+(rn.skipped.length>3?' …':''):''))
@@ -7179,7 +7179,7 @@ function rxContext(){
   if(rn&&rn.usable===false) nota+=` · <span class="off p-bad" data-tip="${esc(
     'Nelle prossime '+(rn.scanned||180)+' notti l\'oggetto non supera mai i '+
     Math.round(rn.floor||35)+'° per almeno '+fmt(rn.minNight||1,1)+
-    ' h da questo sito. Non e una questione di ore: da qui, in questa stagione, non c\'e.')
+    ' h da questo sito. Non è una questione di ore: da qui, in questa stagione, non c\'è.')
     }">mai utilizzabile</span>`;
   return `<div class="nightbox">
     <div class="nb-k">${tip('Notte di riferimento','moon')}</div>
@@ -7750,7 +7750,7 @@ function renderRx(np){
   const cp = pr.critPeso;
   const pesoNota = cp
     ? `<div class="rx-warn"><b>Il canale che decide l’immagine ha la precedenza.</b>
-        Finche’ le ore non bastano a tutti, <b>${esc(cp.id)}</b> pesa
+        Finché le ore non bastano a tutti, <b>${esc(cp.id)}</b> pesa
         ${String(cp.peso).replace('.',',')} volte gli altri nel riparto: qui riceve
         <b>${fmt(cp.con,1)} h</b> invece delle <b>${fmt(cp.senza,1)} h</b> che gli
         toccherebbero a peso uguale. È una priorità di questo motore, non una
@@ -7762,15 +7762,15 @@ function renderRx(np){
         completa: serve a vedere che cosa comporterebbe. Per riprenderla davvero riaccendi
         ${off.length>1?'quei riquadri':'quel riquadro'} in <b>Filtri selezionati</b>, qui a fianco.</div>`
     : pr.missing && pr.missing.length
-    ? `<div class="rx-warn bad"><b>Per questo oggetto ti serve un filtro ${esc(nonHai.concat(off).join(' e '))}.</b>
+    ? `<div class="rx-warn bad"><b>Per questo oggetto ${pr.missing.length>1?'ti servono i filtri':'ti serve un filtro'} ${esc(nonHai.concat(off).join(' e '))}.</b>
         Ogni tecnica che la scheda prevede lo richiede: non è una questione di ore.
         La prescrizione qui sotto è quella completa — serve a sapere che cosa
         comporterebbe — ma con la ruota di adesso ${pr.missing.length>1?'quei canali':'quel canale'}
-        non ${pr.missing.length>1?'sono':'e'} riprendibil${pr.missing.length>1?'i':'e'}.${
-        off.length?` (${esc(off.join(' e '))} ce l'hai ma ${off.length>1?'sono spenti':'e spento'}.)`:''}
+        non ${pr.missing.length>1?'sono':'è'} riprendibil${pr.missing.length>1?'i':'e'}.${
+        off.length?` (${esc(off.join(' e '))} ce l'hai ma ${off.length>1?'sono spenti':'è spento'}.)`:''}
         Se il filtro ce l'hai e non l'ho registrato, aggiungilo da <b>Filtri</b>.</div>`
     : (pr.filterLimited&&pr.blocked&&pr.blocked.length
-      ? `<div class="rx-warn"><b>Strategia scelta sui filtri che hai.</b>
+      ? `<div class="rx-warn"><b>Tecnica scelta fra quelle che la tua ruota permette.</b>
           ${pr.blocked.length===1?'Una tecnica in più':'Altre tecniche'} si aprirebbe${pr.blocked.length===1?'':'ro'}
           con ${esc([...new Set(pr.blocked.flatMap(b=>b.needs))].join(' e '))}:
           <b>${esc(pr.blocked.map(b=>b.name||b.road).join(', '))}</b>.
@@ -7824,7 +7824,7 @@ function renderRx(np){
       Con <b>${fmt(hours,1)} h</b> il canale che decide l'immagine (<b>${pr.critGroup}</b>)
       non arriva alla soglia stimata di <b>${fmt(pr.needed,1)} h</b>: ne mancano
       <b>${fmt(pr.short,1)} h</b>. La prescrizione qui sotto resta valida — le ore sono
-      ripartite mantenendo le proporzioni della strada, quindi otterrai
+      ripartite mantenendo le proporzioni fra i canali, quindi otterrai
       <b>la stessa immagine meno profonda</b>, non un'immagine diversa.<br>
       Quanto sotto sei lo dice il numero, non un divieto: è una distanza dal
       livello-obiettivo, e sta a te decidere se vale la nottata.</div>`;
@@ -7864,12 +7864,12 @@ function renderRx(np){
       <span class="n"><b>${esc((DB.presets.find(q=>q.telescope===CFG.tel&&String(q.reducer)===String(CFG.red)&&q.camera===CFG.cam)||{}).label||'la tua configurazione')}</b>${(CFG.bin||1)>1?` a <b>bin ${CFG.bin}</b>`:''}
         <span class="muted">— ${fmt(dv.scale,2)}″/px, campo ${fmt(dv.fovX,0)}′×${fmt(dv.fovY,0)}′</span>
         <div class="small" style="margin-top:2px">
-          ${asse(mio.c,'soggetto','Quanta parte del bersaglio entra nell\'immagine.')} &middot;
+          ${asse(mio.c,'soggetto','Quanta parte del soggetto entra nell\'immagine.')} &middot;
           ${asse(mio.d,'profondità','Quanto della profondità prevista raggiungi con le ore che hai.')} &middot;
           ${asse(mio.r,'dettaglio','Quanta della risoluzione che il cielo concede resta nell\'immagine.')} &middot;
-          <b>resa ${Math.round(mio.P*100)}%</b></div></span></div>`;
+          <b>resa fotografica ${Math.round(mio.P*100)}%</b></div></span></div>`;
     return `<h4 style="margin:16px 0 4px;font-size:13px">${
-      meglio.length?'Con quale strumento viene meglio':'Quella che hai è già la scelta migliore'}</h4>
+      meglio.length?'Con quale configurazione viene meglio':'Quella che hai è già la scelta migliore'}</h4>
       ${perResa?`<p class="small muted" style="margin:0 0 6px">Le ore ci sono — il livello
         è <b>${esc(RXLVL[pr.level].k)}</b> — ma un'altra delle tue configurazioni consegna
         <b>${Math.round(guadagno*100)} punti</b> di resa in più su questo soggetto. Non è la
@@ -7884,13 +7884,13 @@ function renderRx(np){
           x.rotPropria?` <span class="pill p-dim" data-tip="${esc(
             'Questo sistema è giudicato alla rotazione che gli conviene, non alla tua: '+
             'girare la camera non costa niente e ogni ottica ha il proprio angolo migliore su '+
-            'questo soggetto. Montandola dritta otterresti numeri diversi.')}">rotazione ${x.rot}°</span>`:''}
+            'questo soggetto. Montandola a rotazione zero otterresti numeri diversi.')}">rotazione ${x.rot}°</span>`:''}
           <span class="muted">— ${fmt(x.dv.scale,2)}″/px, campo ${fmt(x.dv.fovX,0)}′×${fmt(x.dv.fovY,0)}′</span>
           <div class="small" style="margin-top:2px">
-            ${asse(x.cover,'soggetto','Quanta parte del bersaglio entra nell\'immagine. Satura al 100%: inquadrare più cielo del soggetto non aggiunge niente.')} &middot;
+            ${asse(x.cover,'soggetto','Quanta parte del soggetto entra nell\'immagine. Satura al 100%: inquadrare più cielo del soggetto non aggiunge niente.')} &middot;
             ${asse(x.depth,'profondità','Quanto della profondità prevista dalla scheda raggiungi con le ore che hai, su ciascun campo.')} &middot;
-            ${asse(x.resol,'dettaglio','Quanta della risoluzione che il cielo concede resta nell\'immagine, dato il campionamento. Sovracampionare non costa nulla; sottocampionare butta via dettaglio che non torna.')} &middot;
-            <b data-tip="Il prodotto dei tre: la frazione della fotografia ottenibile che questo sistema consegna davvero. Con questo ordino.">resa ${Math.round(x.P*100)}%</b></div></span>
+            ${asse(x.resol,'dettaglio','Quanta della risoluzione che il cielo concede resta nell\'immagine, dato il campionamento. Sovracampionare non toglie niente; sottocampionare butta via dettaglio che non torna.')} &middot;
+            <b data-tip="Il prodotto dei tre: la frazione della fotografia ottenibile che questo sistema consegna davvero. L'elenco è ordinato su questo.">resa fotografica ${Math.round(x.P*100)}%</b></div></span>
         <button class="chip fn fn-cfg" onclick="rxApply('${x.preset.id}',${x.bin})">usa questa</button>
       </div>`).join('')}
       ${(meglio.length?meglio:alts).some(x=>x.rotPropria)?`<p class="small muted" style="margin-top:8px">
@@ -7898,7 +7898,7 @@ function renderRx(np){
         girare la camera non costa niente e l’angolo migliore cambia da un’ottica all’altra —
         su questo soggetto giudicarli tutti allo stesso angolo li avrebbe confrontati per
         quello che non sono. Dove l’angolo di posizione del soggetto non è noto la rotazione
-        non cambia niente e il segno non compare.</p>`:''}
+        non cambia niente e l'indicazione non compare.</p>`:''}
       ${(alts.escluse&&alts.escluse.length)?(()=>{
         /* CHI NON COMPARE, E PERCHE'. Una configurazione la cui prescrizione chiede
            un filtro che non hai non e' un consiglio, e resta fuori dalla classifica.
@@ -7918,10 +7918,10 @@ function renderRx(np){
           prescrizione che ne uscirebbe non è eseguibile: ${voci.join(' · ')}.
           Non è lo strumento a mancare, è il filtro.</p>`;
       })():''}
-      <p class="small muted" style="margin-top:8px">Ordinati sulla <b>resa</b>: quanto del
-      soggetto entra, per quanta profondità, a quale dettaglio. Sono tre cose distinte e
-      restano scritte una per una — su una planetaria decide il dettaglio, su una nebulosa
-      estesa quanto ne inquadri. Non è un obbligo di cambiare: è l'alternativa, se ce l'hai.</p>`;
+      <p class="small muted" style="margin-top:8px">Ordinati sulla <b>resa fotografica</b>: quanta parte
+      del soggetto entra nel campo, per quanta profondità, a quale dettaglio. Sono tre fattori
+      distinti e restano scritti uno per uno — su una planetaria decide il dettaglio, su una
+      nebulosa estesa quanto ne inquadri. Non è un obbligo di cambiare: è l'alternativa, se ce l'hai.</p>`;
   })();
 
   const costoNote = `<p class="small" style="margin:10px 0 0"><b>Il costo per intero.</b>
@@ -7949,7 +7949,7 @@ function renderRx(np){
         ${(()=>{const w=drop.map(g=>e.budget[g.bands[0]]&&e.budget[g.bands[0]].warning).filter(Boolean)[0];
           if(w) return w;   // l'avvertimento scritto nella scheda batte qualunque frase generica
           return 'Non è un ripiego: '+(drop.some(g=>['Ha','SII'].includes(g.id))
-            ? 'sono i canali che perdonano, li recuperi in una nottata qualsiasi anche con la Luna.'
+            ? (drop.length>1?'sono i canali che perdonano: li recuperi in una nottata qualsiasi, anche con la Luna.':'è un canale che perdona: lo recuperi in una nottata qualsiasi, anche con la Luna.')
             : 'meglio un canale in meno fatto bene che due a metà.');})()}</div>`:''}
       <p class="small" style="margin:10px 0 0"><b>Binning.</b> ${dv.bin}×${dv.bin} —
         <span class="pill ${ba.cls}">${ba.k}</span> <span class="muted">${ba.txt}</span></p>
@@ -8002,7 +8002,7 @@ function renderRx(np){
         <b>${esc(fromCat.name)}</b> — ${geom}. Classificato da <b>OpenNGC</b>:
         ${esc(archWhy(fromCat))}. Nessuna scheda curata su questo oggetto. ${common}</div>`
     : `<div class="warnbox" style="margin:0 0 12px">
-        <span class="pill p-warn" data-tip="${esc(G.conf_bassa)}">archetipo curato, scheda no</span>
+        <span class="pill p-warn" data-tip="${esc(G.conf_bassa)}">archetipo curato, senza scheda</span>
         <b>${esc(fromCat.name)}</b> — ${geom}. L'archetipo è stato scelto a mano per questo
         oggetto, ma <b>non ha una scheda curata</b>. ${common}</div>`;
   /* Le azioni stanno in cima, accanto al titolo. In fondo, grigie, erano invisibili:
@@ -8029,11 +8029,11 @@ function renderRx(np){
         il soggetto completo chiederebbe <b>${RXCOV.targetPanels}</b> riquadri
         (${RXCOV.target.cols}×${RXCOV.target.rows}).</div>`
     : `<div class="warnbox" style="margin:0 0 12px">
-        <span class="pill p-warn">copertura completa</span>
+        <span class="pill p-warn">soggetto completo</span>
         Il soggetto supera il campo del setup e viene coperto in
         <b>${RXCOV.targetPanels}</b> riquadri (${RXCOV.target.cols}×${RXCOV.target.rows}):
-        le ore qui sotto sono <b>per campo</b>, e il progetto intero costa
-        altrettante volte.<br>
+        le ore qui sotto sono <b>per campo</b>: il progetto intero ne chiede
+        altrettante per ogni riquadro.<br>
         Se non vuoi coprirlo tutto, passa a <b>inquadratura libera</b>.</div>`;
   /* QUELLO CHE SI SA DELL'OGGETTO, quando si sa qualcosa.
 
@@ -8125,7 +8125,7 @@ function rotLines(t,dv,rot){
       f.ex.known?` (ingombro ${fmt(f.ex.x,1)}′ × ${fmt(f.ex.y,1)}′ sugli assi del sensore)`
                 : `. L'angolo di posizione non è in catalogo, quindi l'ingombro è una
                    <b>stima</b>: ${fmt(f.ex.x,1)}′ per lato, che è l'orientamento più
-                   costoso fra quelli che l'oggetto può davvero avere — i suoi assi
+                   sfavorevole fra quelli che l'oggetto può davvero avere — i suoi assi
                    misurano ${fmt(f.ex.major,1)}′ × ${fmt(f.ex.minor,1)}′`}.
     Campionamento <span class="pill ${samp.cls}">${samp.k}</span>, ${samp.n}.`;
   /* Quanti campi vuole il SOGGETTO intero: e' una misura della geometria e va
@@ -8133,12 +8133,12 @@ function rotLines(t,dv,rot){
      riprendere, e la frase lo dichiara invece di darlo per scontato. */
   $('mosLine').innerHTML = n>1
     ? `<p class="small"><span class="pill p-warn">mosaico ${m.cols}×${m.rows}</span>
-        Con il 15% di sovrapposizione il soggetto intero occupa <b>${n} pannelli</b>.${
+        Con il 15% di sovrapposizione il soggetto intero richiede <b>${n} pannelli</b>.${
         covIsFraming()
         ? ` Sei in <b>inquadratura libera</b>: il progetto è un campo solo, e le ore del
             budget qui sotto valgono così come sono. Passa a <b>soggetto completo</b>
             se vuoi coprirlo tutto.`
-        : ` Le ore del budget qui sotto vanno moltiplicate per altrettanto, ed è il vero
+        : ` Le ore del budget qui sotto vanno moltiplicate per il numero di pannelli, ed è il vero
             costo del mosaico — non l'allineamento, che è la parte facile.`}</p>`
     : '';
   const bb=bestRotation(t,dv,5);
@@ -8147,12 +8147,12 @@ function rotLines(t,dv,rot){
      promessa sarebbe falsa: li' ruotare torna a essere composizione, che e'
      esattamente cio' che il ramo senza risparmio dice gia'. */
   $('rotAdvice').innerHTML = (bb && !covIsFraming())
-    ? `<span class="pill p-ok">ruota a ${bb.rot}°</span>
+    ? `<span class="pill p-ok">rotazione consigliata: ${bb.rot}°</span>
        <span class="muted">— o a ${(bb.rot+180)%360}°, che per i pannelli è identico e cambia solo
        quale lato ti ritrovi in alto.
        Si passa da <b>${bb.from}</b> a <b>${bb.panels}</b> pannelli:
-       ${fmt(bb.ratio,1)}× le ore risparmiate. È l'unico caso in cui la rotazione ha un
-       costo attaccato, ed è il motivo per cui te lo dico solo qui.</span>
+       le ore del progetto scendono di un fattore ${fmt(bb.ratio,1)}. È l'unico caso in cui
+       ruotare ha una conseguenza sulle ore, ed è il motivo per cui il consiglio compare solo qui.</span>
        <button class="chip fn fn-frame" style="margin-left:8px" onclick="setRot(${bb.rot})">applica</button>`
     : (t.pa_deg==null||!isFinite(t.pa_deg))
       ? `<span class="muted">L'angolo di posizione di questo oggetto non è in catalogo:
@@ -8305,15 +8305,15 @@ let PLANMODE=loadMode();
 function setPlanMode(m){ PLANMODE=m==='progetto'?'progetto':'sessione';
   try{localStorage.setItem('ap_planmode',PLANMODE)}catch(e){} refresh(); }
 const OPLBL={overhead:['Overhead a notte (h)','Messa a fuoco, plate solve, calibrazione della guida, flip: tempo che non finisce nei fotoni.'],
-  minSession:['Sessione minima (h)','Sotto questa soglia una notte e quasi tutta overhead: e il tetto al numero di notti.'],
+  minSession:['Sessione minima (h)','Sotto questa soglia una notte è quasi tutta overhead: è il tetto al numero di notti.'],
   minBlock:['Blocco minimo per filtro (h)','Sotto questa soglia non vale la pena aprire un canale in una notte.'],
-  minSub:['Posa minima (s)','Il pavimento operativo: sotto, il conteggio dei file e lo scarico mangiano la notte.'],
-  maxSub:['Posa massima (s)','Quanto sei disposto a perdere quando un fotogramma va storto. La montatura puo abbassarlo ancora.'],
+  minSub:['Posa minima (s)','Il pavimento operativo: sotto, il numero di file e lo scarico mangiano la notte.'],
+  maxSub:['Posa massima (s)','Quanto sei disposto a perdere quando un fotogramma va storto. La montatura può abbassarlo ancora.'],
   minFrames:['Pose minime per canale','Sotto questo numero la reiezione statistica in integrazione non ha materiale su cui lavorare.'],
   minSubsNight:['Pose minime per notte','In modalità sessione completa: sotto questo numero un canale non si apre in quella notte e le sue ore vanno altrove.'],
-  protectMag:['Magnitudine da proteggere','Le stelle piu deboli di questa restano dentro il pozzetto. Vuoto = 12.0 (11.0 sui soggetti stellari).'],
+  protectMag:['Magnitudine da proteggere','Le stelle più deboli di questa restano dentro il pozzetto. Vuoto = 12.0 (11.0 sui soggetti stellari).'],
   ditherEvery:['Dither ogni N pose','Va anche nel trigger della sequenza N.I.N.A.'],
-  download:['Scarico (s)','Tempo per leggere un fotogramma.'],
+  download:['Scarico (s)','Tempo per scaricare un fotogramma dalla camera.'],
   settle:['Assestamento dopo il dither (s)','']};
 const loadOpset=()=>{try{return Object.assign({},OPDEF,JSON.parse(localStorage.getItem('ap_opset')||'{}'))}catch(e){return Object.assign({},OPDEF)}};
 let OPSET=loadOpset();
@@ -8368,7 +8368,7 @@ function rxPlanHtml(pr,e,dv,t){
       panels>1?` × ${mos.cols}×${mos.rows} pannelli`:''}</h4>`;
   const mosNote = panels>1
     ? `<div class="warnbox" style="margin:0 0 8px"><b>Mosaico ${mos.cols}×${mos.rows}.</b>
-        Il soggetto è più largo del campo, quindi va coperto in <b>${panels}</b> riquadri, ognuno
+        Il soggetto è più esteso del campo, quindi va coperto in <b>${panels}</b> riquadri, ognuno
         da portare alla stessa profondità. Le <b>${fmt(pr.spent,1)} h</b> della prescrizione sono
         il costo di <b>un riquadro</b>; il progetto intero ne chiede <b>${fmt(pr.spent*panels,1)} h</b>,
         e il giudizio le conta già tutte. È il vero prezzo del mosaico — l'allineamento è la
@@ -8378,7 +8378,7 @@ function rxPlanHtml(pr,e,dv,t){
        documento che si porta in postazione. */
     : (ppPl.limited
       ? `<div class="warnbox" style="margin:0 0 8px"><b>Inquadratura libera.</b>
-          Il soggetto è più largo del campo — ne servirebbero <b>${ppPl.targetPanels}</b>
+          Il soggetto è più esteso del campo — ne servirebbero <b>${ppPl.targetPanels}</b>
           riquadri (${mos.cols}×${mos.rows}) per coprirlo tutto — ma il piano qui sotto
           riguarda <b>un campo solo</b>, quello che il sensore contiene. Le
           <b>${fmt(pr.spent,1)} h</b> sono il costo di questa inquadratura, non del
@@ -8400,7 +8400,7 @@ function rxPlanHtml(pr,e,dv,t){
   const advice = bs ? `<div class="warnbox" style="margin:0 0 8px">
       <b>Le notti giuste non sono queste.</b> Partendo dal
       <b>${bs.date.toLocaleDateString('it-IT',{day:'numeric',month:'long'})}</b> — ${bs.shift} giorni
-      più in là — le stesse ${N} notti rendono <b>${fmt(bs.gain,1)}×</b> sul ${bs.critBand}: la Luna
+      più in là — le stesse ${N} notti rendono <b>${fmt(bs.gain,1)}×</b> in ${bs.critBand}: la Luna
       se ne è andata. Le ore prescritte non cambiano, cambia quanto ti rendono.
       <button class="chip fn fn-plan" style="margin-left:8px" onclick="setRxDate('${bs.date.toISOString().slice(0,10)}')">sposta al ${bs.date.toLocaleDateString('it-IT',{day:'numeric',month:'short'})}</button></div>` : '';
 
@@ -8453,7 +8453,7 @@ function rxPlanHtml(pr,e,dv,t){
     </div>`;
   const modeNote = PLANMODE==='sessione'
     ? `Ogni notte è una <b>sessione autonoma</b>: tutti i canali previsti, nelle proporzioni
-       della prescrizione, spostate verso le notti in cui la Luna disturba meno. Se domani piove, stanotte è già
+       della prescrizione, spostati verso le notti in cui la Luna disturba meno. Se domani piove, stanotte è già
        un'immagine.`
     : `I canali si <b>distribuiscono fra le notti</b> secondo la Luna. Rende di più sul progetto
        intero, ma una singola notte da sola non fa un'immagine.`;
@@ -8522,7 +8522,7 @@ function rxStrategyHtml(expo,dv,pr,panels){
         :(st.id==='resa'?'riferimento':'stesso costo')}</span></div>
       ${st.id==='resa'?''
         : comeResa?'<div class="sc-s">stessa posa di Resa: qui non c\u2019\u00e8 niente da cedere</div>'
-        : (st.id==='dinamica'&&comeEq)?'<div class="sc-s">stessa posa di Equilibrio: attraverso un filtro stretto anche le stelle sono deboli, e la saturazione stellare non lega</div>'
+        : (st.id==='dinamica'&&comeEq)?'<div class="sc-s">stessa posa di Equilibrio: attraverso un filtro stretto anche le stelle sono deboli, e la saturazione stellare non vincola la posa</div>'
         : ''}
     </button>`;
   };
@@ -8591,7 +8591,7 @@ function rxExpoHtml(expo,dv,pr){
     const cap=e.arch&&e.arch.sub_max_s;
     const lim=[['stelle',e.tStar],['soggetto',e.tObj],
                [cap&&e.tRisk===cap?'tetto di classe':'rischio',e.tRisk],
-               ['conteggio',e.tFrames]]
+               ['n. pose',e.tFrames]]
       .filter(([,v])=>isFinite(v)).sort((a,b2)=>a[1]-b2[1]);
     const bcls=e.binding==='il soggetto satura'?'p-warn':'p-dim';
     const bwhy={'il soggetto satura':'La parte più brillante dell\'oggetto va a fondo scala prima delle stelle di campo. A fondo scala l\'informazione non c\'è più: qui il pavimento operativo non vale, il soggetto viene prima.',
@@ -8601,7 +8601,7 @@ function rxExpoHtml(expo,dv,pr){
       'numero minimo di pose':'Sotto questo numero di fotogrammi la reiezione statistica in integrazione non ha materiale su cui lavorare.',
       'rischio / montatura':'Quanto sei disposto a perdere quando un fotogramma va storto.',
       'il fondo non copre il rumore di lettura':
-        'La posa e\' al tetto perche\' il fondo cielo non e\' ancora abbastanza da coprire il '+
+        'La posa e\' al tetto perche\' il fondo cielo non basta ancora a coprire il '+
         'rumore di lettura: a questa lunghezza la lettura costa ancora '+Math.round((e.rnCost||0)*100)+
         '% di tempo totale in piu\'. Non dipende dal rapporto focale — piu\' aperto e\' il '+
         'sistema, prima il fondo copre la lettura: a f/8 servirebbe di piu\', non di meno. '+
@@ -8638,7 +8638,7 @@ function rxExpoHtml(expo,dv,pr){
         const c=e.rnCost!=null?e.rnCost:(1/(e.eff*e.eff)-1);
         const swamp=e.swamp!=null?e.swamp:null;
         const tip='Il fondo cielo qui vale '+e.sky.toExponential(2)+' e⁻/px/s e in '+e.sec+' s '+
-          'accumula '+(swamp!=null?swamp.toFixed(1)+' volte':'poco piu\' del')+' la varianza del rumore '+
+          'accumula '+(swamp!=null?swamp.toFixed(1)+' volte':'poco piu\' di una volta')+' la varianza del rumore '+
           'di lettura. Quello che resta scoperto lo paghi in tempo: '+Math.round(c*100)+'% di ore in piu\' '+
           'per arrivare allo stesso risultato di una posa infinitamente lunga.\n\n'+
           'Non dipende dal rapporto focale nel verso che sembra: il fondo per pixel vale pixel²/F², '+
@@ -8653,7 +8653,7 @@ function rxExpoHtml(expo,dv,pr){
                `la lettura costa +${Math.round(c*100)}%</span>`+
                `<span class="muted"> · ${Math.round(e.eff*100)}% del limite del cielo</span>`;
       })()}</td>
-      <td class="muted">satura oltre V ${fmt(e.magSafe,1)}</td></tr>`;
+      <td class="muted">saturano le stelle più brillanti di V ${fmt(e.magSafe,1)}</td></tr>`;
   }).join('');
   const h=expo.__hdr;
   const hdrRow = h ? `<tr><td><b class="p-warn">nucleo</b></td><td><b>${h.sec} s</b></td>
@@ -8668,21 +8668,21 @@ function rxExpoHtml(expo,dv,pr){
   return `<details class="diag" style="margin:0 0 10px"><summary>Posa e numero di sub — come escono questi numeri</summary>
     <div class="body"><table class="expo"><thead><tr>
       <th>canale</th><th>posa</th><th>guadagno</th><th></th><th>totale</th>
-      <th>tetti</th><th>resa</th><th></th></tr></thead><tbody>${rows}${hdrRow}</tbody></table>
+      <th>tetti</th><th>efficienza</th><th></th></tr></thead><tbody>${rows}${hdrRow}</tbody></table>
     <p class="small" style="margin-top:8px">${why}</p>
     <p class="small muted" style="margin-top:6px">La posa migliore è sempre <b>la più lunga
-      ammessa</b>: sia la frazione di rumore di lettura sia la frazione di notte che finisce nei
+      ammessa</b>: sia la frazione del limite del cielo sia la frazione di notte che finisce nei
       fotoni crescono con la posa. A fermarla è un tetto, mai il cielo. In banda stretta da un
       cielo come questo il fondo non raggiunge <i>mai</i> il rumore di lettura — ci vorrebbero
       pose da ore — quindi si accetta di esserne limitati e si sceglie il modo di guadagno che
-      quel rumore ce l'ha più basso. È il motivo fisico per cui la banda stretta va in HCG.
+      ha quel rumore più basso. È il motivo fisico per cui la banda stretta va in HCG.
       ${anyEx?`<br>Fondo cielo stimato per fotometria, ${esc(anyEx.confidence)}: vale entro un
       fattore ~2, e la posa ne risente per la radice. La magnitudine protetta di riferimento è
       V ${fmt(anyEx.protectMag,1)} — cambiala se sui tuoi sub le stelle si comportano diversamente.`:''}</p>
     <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:8px;border-top:1px solid var(--line)">
       ${opFields()}</div>
-    <p class="small muted" style="margin-top:6px">Nessuno di questi e una costante fisica: sono
-      convenzioni ragionevoli. Cambiale se il campo ti dice altro — l'app ricalcola tutto,
+    <p class="small muted" style="margin-top:6px">Nessuno di questi è una costante fisica: sono
+      convenzioni ragionevoli. Cambiale se l'esperienza sul campo dice altro — l'app ricalcola tutto,
       piano compreso. <button class="chip fn fn-plan" onclick="resetOp()">valori di partenza</button></p>
     </div></details>`;
 }
@@ -8733,13 +8733,13 @@ function ninaExportAll(only){
       {rot,off,filterNames:names,hasRotator:rot!==0,ditherEvery:OPSET.ditherEvery,
        name:`${(t.names&&t.names[0])||t.id} — ASTROFOTO notte ${x.n} (${fmtDate(x.date)})`});
     const chk=ninaCheck(root);
-    if(!chk.ok){ alert('Export interrotto: il file non sarebbe deserializzabile ('+
+    if(!chk.ok){ alert('Esportazione interrotta: N.I.N.A. non riuscirebbe a caricare il file ('+
       (chk.dup.length?'id duplicati':'riferimenti pendenti')+'). Segnalalo.'); return; }
     const slug=String((t.names&&t.names[0])||t.id).replace(/[^\w]+/g,'_');
     dlJson(`ASTROFOTO_${slug}_notte${x.n}.json`,root);
     done++;
   });
-  if(done) toast(`${done} sequenz${done===1?'a esportata':'e esportate'}. In N.I.N.A.: Sequenziatore → Carica.`);
+  if(done) toast(`${done} sequenz${done===1?'a esportata':'e esportate'}. In N.I.N.A.: Sequenziatore Avanzato → Carica.`);
 }
 function dlJson(name,obj){
   const b=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
@@ -9101,11 +9101,11 @@ function openSheet(i){
     `<li><b>${k}</b> — ${v}</li>`).join('');
 
   const moonTxt = e.moonAlt<=0
-    ? 'Luna sotto l\'orizzonte per gran parte della notte: nessun impatto.'
-    : `<span data-tip="${esc(G.moon)}">Luna al ${Math.round(e.moonIllum.k*100)}%, alta ${fmt(e.moonAlt,0)}°, a ${fmt(e.rho,0)}° dal target</span>.
-       Impatto stimato sul canale critico (${e.critBand}): <b>${Math.round((1-e.moonF)*100)}%</b> di penalizzazione.
+    ? 'Luna sotto l\'orizzonte per gran parte della notte: nessuna penalizzazione.'
+    : `<span data-tip="${esc(G.moon)}">Luna al ${Math.round(e.moonIllum.k*100)}%, alta ${fmt(e.moonAlt,0)}°, a ${fmt(e.rho,0)}° dal soggetto</span>.
+       Penalizzazione stimata sul canale critico (${e.critBand}): <b>${Math.round((1-e.moonF)*100)}%</b>.
        ${e.moonF>0.90
-          ? `Con questo filtro la Luna non è il problema: la banda passante taglia via lo scattering prima che arrivi al sensore. La notte è utilizzabile.`
+          ? `Con questo filtro la Luna non è il problema su questa banda: la notte è utilizzabile.`
           : e.moonF>0.70
             ? `Utilizzabile, ma non è la notte migliore per ${e.critBand}: se hai un canale più tollerante da recuperare, fai quello.`
             : `Il canale critico paga troppo: cambia banda o cambia oggetto.`}`;
@@ -9286,7 +9286,7 @@ $('impIn').addEventListener('change',ev=>{
 function renderState(){
   const ids=Object.keys(STATE);
   if(!ids.length){ $('stateList').innerHTML='<p class="small muted">Nessun progetto aperto. '+
-    'Trascina una cartella di master qui sopra per popolarlo automaticamente.</p>'; return; }
+    'Trascina una cartella di master qui sopra per riempire l\'elenco.</p>'; return; }
   $('stateList').innerHTML=ids.map(id=>{
     const t=TG.targets.find(x=>x.id===id);
     const h=STATE[id].hours||{};

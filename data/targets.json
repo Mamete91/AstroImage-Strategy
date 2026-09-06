@@ -41,14 +41,14 @@
     }
    },
    "default_confidence": "bassa",
-   "order": "OIII per primo e nelle notti migliori: e' il canale che decide e paga di piu' estinzione e Luna. Ha quando vuoi, e' robusto. SII solo se ci arrivi sopra soglia, altrimenti non iniziarlo. RGB per le stelle basta un'ora con la Luna piena. Se hai una notte sola: tutta OIII.",
+   "order": "OIII per primo e nelle notti migliori: è il canale che decide e paga di più estinzione e Luna. Ha quando vuoi, è robusto. SII solo se ci arrivi sopra soglia, altrimenti non iniziarlo. RGB per le stelle basta un'ora con la Luna piena. Se hai una notte sola: tutta OIII.",
    "expect": {
     "4h": "Ha completo e leggibile, OIII presente ma fragile: regge una riduzione, non il 100%.",
     "8h": "OIII diventa struttura invece che alone. E' il punto di miglior resa per ora spesa.",
     "14h": "Guadagno sulle parti deboli e sul rumore cromatico. Reale ma non proporzionale."
    },
    "traps": [
-    "Il SII sotto soglia e' peggio che assente: mette rumore colorato in una mappa che poi devi spegnere.",
+    "Il SII sotto soglia è peggio che assente: mette rumore colorato in una mappa che poi devi spegnere.",
     "La palette SHO paritetica su una HII fotoionizzata produce il verde che tutti combattono in post: il problema nasce in ripresa, nel budget.",
     "Le stelle in banda stretta diventano innaturali: meglio prenderle in RGB e reinserirle."
    ],
@@ -72,7 +72,7 @@
    ],
    "peak_over_mean": 25,
    "line_fraction": 0.15,
-   "sub_note": "media: nuclei tipo Trapezio molto piu' brillanti della media; OIII in V, Ha fuori banda"
+   "sub_note": "media: nuclei tipo Trapezio molto più brillanti della media; OIII in V, Ha fuori banda"
   },
   "hii_faint_he": {
    "label": "Regione HII debole ad alta eccitazione",
@@ -113,15 +113,15 @@
     }
    },
    "default_confidence": "bassa",
-   "order": "Qui l'OIII non e' solo il critico, e' quasi tutto il soggetto: va fatto con l'oggetto alto e senza Luna, punto. Ha come struttura di supporto. SII quasi mai ripaga.",
+   "order": "Qui l'OIII non è solo il critico, è quasi tutto il soggetto: va fatto con l'oggetto alto e senza Luna, punto. Ha come struttura di supporto. SII quasi mai ripaga.",
    "expect": {
     "6h": "Si intuisce, non si mostra. Presentabile solo a scala ridotta.",
     "10h": "L'OIII regge lo stretch e la struttura emerge. Sotto queste ore l'oggetto non esiste.",
-    "18h": "Le parti esterne si staccano dal fondo. Su questi soggetti le ore in piu' rendono piu' che altrove."
+    "18h": "Le parti esterne si staccano dal fondo. Su questi soggetti le ore in più rendono più che altrove."
    },
    "traps": [
     "E' l'archetipo in cui si sbaglia il preventivo: sembra una HII normale e costa il doppio.",
-    "Con brillanza cosi' bassa i gradienti dominano il segnale: la correzione va fatta prima di ogni stretch, non dopo.",
+    "Con brillanza così bassa i gradienti dominano il segnale: la correzione va fatta prima di ogni stretch, non dopo.",
     "Il rumore di lettura torna a contare: pose troppo corte qui costano davvero."
    ],
    "roads": [
@@ -185,14 +185,14 @@
     }
    },
    "default_confidence": "bassa",
-   "order": "OIII per primo e nelle notti migliori. Ha con la Luna, e' robusto. SII e' il piu' tollerante di tutti: notti compromesse. Se hai una notte sola, tutta OIII: l'Ha lo recuperi sempre.",
+   "order": "OIII per primo e nelle notti migliori. Ha con la Luna, è robusto. SII è il più tollerante di tutti: notti compromesse. Se hai una notte sola, tutta OIII: l'Ha lo recuperi sempre.",
    "expect": {
-    "5h": "La struttura in Ha c'e'. L'OIII e' un fantasma da tirare con stretch aggressivo.",
-    "12h": "Ha e OIII si separano spazialmente ed e' quella separazione il soggetto dell'immagine.",
+    "5h": "La struttura in Ha c'è. L'OIII è un fantasma da tirare con stretch aggressivo.",
+    "12h": "Ha e OIII si separano spazialmente ed è quella separazione il soggetto dell'immagine.",
     "20h": "I filamenti shockati emergono come tessitura. Guadagno reale, non proporzionale."
    },
    "traps": [
-    "Le tre righe tracciano strutture DIVERSE: trattarle come lo stesso soggetto a SNR diverso e' l'errore che appiattisce l'immagine.",
+    "Le tre righe tracciano strutture DIVERSE: trattarle come lo stesso soggetto a SNR diverso è l'errore che appiattisce l'immagine.",
     "Il SII sotto soglia non entra nel finale: sono ore perse due volte.",
     "Il campo stellare denso rende la riduzione stellare aggressiva molto visibile."
    ],
@@ -257,16 +257,16 @@
     }
    },
    "default_confidence": "bassa",
-   "order": "OIII e SII sono entrambi informativi, ed e' raro. OIII con l'oggetto alto, SII nelle notti mediocri, Ha quando capita. E' l'archetipo in cui vale la pena spendere sul SII.",
+   "order": "OIII e SII sono entrambi informativi, ed è raro. OIII con l'oggetto alto, SII nelle notti mediocri, Ha quando capita. E' l'archetipo in cui vale la pena spendere sul SII.",
    "expect": {
-    "3h": "I filamenti principali ci sono. Il rapporto SII/Ha non e' ancora misurabile.",
+    "3h": "I filamenti principali ci sono. Il rapporto SII/Ha non è ancora misurabile.",
     "7h": "La firma di shock diventa leggibile e la palette SHO ha finalmente senso.",
-    "14h": "Filamenti deboli e struttura fine. Su questi soggetti la profondita' paga."
+    "14h": "Filamenti deboli e struttura fine. Su questi soggetti la profondità paga."
    },
    "traps": [
-    "E' l'unico archetipo in cui l'SHO paritetico e' spesso giusto: applicargli le regole delle HII lo impoverisce.",
+    "E' l'unico archetipo in cui l'SHO paritetico è spesso giusto: applicargli le regole delle HII lo impoverisce.",
     "I resti estesi eccedono quasi sempre il campo: il mosaico va deciso prima, non dopo la prima notte.",
-    "I filamenti sono strutture sottili: la deconvoluzione qui aiuta piu' che altrove, ma amplifica anche il rumore."
+    "I filamenti sono strutture sottili: la deconvoluzione qui aiuta più che altrove, ma amplifica anche il rumore."
    ],
    "roads": [
     {
@@ -329,14 +329,14 @@
     }
    },
    "default_confidence": "bassa",
-   "order": "Il problema non e' quando, e' quanto: pose corte per il nucleo e lunghe per l'alone, nella stessa notte. La Luna disturba poco perche' il soggetto e' brillante. Il seeing invece decide tutto.",
+   "order": "Il problema non è quando, è quanto: pose corte per il nucleo e lunghe per l'alone, nella stessa notte. La Luna disturba poco perché il soggetto è brillante. Il seeing invece decide tutto.",
    "expect": {
-    "1h": "Il nucleo c'e' ed e' gia' saturo. Dell'alone nessuna traccia.",
+    "1h": "Il nucleo c'è ed è già saturo. Dell'alone nessuna traccia.",
     "3h": "Struttura interna leggibile. Alone accennato se hai fatto anche le pose lunghe.",
-    "7h": "Alone esterno e dettaglio fine. Oltre, il limite e' il seeing, non il tempo."
+    "7h": "Alone esterno e dettaglio fine. Oltre, il limite è il seeing, non il tempo."
    },
    "traps": [
-    "Nucleo saturato: se i pixel sono a fondo scala non c'e' post che tenga. Serve una serie corta da fondere.",
+    "Nucleo saturato: se i pixel sono a fondo scala non c'è post che tenga. Serve una serie corta da fondere.",
     "Oggetto piccolo: la focale lunga qui ripaga, ma solo se la guida regge — altrimenti si perde tutto in FWHM.",
     "Lo stretch che rende visibile l'alone brucia il nucleo: servono due elaborazioni fuse, non una."
    ],
@@ -361,8 +361,8 @@
    "peak_over_mean": 4,
    "line_fraction": 0.55,
    "sub_max_s": 180,
-   "sub_note": "alta: il guscio domina la V ed e' quasi tutto [OIII] 4959/5007 + Hbeta. Pose brevi documentate (M57 in RGB a 25 s)",
-   "sub_source": "guscio interno brillante e colore da salvare; l'alone debole e' una serie lunga a parte",
+   "sub_note": "alta: il guscio domina la V ed è quasi tutto [OIII] 4959/5007 + Hbeta. Pose brevi documentate (M57 in RGB a 25 s)",
+   "sub_source": "guscio interno brillante e colore da salvare; l'alone debole è una serie lunga a parte",
    "hdr_short_s": 20,
    "hdr_frames": 25,
    "hdr_why": "il guscio interno e il colore si salvano solo con una serie corta"
@@ -406,16 +406,16 @@
     }
    },
    "default_confidence": "bassa",
-   "order": "OIII senza Luna e con l'oggetto piu' alto possibile: e' quasi l'unico canale. Ha come supporto strutturale. Stelle in RGB, sempre.",
+   "order": "OIII senza Luna e con l'oggetto più alto possibile: è quasi l'unico canale. Ha come supporto strutturale. Stelle in RGB, sempre.",
    "expect": {
-    "8h": "Il guscio si intuisce sul fondo. Non e' ancora un'immagine.",
+    "8h": "Il guscio si intuisce sul fondo. Non è ancora un'immagine.",
     "15h": "L'OIII regge lo stretch e la forma si chiude. E' la soglia vera dell'oggetto.",
     "25h": "Struttura fine e parti esterne. Qui le ore rendono ancora."
    },
    "traps": [
-    "Sono oggetti che si sottovalutano: il preventivo realistico e' due o tre volte quello che sembra.",
+    "Sono oggetti che si sottovalutano: il preventivo realistico è due o tre volte quello che sembra.",
     "In HOO puro il campo stellare diventa innaturale: le stelle vanno da RGB.",
-    "Con OIII cosi' dominante ogni riflesso del filtro diventa visibile e va escluso in ripresa, non mascherato dopo."
+    "Con OIII così dominante ogni riflesso del filtro diventa visibile e va escluso in ripresa, non mascherato dopo."
    ],
    "peak_over_mean": 3,
    "line_fraction": 0.45,
@@ -461,21 +461,21 @@
     }
    },
    "default_confidence": "bassa",
-   "order": "Banda larga: serve cielo buio e Luna assente, non c'e' filtro che aiuti. Da fare con l'oggetto alto. Se c'e' la Luna, cambia soggetto.",
+   "order": "Banda larga: serve cielo buio e Luna assente, non c'è filtro che aiuti. Da fare con l'oggetto alto. Se c'è la Luna, cambia soggetto.",
    "expect": {
-    "2h": "Il nucleo brillante della riflessione c'e', il resto e' rumore.",
+    "2h": "Il nucleo brillante della riflessione c'è, il resto è rumore.",
     "5h": "Le volute prendono forma e il blu si stacca dal fondo.",
-    "10h": "Le parti esterne e il contesto polveroso. Su questi oggetti la profondita' paga molto."
+    "10h": "Le parti esterne e il contesto polveroso. Su questi oggetti la profondità paga molto."
    },
    "traps": [
-    "La banda stretta e' inutile per definizione: e' continuo riflesso, non emissione.",
-    "Il colore blu si perde con un'estrazione gradienti troppo aggressiva: e' segnale, non gradiente.",
+    "La banda stretta è inutile per definizione: è continuo riflesso, non emissione.",
+    "Il colore blu si perde con un'estrazione gradienti troppo aggressiva: è segnale, non gradiente.",
     "Le stelle brillanti che illuminano la nebulosa saturano per prime e vanno gestite in ripresa."
    ],
    "peak_over_mean": 20,
    "line_fraction": 0.0,
    "sub_max_s": 240,
-   "sub_note": "media: alone della stella illuminante molto piu' brillante della media",
+   "sub_note": "media: alone della stella illuminante molto più brillante della media",
    "sub_source": "l'alone della stella illuminante brucia in fretta",
    "hdr_short_s": 20,
    "hdr_frames": 20,
@@ -521,17 +521,17 @@
     }
    },
    "default_confidence": "bassa",
-   "order": "Serve il fondo, non l'oggetto: si riprende cio' che la nube oscura. Luminanza prima, e piu' a lungo di quanto sembri necessario: e il contrasto a costruire la sagoma, non il segnale della nube. Poi il colore, che qui racconta la polvere. Cielo buio e Luna assente non sono preferenze: senza fondo pulito non c'e' contrasto da stirare. Se questa nube in particolare si staglia contro una regione HII, l'Ha diventa il fondo migliore e la Luna perdona — ma va dichiarato nella scheda dell'oggetto, non dedotto dalla classe.",
+   "order": "Serve il fondo, non l'oggetto: si riprende ciò che la nube oscura. Luminanza prima, e più a lungo di quanto sembri necessario: e il contrasto a costruire la sagoma, non il segnale della nube. Poi il colore, che qui racconta la polvere. Cielo buio e Luna assente non sono preferenze: senza fondo pulito non c'è contrasto da stirare. Se questa nube in particolare si staglia contro una regione HII, l'Ha diventa il fondo migliore e la Luna perdona — ma va dichiarato nella scheda dell'oggetto, non dedotto dalla classe.",
    "expect": {
     "3h": "La sagoma si distingue ma i bordi sono impastati.",
     "6h": "Il contrasto fra nube e fondo regge lo stretch e la struttura filamentosa emerge.",
     "12h": "Sfumature interne e polveri deboli. Serve un cielo davvero buono."
    },
    "traps": [
-    "E' l'unico archetipo dove il soggetto e' l'ASSENZA di segnale: ogni gradiente residuo si legge come struttura della nube.",
+    "E' l'unico archetipo dove il soggetto è l'ASSENZA di segnale: ogni gradiente residuo si legge come struttura della nube.",
     "Il modello fotometrico del motore integra il flusso PROPRIO dell'oggetto, mentre qui il rapporto segnale-rumore vive sul contrasto col fondo. Le ore qui sotto sono quindi una convenzione calibrata sulla scala di 'cosa aspettarti' di questo stesso archetipo, non una derivazione dalla fisica dell'assorbimento: valgono per decidere se vale la nottata, non per pianificare al minuto.",
     "La riduzione rumore aggressiva sul fondo cancella proprio il contrasto che rende visibile la nube.",
-    "Una calibrazione del colore sbagliata rende la nube grigia invece che bruna: e' il colore che la racconta."
+    "Una calibrazione del colore sbagliata rende la nube grigia invece che bruna: è il colore che la racconta."
    ],
    "peak_over_mean": 3,
    "line_fraction": 0.0,
@@ -577,15 +577,15 @@
     }
    },
    "default_confidence": "bassa",
-   "order": "L con l'oggetto piu' alto possibile e senza Luna: e' il canale che porta il dettaglio. RGB anche in condizioni mediocri, serve solo il colore. Ha come strato additivo sulle regioni HII, e quello tollera la Luna.",
+   "order": "L con l'oggetto più alto possibile e senza Luna: è il canale che porta il dettaglio. RGB anche in condizioni mediocri, serve solo il colore. Ha come strato additivo sulle regioni HII, e quello tollera la Luna.",
    "expect": {
-    "3h": "La galassia c'e', i bracci si intuiscono, le parti esterne no.",
+    "3h": "La galassia c'è, i bracci si intuiscono, le parti esterne no.",
     "7h": "Struttura dei bracci, colore stabile, regioni HII visibili se hai fatto l'Ha.",
-    "15h": "Alone esterno, maree, galassie di campo. Qui la profondita' cambia davvero l'immagine."
+    "15h": "Alone esterno, maree, galassie di campo. Qui la profondità cambia davvero l'immagine."
    },
    "traps": [
-    "Mai SHO su una galassia: le tre righe non tracciano niente di distinto e la palette e' pura invenzione.",
-    "La L troppo aggressiva impasta il nucleo: la dinamica fra nucleo e bracci e' ampia.",
+    "Mai SHO su una galassia: le tre righe non tracciano niente di distinto e la palette è pura invenzione.",
+    "La L troppo aggressiva impasta il nucleo: la dinamica fra nucleo e bracci è ampia.",
     "L'Ha va aggiunto come strato, non miscelato al rosso: miscelato falsa la calibrazione del colore."
    ],
    "roads": [
@@ -650,14 +650,14 @@
     }
    },
    "default_confidence": "bassa",
-   "order": "Banda larga pura: cielo buio, Luna assente, oggetto alto. Non c'e' canale tollerante in questo archetipo, quindi le notti mediocri qui non servono.",
+   "order": "Banda larga pura: cielo buio, Luna assente, oggetto alto. Non c'è canale tollerante in questo archetipo, quindi le notti mediocri qui non servono.",
    "expect": {
     "4h": "Le galassie principali ci sono, tonde e pulite. Nessun guscio.",
     "10h": "Gusci deboli e ponti di marea cominciano a staccarsi dal fondo.",
     "20h": "La parte interessante: strutture diffuse a bassissima brillanza. Serve cielo buio."
    },
    "traps": [
-    "Il soggetto vero e' spesso a brillanza estrema: un'estrazione gradienti aggressiva lo cancella insieme al gradiente.",
+    "Il soggetto vero è spesso a brillanza estrema: un'estrazione gradienti aggressiva lo cancella insieme al gradiente.",
     "Lo stretch che rende belle le galassie brillanti appiattisce tutto il resto: servono due trattamenti.",
     "Con oggetti piccoli in campo largo si finisce a fotografare soprattutto cielo vuoto: verificare l'inquadratura prima."
    ],
@@ -705,16 +705,16 @@
     }
    },
    "default_confidence": "bassa",
-   "order": "Solo L, solo cielo buio, solo Luna assente, solo oggetto alto. Non ci sono scorciatoie e non ci sono notti di ripiego: e' l'archetipo meno tollerante che esista.",
+   "order": "Solo L, solo cielo buio, solo Luna assente, solo oggetto alto. Non ci sono scorciatoie e non ci sono notti di ripiego: è l'archetipo meno tollerante che esista.",
    "expect": {
-    "6h": "Niente di presentabile. Si vede che c'e' qualcosa e basta.",
+    "6h": "Niente di presentabile. Si vede che c'è qualcosa e basta.",
     "15h": "Il segnale si stacca dal fondo e regge uno stretch controllato. E' la soglia vera.",
     "30h": "Struttura e estensione reali. Su questi soggetti le ore rendono fino a molto tardi."
    },
    "traps": [
-    "Il segnale e' allo stesso livello dei gradienti: qualunque errore di correzione fabbrica struttura che non esiste.",
+    "Il segnale è allo stesso livello dei gradienti: qualunque errore di correzione fabbrica struttura che non esiste.",
     "I flat qui non sono opzionali e nemmeno approssimabili: la vignettatura residua si legge come cirro.",
-    "La tentazione di credere al proprio stretch e' il rischio principale: serve un confronto con un'immagine indipendente."
+    "La tentazione di credere al proprio stretch è il rischio principale: serve un confronto con un'immagine indipendente."
    ],
    "peak_over_mean": 30,
    "line_fraction": 0.0,
@@ -722,7 +722,7 @@
   },
   "cluster_globular": {
    "label": "Ammasso globulare",
-   "logic": "Nessuna emissione: e' luce stellare integrata. Il problema non e' il segnale, che abbonda, ma la DINAMICA: il nucleo satura molte magnitudini prima che la periferia esca dal fondo. Si risolve in ripresa con pose corte, non in elaborazione. Banda stretta assolutamente controindicata.",
+   "logic": "Nessuna emissione: è luce stellare integrata. Il problema non è il segnale, che abbonda, ma la DINAMICA: il nucleo satura molte magnitudini prima che la periferia esca dal fondo. Si risolve in ripresa con pose corte, non in elaborazione. Banda stretta assolutamente controindicata.",
    "default_budget": {
     "RGB": {
      "floor": 1,
@@ -737,7 +737,7 @@
      "useful": 1.5,
      "saturates": 3,
      "share": 0.3,
-     "warning": "La L satura il nucleo prima di tutti gli altri canali. Su un globulare compatto molti la saltano del tutto e lavorano in RGB puro: il colore delle stelle e' il soggetto, la profondita' no."
+     "warning": "La L satura il nucleo prima di tutti gli altri canali. Su un globulare compatto molti la saltano del tutto e lavorano in RGB puro: il colore delle stelle è il soggetto, la profondità no."
     },
     "Ha": {
      "floor": 0,
@@ -761,16 +761,16 @@
      "note": "Non previsto per questo archetipo."
     }
    },
-   "order": "Non c'e' un ordine di canali che conti: la Luna quasi non tocca le stelle, che sono sorgenti puntiformi, quindi un globulare e' il soggetto giusto per le notti che butteresti via. Conta invece l'ordine delle POSE: una serie corta per il nucleo e una piu' lunga per la periferia, da fondere dopo. E conta il seeing: qui la risoluzione e' tutto, perche' il pregio dell'immagine e' quante stelle separi nel nucleo.",
+   "order": "Non c'è un ordine di canali che conti: la Luna quasi non tocca le stelle, che sono sorgenti puntiformi, quindi un globulare è il soggetto giusto per le notti che butteresti via. Conta invece l'ordine delle POSE: una serie corta per il nucleo e una più lunga per la periferia, da fondere dopo. E conta il seeing: qui la risoluzione è tutto, perché il pregio dell'immagine è quante stelle separi nel nucleo.",
    "expect": {
-    "1h": "Il nucleo e' una palla bianca satura e la periferia e' granulosa. Riconoscibile, non risolto.",
+    "1h": "Il nucleo è una palla bianca satura e la periferia è granulosa. Riconoscibile, non risolto.",
     "2.5h": "Il nucleo comincia a granularsi in stelle singole se il seeing ha collaborato. Colori stellari presenti. E' il punto in cui l'oggetto rende.",
     "5h": "Guadagno soprattutto sulle stelle deboli di campo e sulla pulizia del colore. Sul nucleo non guadagni quasi niente: quello lo decide il seeing, non le ore."
    },
    "traps": [
-    "Il nucleo saturato non si recupera in post: se i pixel sono a fondo scala l'informazione non c'e'. Va prevista in ripresa una serie di pose corte da fondere (HDRComposition o maschera).",
-    "Deconvoluzione aggressiva su un campo cosi' denso genera anelli scuri fra le stelle. Meglio poca, o niente.",
-    "La riduzione stellare qui e' controproducente: le stelle SONO il soggetto."
+    "Il nucleo saturato non si recupera in post: se i pixel sono a fondo scala l'informazione non c'è. Va prevista in ripresa una serie di pose corte da fondere (HDRComposition o maschera).",
+    "Deconvoluzione aggressiva su un campo così denso genera anelli scuri fra le stelle. Meglio poca, o niente.",
+    "La riduzione stellare qui è controproducente: le stelle SONO il soggetto."
    ],
    "default_confidence": "bassa",
    "stellar": true,
@@ -778,14 +778,14 @@
    "line_fraction": 0.0,
    "sub_max_s": 60,
    "sub_note": "alta: mu_V(0) ~ 14-17 (Harris) contro una media ~21 -> ~150x. Pratica documentata 20-60 s, fino a 120-180 s a f/ lenti",
-   "sub_source": "Cloudy Nights e Galactic Hunter: 20-60 s tipici, «30 s, forse 60, mai di piu'». Il criterio e' il nucleo non risolto, non la stella di campo.",
+   "sub_source": "Cloudy Nights e Galactic Hunter: 20-60 s tipici, «30 s, forse 60, mai di più». Il criterio è il nucleo non risolto, non la stella di campo.",
    "hdr_short_s": 10,
    "hdr_frames": 25,
-   "hdr_why": "il nucleo non risolto va a fondo scala prima di tutto il resto: una serie corta da fondere e' la cura, e la scheda la chiede gia' a parole"
+   "hdr_why": "il nucleo non risolto va a fondo scala prima di tutto il resto: una serie corta da fondere è la cura, e la scheda la chiede già a parole"
   },
   "cluster_open": {
    "label": "Ammasso aperto",
-   "logic": "Nessuna emissione, poche decine di stelle brillanti su campo largo. Il problema non e' ne' il segnale ne' la dinamica del nucleo ma il COLORE e la qualita' del campo: bordi, vignettatura, aloni sulle stelle piu' luminose. Si porta a casa in poche ore, ed e' il soggetto giusto per le notti con la Luna. Banda stretta controindicata.",
+   "logic": "Nessuna emissione, poche decine di stelle brillanti su campo largo. Il problema non è ne' il segnale ne' la dinamica del nucleo ma il COLORE e la qualità del campo: bordi, vignettatura, aloni sulle stelle più luminose. Si porta a casa in poche ore, ed è il soggetto giusto per le notti con la Luna. Banda stretta controindicata.",
    "default_budget": {
     "RGB": {
      "floor": 0.5,
@@ -793,7 +793,7 @@
      "saturates": 3,
      "share": 0.75,
      "critical": true,
-     "note": "Il colore delle stelle e' il soggetto: meglio RGB abbondante e L scarsa che il contrario."
+     "note": "Il colore delle stelle è il soggetto: meglio RGB abbondante e L scarsa che il contrario."
     },
     "L": {
      "floor": 0.3,
@@ -807,7 +807,7 @@
      "useful": 0,
      "saturates": 0,
      "share": 0,
-     "note": "Non previsto per questo archetipo. Se l'ammasso e' immerso in nebulosita' (M45, IC 1805) l'archetipo giusto e' un altro."
+     "note": "Non previsto per questo archetipo. Se l'ammasso è immerso in nebulosita' (M45, IC 1805) l'archetipo giusto è un altro."
     },
     "OIII": {
      "floor": 0,
@@ -824,16 +824,16 @@
      "note": "Non previsto per questo archetipo."
     }
    },
-   "order": "Soggetto da nottata compromessa: la Luna alta e la trasparenza mediocre pesano poco su stelle luminose. Da fare invece con l'oggetto alto se il campo e' largo, perche' la rifrazione differenziale sporca il colore delle stelle a bassa altezza.",
+   "order": "Soggetto da nottata compromessa: la Luna alta e la trasparenza mediocre pesano poco su stelle luminose. Da fare invece con l'oggetto alto se il campo è largo, perché la rifrazione differenziale sporca il colore delle stelle a bassa altezza.",
    "expect": {
-    "0.5h": "L'ammasso c'e' ed e' presentabile. Le stelle deboli di campo mancano.",
+    "0.5h": "L'ammasso c'è ed è presentabile. Le stelle deboli di campo mancano.",
     "1.5h": "Colori stellari puliti e campo profondo quanto serve. Oltre questo si guadagna poco.",
-    "3h": "Solo piu' stelle di campo. Se l'ammasso e' il soggetto, sono ore meglio spese altrove."
+    "3h": "Solo più stelle di campo. Se l'ammasso è il soggetto, sono ore meglio spese altrove."
    },
    "traps": [
-    "Le stelle piu' luminose danno aloni e microlenti: il colpevole di solito e' il filtro o una superficie non trattata, e in post non si toglie.",
+    "Le stelle più luminose danno aloni e microlenti: il colpevole di solito è il filtro o una superficie non trattata, e in post non si toglie.",
     "Su campo largo la vignettatura falsa il colore ai bordi: i flat qui non sono opzionali.",
-    "Lo stretch aggressivo appiattisce le magnitudini e fa sembrare tutte le stelle uguali, che e' il modo piu' rapido di rendere anonimo un ammasso."
+    "Lo stretch aggressivo appiattisce le magnitudini e fa sembrare tutte le stelle uguali, che è il modo più rapido di rendere anonimo un ammasso."
    ],
    "default_confidence": "bassa",
    "stellar": true,
@@ -844,7 +844,7 @@
    "sub_source": "stessa famiglia: il soggetto sono le stelle e il loro colore, 30-120 s",
    "hdr_short_s": 15,
    "hdr_frames": 20,
-   "hdr_why": "le stelle piu' brillanti dell'ammasso bruciano molto prima delle altre"
+   "hdr_why": "le stelle più brillanti dell'ammasso bruciano molto prima delle altre"
   }
  },
  "targets": [
@@ -965,7 +965,7 @@
    },
    "order": "OIII per primo e nelle notti migliori: a 500 nm l'estinzione atmosferica è circa il doppio che a 656 nm, e lo scattering lunare (Rayleigh) lo colpisce ~3x più dell'Ha. Ha con la Luna o a bassa altezza, è robusto. SII è il canale più tollerante di tutti: notti compromesse. RGB con la Luna piena, un'ora e hai finito. Se hai una notte sola: tutta OIII, l'Ha lo recuperi sempre.",
    "expect": {
-    "5h": "La mezzaluna c'e'. L'OIII è un fantasma che devi tirare con stretch aggressivo e che si sfalda in rumore appena saturi. Presentabile a scala ridotta, non a piena risoluzione.",
+    "5h": "La mezzaluna c'è. L'OIII è un fantasma che devi tirare con stretch aggressivo e che si sfalda in rumore appena saturi. Presentabile a scala ridotta, non a piena risoluzione.",
     "12h": "Il guscio OIII interno diventa struttura, non alone. La separazione spaziale Ha/OIII diventa il soggetto dell'immagine. È il miglior rapporto resa/ore dell'oggetto.",
     "20h": "I filamenti shockati emergono come tessitura distinta e l'immagine acquista profondità. Guadagno reale ma non proporzionale: +8h per circa +15% di contenuto."
    },
@@ -1127,7 +1127,7 @@
    ],
    "ambiguity": "media",
    "ambiguity_note": "Quasi tutti fanno HOO e hanno ragione. La divergenza è se aggiungere SII, e la risposta è 'si', ma solo con molto tempo.",
-   "physics": "Resto di supernova di circa 10-20.000 anni, in fase radiativa. L'emissione viene interamente da shock: il fronte d'onda comprime e ionizza il mezzo interstellare, e il gas si raffredda emettendo righe proibite. Non c'e' una stella ionizzante: la sorgente di energia è cinetica. Questo cambia tutto rispetto a una HII region, e in particolare rende il [SII] fisicamente informativo invece che decorativo.",
+   "physics": "Resto di supernova di circa 10-20.000 anni, in fase radiativa. L'emissione viene interamente da shock: il fronte d'onda comprime e ionizza il mezzo interstellare, e il gas si raffredda emettendo righe proibite. Non c'è una stella ionizzante: la sorgente di energia è cinetica. Questo cambia tutto rispetto a una HII region, e in particolare rende il [SII] fisicamente informativo invece che decorativo.",
    "lines": [
     {
      "band": "Ha",
@@ -1223,7 +1223,7 @@
    "traps": [
     "Sovracampionamento apparente: qui NON è uno spreco. L'offset Ha/OIII è a scala di pochi arcsec, quindi il campionamento fine ripaga davvero.",
     "Star removal delicato: i filamenti sono sottili quanto le stelle e gli algoritmi tendono a mangiarli. Verificare sempre il residuo.",
-    "Il fondo attorno ai filamenti non è nero: c'e' emissione diffusa reale. Non azzerarlo.",
+    "Il fondo attorno ai filamenti non è nero: c'è emissione diffusa reale. Non azzerarlo.",
     "Attenzione a 52 Cygni, dentro NGC 6960: satura e piena di aloni."
    ]
   },
@@ -1275,7 +1275,7 @@
      "id": "sho",
      "name": "SHO",
      "default": true,
-     "when": "sopra le 12h; qui il SII c'e' davvero",
+     "when": "sopra le 12h; qui il SII c'è davvero",
      "pro": "Separa la zona di compressione dal resto. Su questo oggetto l'Hubble palette ha una giustificazione fisica.",
      "contro": "Il complesso esterno resta comunque quasi solo Ha: aspettati un'immagine a due regimi."
     },
@@ -1360,7 +1360,7 @@
    ],
    "ambiguity": "alta",
    "ambiguity_note": "Chi la fa in HOO ottiene una cosa, chi la fa in HaRGB un'altra completamente diversa. Entrambe legittime.",
-   "physics": "Regione di ionizzazione al bordo della nube molecolare di Cepheus B, eccitata dall'associazione Cep OB3. La 'caverna' è un fronte di ionizzazione che sta erodendo la nube: quello che vedi come bordo brillante è letteralmente la superficie in evaporazione. Attorno c'e' polvere che riflette, quindi l'oggetto è misto emissione + riflessione, cosa rara e che complica la scelta.",
+   "physics": "Regione di ionizzazione al bordo della nube molecolare di Cepheus B, eccitata dall'associazione Cep OB3. La 'caverna' è un fronte di ionizzazione che sta erodendo la nube: quello che vedi come bordo brillante è letteralmente la superficie in evaporazione. Attorno c'è polvere che riflette, quindi l'oggetto è misto emissione + riflessione, cosa rara e che complica la scelta.",
    "lines": [
     {
      "band": "Ha",
@@ -1384,7 +1384,7 @@
      "source": "analogia di classe"
     }
    ],
-   "key_insight": "C'e' anche una componente di riflessione azzurra che la banda stretta cancella del tutto. Se scegli HOO ottieni il fronte di ionizzazione ma perdi la polvere; se scegli HaRGB ottieni un oggetto molto più ricco ma meno contrastato. È una scelta estetica informata, non un errore in nessuna delle due direzioni.",
+   "key_insight": "C'è anche una componente di riflessione azzurra che la banda stretta cancella del tutto. Se scegli HOO ottieni il fronte di ionizzazione ma perdi la polvere; se scegli HaRGB ottieni un oggetto molto più ricco ma meno contrastato. È una scelta estetica informata, non un errore in nessuna delle due direzioni.",
    "field_notes": "Cepheus è circumpolare da 46 gradi. Il campo attorno è pieno di nebulosità debole e di polvere: inquadrature larghe premiano.",
    "roads": [
     {
@@ -1667,7 +1667,7 @@
      "useful": 0,
      "saturates": 0,
      "share": 0,
-     "note": "Non riprenderlo. Non c'e'.",
+     "note": "Non riprenderlo. Non c'è.",
      "source": "stima editoriale della scheda, calibrata sulla configurazione di riferimento e motivata nella nota di questo canale",
      "confidence": "media"
     },
@@ -1692,7 +1692,7 @@
    "order": "Circumpolare: puoi lavorarci tutta la notte e tutto l'anno. Concentra ogni novilunio sull'OIII. L'Ha e le stelle RGB falli nelle notti con Luna, che altrimenti butteresti.",
    "expect": {
     "5h": "Un anello appena percettibile che devi tirare oltre il ragionevole. Non è un'immagine.",
-    "12h": "Il guscio c'e' e regge lo stretch. Immagine presentabile.",
+    "12h": "Il guscio c'è e regge lo stretch. Immagine presentabile.",
     "20h": "Guscio pulito, con la struttura interna debole che comincia a distinguersi. È il livello a cui l'oggetto merita.",
     "30h": "Territorio raro. Qui l'oggetto restituisce anche il diffuso esterno."
    },
@@ -1851,7 +1851,7 @@
    ],
    "ambiguity": "media",
    "ambiguity_note": "La divergenza è quasi tutta sull'inquadratura: complesso intero contro solo la Proboscide.",
-   "physics": "Enorme regione HII ionizzata dalla binaria HD 206267. La Proboscide (IC 1396A) è un globulo cometario: una concentrazione densa di gas e polvere che resiste all'erosione del fronte di ionizzazione e si allunga in direzione opposta alla sorgente. Il bordo brillante è il fronte di fotoevaporazione, quindi compresso: è lì che il SII sale. All'interno c'e' formazione stellare in corso.",
+   "physics": "Enorme regione HII ionizzata dalla binaria HD 206267. La Proboscide (IC 1396A) è un globulo cometario: una concentrazione densa di gas e polvere che resiste all'erosione del fronte di ionizzazione e si allunga in direzione opposta alla sorgente. Il bordo brillante è il fronte di fotoevaporazione, quindi compresso: è lì che il SII sale. All'interno c'è formazione stellare in corso.",
    "lines": [
     {
      "band": "Ha",
@@ -1948,7 +1948,7 @@
     "20h": "Globuli interni e dettaglio fine della testa. L'OIII resta comunque marginale."
    },
    "traps": [
-    "Non forzare l'OIII in post: se non c'e', saturarlo produce solo rumore ciano sul bordo.",
+    "Non forzare l'OIII in post: se non c'è, saturarlo produce solo rumore ciano sul bordo.",
     "L'Ha diffuso di fondo è fortissimo: il rischio è schiacciare la Proboscide nello stretch. Maschera di luminanza.",
     "Campo ricchissimo di stelle rosse: attenzione a non renderle arancioni uniformi nella palette SHO."
    ]
@@ -1996,7 +1996,7 @@
     }
    ],
    "key_insight": "È il caso limite che giustifica l'esistenza di questa app. L'OIII di Ou4 richiede 20-30 ore con filtri da 3 nm da un cielo buono. Sotto le 15h non compare affatto, e non parzialmente: proprio non compare. Chiunque ci provi con 6h conclude di avere sbagliato qualcosa in elaborazione, mentre ha semplicemente sbagliato il progetto.",
-   "field_notes": "Molto esteso: serve campo largo (Askar o Tecnosky ridotto). Circumpolare da 46 gradi, quindi il tempo c'e': il vincolo è la pazienza, non la stagione.",
+   "field_notes": "Molto esteso: serve campo largo (Askar o Tecnosky ridotto). Circumpolare da 46 gradi, quindi il tempo c'è: il vincolo è la pazienza, non la stagione.",
    "roads": [
     {
      "id": "hoo_extreme",
@@ -2004,7 +2004,7 @@
      "default": true,
      "when": "solo se puoi impegnare 25h+ nella stagione",
      "pro": "Uno degli oggetti più rari e riconoscibili che un amatore possa ottenere.",
-     "contro": "Se non hai il tempo, non iniziare: non c'e' una versione ridotta dell'oggetto."
+     "contro": "Se non hai il tempo, non iniziare: non c'è una versione ridotta dell'oggetto."
     },
     {
      "id": "ha_only",
@@ -2220,7 +2220,7 @@
    ],
    "ambiguity": "bassa",
    "ambiguity_note": "LRGB e basta. La divergenza è solo su quanta profondità cercare e se includere il Quintetto nel campo.",
-   "physics": "Spirale vista molto inclinata, a ~40 milioni di anni luce, spesso definita gemella della Via Lattea. Nello stesso campo, a mezzo grado, c'e' il Quintetto di Stephan: un gruppo compatto in interazione con code mareali e uno shock intergalattico. Continuo stellare puro in entrambi i casi: nessuna riga sfruttabile.",
+   "physics": "Spirale vista molto inclinata, a ~40 milioni di anni luce, spesso definita gemella della Via Lattea. Nello stesso campo, a mezzo grado, c'è il Quintetto di Stephan: un gruppo compatto in interazione con code mareali e uno shock intergalattico. Continuo stellare puro in entrambi i casi: nessuna riga sfruttabile.",
    "lines": [
     {
      "band": "L/RGB",
@@ -2324,7 +2324,7 @@
    ],
    "ambiguity": "bassa",
    "ambiguity_note": "Nessuna ambiguità di tecnica. È incluso perché è l'archetipo in cui la risposta corretta è 'niente banda stretta', e serve che l'app lo dica esplicitamente.",
-   "physics": "Ammasso aperto giovane immerso in una nube di polvere interstellare che sta attraversando per caso. La nebulosità è PURA RIFLESSIONE: la polvere diffonde la luce blu delle stelle B calde, con la classica dipendenza di Rayleigh che la rende azzurra. Non c'e' ionizzazione, non c'e' emissione, non ci sono righe. Nessun filtro a banda stretta può registrare nulla, per costruzione.",
+   "physics": "Ammasso aperto giovane immerso in una nube di polvere interstellare che sta attraversando per caso. La nebulosità è PURA RIFLESSIONE: la polvere diffonde la luce blu delle stelle B calde, con la classica dipendenza di Rayleigh che la rende azzurra. Non c'è ionizzazione, non c'è emissione, non ci sono righe. Nessun filtro a banda stretta può registrare nulla, per costruzione.",
    "lines": [
     {
      "band": "L/RGB",
@@ -2408,7 +2408,7 @@
      "confidence": "media"
     }
    },
-   "order": "Banda larga pura: serve buio vero. Con la Luna questo oggetto è semplicemente da evitare, non c'e' un canale di ripiego.",
+   "order": "Banda larga pura: serve buio vero. Con la Luna questo oggetto è semplicemente da evitare, non c'è un canale di ripiego.",
    "expect": {
     "4h": "Nebulosità principale attorno a Merope e Maia, aloni evidenti sulle stelle.",
     "10h": "Filamenti sottili e striature nella polvere. Immagine matura.",
@@ -2422,5 +2422,5 @@
    ]
   }
  ],
- "archetypes_sub_note": "peak_over_mean: quanto la parte piu' brillante dell'oggetto supera la sua brillanza superficiale MEDIA (lineare). line_fraction: quanta della luce in banda V passa attraverso un filtro a banda stretta centrato su una riga che quella classe emette davvero. sub_max_s: tetto alla posa che viene dalla pratica documentata della comunita', non dal modello. Tutti e tre servono SOLO al calcolo della posa: non entrano nelle ore per canale, nelle ratio, nelle soglie o in qualunque altra parte del motore. Confidenza dichiarata bassa o media: sono stime di classe, si correggono guardando i propri sub."
+ "archetypes_sub_note": "peak_over_mean: quanto la parte più brillante dell'oggetto supera la sua brillanza superficiale MEDIA (lineare). line_fraction: quanta della luce in banda V passa attraverso un filtro a banda stretta centrato su una riga che quella classe emette davvero. sub_max_s: tetto alla posa che viene dalla pratica documentata della comunita', non dal modello. Tutti e tre servono SOLO al calcolo della posa: non entrano nelle ore per canale, nelle ratio, nelle soglie o in qualunque altra parte del motore. Confidenza dichiarata bassa o media: sono stime di classe, si correggono guardando i propri sub."
 }
