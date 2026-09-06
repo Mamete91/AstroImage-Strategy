@@ -1183,7 +1183,10 @@
    ],
    "windows_source": "Optolong dichiara 3 nm su entrambe le righe. A 3 nm nella finestra blu ci sta la sola 5007: la 4959 dista 4.8 nm e resta fuori.",
    "fwhm_source": "manufacturer-declared",
-   "manufacturer": "Optolong"
+   "manufacturer": "Optolong",
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "lext",
@@ -1223,7 +1226,10 @@
    ],
    "windows_source": "Optolong dichiara 7 nm su entrambe le righe, con l'Hbeta escluso.",
    "fwhm_source": "manufacturer-declared",
-   "manufacturer": "Optolong"
+   "manufacturer": "Optolong",
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "lenh",
@@ -1267,7 +1273,10 @@
    ],
    "windows_source": "Optolong dichiara 10 nm sull'Ha e circa 24 nm sulla regione che contiene Hbeta e le due righe dell'OIII: e' l'unico dei tre a lasciar passare l'Hbeta, ed e' la ragione per cui il suo canale blu raccoglie piu' cielo degli altri.",
    "fwhm_source": "manufacturer-declared",
-   "manufacturer": "Optolong"
+   "manufacturer": "Optolong",
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "alpt",
@@ -1305,7 +1314,10 @@
      ]
     }
    ],
-   "windows_source": "Antlia ALP-T: 5 nm dichiarati su entrambe le righe."
+   "windows_source": "Antlia ALP-T: 5 nm dichiarati su entrambe le righe.",
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "nbz",
@@ -1343,7 +1355,10 @@
      ]
     }
    ],
-   "windows_source": "IDAS NBZ: larghezza dichiarata unica per le due bande."
+   "windows_source": "IDAS NBZ: larghezza dichiarata unica per le due bande.",
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "nbz2",
@@ -1377,7 +1392,10 @@
      ]
     }
    ],
-   "windows_source": "IDAS NBZ-II Ultra: 4 nm dichiarati su entrambe."
+   "windows_source": "IDAS NBZ-II Ultra: 4 nm dichiarati su entrambe.",
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "svd",
@@ -1415,7 +1433,10 @@
      ]
     }
    ],
-   "windows_source": "SVBony SV220: 7 nm dichiarati su entrambe."
+   "windows_source": "SVBony SV220: 7 nm dichiarati su entrambe.",
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "zwoduo",
@@ -1453,7 +1474,10 @@
      ]
     }
    ],
-   "windows_source": "ZWO Duo-Band: 7 nm dichiarati su entrambe."
+   "windows_source": "ZWO Duo-Band: 7 nm dichiarati su entrambe.",
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "askard1",
@@ -1491,7 +1515,10 @@
      ]
     }
    ],
-   "windows_source": "Askar Colour Magic D1, Ha + OIII: 6 nm dichiarati."
+   "windows_source": "Askar Colour Magic D1, Ha + OIII: 6 nm dichiarati.",
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "askard2",
@@ -1529,7 +1556,10 @@
      ]
     }
    ],
-   "windows_source": "Askar Colour Magic D2, SII + OIII: la finestra rossa contiene il sulfuro 672.4, non l'idrogeno."
+   "windows_source": "Askar Colour Magic D2, SII + OIII: la finestra rossa contiene il sulfuro 672.4, non l'idrogeno.",
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "altri",
@@ -1571,7 +1601,10 @@
      ]
     }
    ],
-   "windows_source": "Antlia Triband RGB Ultra: banda larga per un triband, la larghezza dichiarata vale per entrambe le regioni."
+   "windows_source": "Antlia Triband RGB Ultra: banda larga per un triband, la larghezza dichiarata vale per entrambe le regioni.",
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "lum",
@@ -1639,7 +1672,10 @@
    "band": "L",
    "lambda_nm": 550.0,
    "fwhm_nm": 250.0,
-   "peak_t": 0.92
+   "peak_t": 0.92,
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "idasd1",
@@ -1647,7 +1683,10 @@
    "band": "L",
    "lambda_nm": 550.0,
    "fwhm_nm": 200.0,
-   "peak_t": 0.92
+   "peak_t": 0.92,
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "idasd3",
@@ -1655,7 +1694,10 @@
    "band": "L",
    "lambda_nm": 550.0,
    "fwhm_nm": 180.0,
-   "peak_t": 0.92
+   "peak_t": 0.92,
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "lpro",
@@ -1663,7 +1705,10 @@
    "band": "L",
    "lambda_nm": 550.0,
    "fwhm_nm": 220.0,
-   "peak_t": 0.93
+   "peak_t": 0.93,
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "cls",
@@ -1671,7 +1716,10 @@
    "band": "L",
    "lambda_nm": 550.0,
    "fwhm_nm": 200.0,
-   "peak_t": 0.92
+   "peak_t": 0.92,
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   },
   {
    "id": "lqef",
@@ -1726,7 +1774,10 @@
       }
      ]
     }
-   ]
+   ],
+   "for_cfa": true,
+   "for_cfa_source": "practice",
+   "for_cfa_note": "Filtro per sensori a MATRICE. Su una monocromatica non si usa, e non e una questione di gusto: i multibanda lasciano passare il cielo di tutte le loro finestre mentre il silicio pancromatico ne puo usare una riga sola — misurato, un dual da 7/7 nm su ASI2600MM costa il 69% di tempo in piu di un Ha dedicato della stessa larghezza, un 10/24 il 310% — e gli anti-inquinamento non servono a chi ha in ruota la luminanza piena e i narrowband dedicati. La pratica e univoca: LRGB piu banda stretta singola sulla mono, multibanda e LPS sulla camera a colori."
   }
  ],
  "extinction": {

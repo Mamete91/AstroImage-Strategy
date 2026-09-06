@@ -451,10 +451,15 @@ H('F · NESSUN CANDIDATO VALIDO SPARISCE, E CHI SPARISCE LO DICE');
   chk('con la ruota completa nessun candidato resta fuori', piena.esc === 0,
     piena.inCl + ' in classifica');
 
-  /* 2 · IL CANDIDATO VALIDO CHE PRIMA SPARIVA. Con il solo dual-band la strada di
-     default di molte schede chiede il SII, che non hai: il veto vecchio li toglieva
-     tutti, mentre la prescrizione che ne esce e' HOO ed e' eseguibile. */
-  const Mdual = conRuota(['lult', 'idas']);
+  /* 2 · IL CANDIDATO VALIDO CHE PRIMA SPARIVA. Con una ruota senza SII la strada di
+     default di molte schede lo chiede e tu non ce l hai: il veto vecchio li toglieva
+     tutti, mentre la prescrizione che ne esce e HOO ed e eseguibile.
+     La ruota era di soli dual-band, e da quando multibanda e anti-inquinamento non
+     sono candidati su una camera senza matrice quella prova non misurava piu il veto:
+     misurava l assenza di filtri utilizzabili sui preset monocromatici, che e un altra
+     cosa. Una ruota narrowband incompleta interroga la stessa proprieta e la interroga
+     davvero. */
+  const Mdual = conRuota(["ha3", "o3_3", "lum", "red", "grn", "blu"]);
   const dual = conta(Mdual);
   /* Il termine di paragone e' il VETO VECCHIO ricostruito qui: quanti candidati
      sarebbero rimasti scartando su `e2.missing`, cioe' sulla strada di default.
@@ -468,7 +473,7 @@ H('F · NESSUN CANDIDATO VALIDO SPARISCE, E CHI SPARISCE LO DICE');
       let e2; try { e2 = Mdual.evaluate(t, dv2, stF, npDual, {}, cov); } catch (e) { continue; }
       if (!(e2.missing || []).length) vecchio++;
     }
-  console.log('       solo dual-band: ' + dual.inCl + ' in classifica ora, ' + vecchio +
+  console.log('       ruota senza SII: ' + dual.inCl + ' in classifica ora, ' + vecchio +
     ' col veto vecchio, ' + dual.esc + ' esclusi dichiarati');
   chk('il veto vecchio toglieva candidati che ora restano', dual.inCl > vecchio,
     '+' + (dual.inCl - vecchio) + ' recuperati');

@@ -480,5 +480,71 @@ H('H · LE CONSEGUENZE DEI RUOLI, DOVE NON DEVONO ARRIVARE E DOVE SI');
     'mancanti: ' + JSON.stringify(e4.missing));
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+H('I · MULTIBANDA E ANTI-INQUINAMENTO SONO PER I SENSORI A MATRICE');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* La pratica e' univoca: con una monocromatica si riprende con banda stretta
+     singola — Ha, OIII, SII — piu' LRGB. I dual, i tri, i quad e gli anti-inquinamento
+     esistono per le camere a colori.
+
+     Per i multibanda c'e' anche la ragione fisica, e adesso il motore la calcola: su
+     una monocromatica il silicio e' pancromatico, quindi ogni posa raccoglie il cielo
+     di TUTTE le finestre e restituisce una riga sola. Su una matrice di Bayer no: i
+     fotositi rossi vedono una finestra e i blu-verdi l'altra, ed e' esattamente per
+     questo che quei filtri sono stati inventati. */
+  const RUOTA = ['ha3', 'o3_3', 's2_3', 'lum', 'red', 'grn', 'blu', 'idas', 'lult', 'lext', 'lqef'];
+  const K = motore([], RUOTA);
+  const mono = K.derive({ tel: 'rc8', red: 1, cam: 'asi2600mm', mnt: 'am5', bin: 1 });
+  const cfa = K.derive({ tel: 'rc8', red: 1, cam: 'asi2600mc', mnt: 'am5', bin: 1 });
+  const perMatrice = K.DB.filters.filter(f => f.for_cfa).map(f => f.id);
+  chk('il catalogo dichiara quali filtri sono per la matrice', perMatrice.length >= 15,
+    perMatrice.length + ' filtri, fonte dichiarata: la pratica');
+
+  const sceltiMono = ['L', 'Ha', 'OIII', 'SII', 'RGB'].map(b => (K.filterFor(b, mono.c) || {}).id);
+  chk('su monocromatica nessuno di quelli finisce montato',
+    sceltiMono.every(id => perMatrice.indexOf(id) < 0),
+    ['L', 'Ha', 'OIII', 'SII', 'RGB'].map((b, i) => b + '→' + sceltiMono[i]).join(' '));
+  chk('e non esiste nessun dual-pass da dichiarare', K.dualPass(mono.c) === null);
+  chk('mentre su matrice il dual c e, ed e per questo che esiste',
+    !!K.dualPass(cfa.c), 'dualPass → ' + (K.dualPass(cfa.c) || {}).id);
+
+  /* Non e' una sparizione: il filtro resta in catalogo e resta spuntabile. Se e'
+     l'unica cosa che hai su una monocromatica, il motore ti dice che quel canale non
+     lo puoi fare — che e' la verita', non un rifiuto. */
+  const soloDual = motore([], ['lult']);
+  const dvS = soloDual.derive({ tel: 'rc8', red: 1, cam: 'asi2600mm', mnt: 'am5', bin: 1 });
+  chk('con il solo dual su monocromatica il motore dichiara che non puoi',
+    !soloDual.filterFor('Ha', dvS.c) && !soloDual.filterFor('OIII', dvS.c),
+    'Ha → nessuno, OIII → nessuno');
+  const dvC = soloDual.derive({ tel: 'rc8', red: 1, cam: 'asi2600mc', mnt: 'am5', bin: 1 });
+  chk('e sulla stessa ruota, con una camera a colori, si puo eccome',
+    !!soloDual.filterFor('Ha', dvC.c) && !!soloDual.dualPass(dvC.c),
+    'Ha → ' + (soloDual.filterFor('Ha', dvC.c) || {}).id);
+
+  /* LA RAGIONE FISICA, misurata dove resta raggiungibile: un multi-finestra aggiunto
+     a mano, che nessuno ha marcato per la matrice, usato su una monocromatica. */
+  const due = { id: 'g_due', name: 'Due finestre', band: 'dual', dual: true, bands: ['Ha', 'OIII'],
+    user: true, peak_t: 0.9,
+    windows: [W({ fwhm_nm: 7, lines: [{ band: 'OIII', lambda_nm: 500.68 }] }),
+              W({ fwhm_nm: 7, lines: [{ band: 'Ha', lambda_nm: 656.28 }] })] };
+  const una = { ...due, id: 'g_una', bands: ['Ha'], dual: false,
+    windows: [W({ fwhm_nm: 7, lines: [{ band: 'Ha', lambda_nm: 656.28 }] })] };
+  const Kd = motore([due], ['g_due']), Ku = motore([una], ['g_una']);
+  const dd = Kd.derive({ tel: 'rc8', red: 1, cam: 'asi2600mm', mnt: 'am5', bin: 1 });
+  const rd = Kd.rates(dd, 'Ha', 20.8), ru = Ku.rates(dd, 'Ha', 20.8);
+  chk('su mono il cielo di un canale somma tutte le finestre del filtro',
+    rd.R_b > ru.R_b * 1.8, F(rd.R_b, 5) + ' contro ' + F(ru.R_b, 5) +
+    ' con una finestra sola — x' + F(rd.R_b / ru.R_b, 2));
+  chk('mentre il segnale della riga chiesta resta identico',
+    Math.abs(rd.k - ru.k) / ru.k < 0.01, F(rd.k, 5) + ' contro ' + F(ru.k, 5));
+  /* Su matrice invece la maschera separa, e il costo non c'e'. */
+  const dcfa = Kd.derive({ tel: 'rc8', red: 1, cam: 'asi2600mc', mnt: 'am5', bin: 1 });
+  const rdc = Kd.rates(dcfa, 'Ha', 20.8), ruc = Ku.rates(dcfa, 'Ha', 20.8);
+  chk('e su matrice quel costo non esiste: la maschera le separa',
+    Math.abs(rdc.R_b - ruc.R_b) / ruc.R_b < 0.01,
+    F(rdc.R_b, 6) + ' contro ' + F(ruc.R_b, 6));
+}
+
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
 process.exit(ko ? 1 : 0);

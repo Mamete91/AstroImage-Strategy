@@ -1370,20 +1370,61 @@ chk('un dual-band da 3 nm non raccoglie il cielo come una luminanza',skyL/skyDua
    e il gruppo era un Ha travestito da dual proprio sulla configurazione piu'
    diffusa che esista. */
 chk('il gruppo dichiara le due finestre che il vetro apre',spDual.windows,2);
-chk('e le dichiara anche su monocromatica',M.bandSpec('Ha+OIII',dvMON.c).windows,2);
+/* E SU MONOCROMATICA IL GRUPPO NON ESISTE AFFATTO.
+
+   Qui si chiedeva che anche su mono il gruppo dichiarasse due finestre. Modellava
+   una configurazione che non si usa: un dual-band vive perche' una matrice di Bayer
+   manda le due finestre su fotositi diversi e le separa. Senza matrice non le separa
+   niente — il silicio e' pancromatico — quindi non c'e' nessun «dual-pass»: si
+   riprende l'Ha con un Ha e l'OIII con un OIII, e chi ha una monocromatica ha in
+   ruota esattamente quelli.
+   I filtri multibanda e gli anti-inquinamento sono ora marcati `for_cfa` nei dati e
+   non sono candidati su una camera senza matrice. */
+chk('su monocromatica un dual non e nemmeno candidato',M.dualPass(dvMON.c),null);
+chk('mentre su matrice lo e, ed e per questo che esiste',!!M.dualPass(dvOSC.c),true);
 
 /* L'IDENTITA' CHE NON PUO' NON VALERE: se le due finestre raccolgono nella stessa
-   posa, il cielo del gruppo E' la somma del cielo dei due canali. Su monocromatica
-   torna esatta; su matrice resta un margine di qualche punto percentuale, perche'
-   il gruppo valuta la QE al centro della finestra e il singolo canale sulla riga —
-   sull'L-eNhance il centro della finestra blu cade a 494 nm e la riga a 500.7. */
-for(const [dvX,labX,tolX] of [[dvMON,'mono',0.01],[dvOSC,'OSC',0.05]]){
+   posa, il cielo del gruppo E' la somma del cielo dei due canali. Resta un margine di
+   qualche punto percentuale perche' il gruppo valuta la QE al centro della finestra e
+   il singolo canale sulla riga — sull'L-eNhance il centro della finestra blu cade a
+   494 nm e la riga a 500.7. Si verifica dove il gruppo esiste, cioe' su matrice. */
+for(const [dvX,labX,tolX] of [[dvOSC,'OSC',0.05]]){
   const bHa=M.rates(dvX,'Ha',20.8).R_b, bO3=M.rates(dvX,'OIII',20.8).R_b;
   const bGR=M.rates(dvX,'Ha+OIII',20.8).R_b;
   console.log(`      ${labX}: cielo Ha ${bHa.toFixed(5)} + OIII ${bO3.toFixed(5)} = `+
     `${(bHa+bO3).toFixed(5)}, gruppo ${bGR.toFixed(5)}`);
   chk(`su ${labX} il cielo del gruppo e la somma dei due canali`,
     Math.abs(bGR-(bHa+bO3))/(bHa+bO3)<tolX,true);
+}
+
+/* E LA FISICA CHE RENDE VERA LA REGOLA, verificata dove resta raggiungibile: un
+   filtro a piu' finestre aggiunto a mano — che nessuno ha marcato per la matrice —
+   usato su una monocromatica. Li' ogni pixel vede tutte le finestre, quindi il cielo
+   di un canale e' la somma di tutte, mentre il segnale resta quello della sua riga.
+   E' la ragione per cui su mono un dual non conviene, e adesso il motore la calcola
+   invece di doverla sapere. */
+{
+  const dueFinestre={id:'t_due',name:'Due finestre a mano',band:'dual',dual:true,
+    bands:['Ha','OIII'],user:true,peak_t:0.9,
+    windows:[{fwhm_nm:7,lines:[{band:'OIII',lambda_nm:500.68}]},
+             {fwhm_nm:7,lines:[{band:'Ha',lambda_nm:656.28}]}]};
+  const unaSola={...dueFinestre,id:'t_una',bands:['Ha'],dual:false,
+    windows:[{fwhm_nm:7,lines:[{band:'Ha',lambda_nm:656.28}]}]};
+  DB.filters.push(dueFinestre,unaSola);
+  const ruotaVera=OWNED.slice();
+  OWNED.length=0; OWNED.push('t_due');
+  const cieloDue=M.rates(dvMON,'Ha',20.8).R_b, segnaleDue=M.rates(dvMON,'Ha',20.8).k;
+  OWNED.length=0; OWNED.push('t_una');
+  const cieloUna=M.rates(dvMON,'Ha',20.8).R_b, segnaleUna=M.rates(dvMON,'Ha',20.8).k;
+  OWNED.length=0; ruotaVera.forEach(x=>OWNED.push(x));
+  DB.filters.splice(DB.filters.indexOf(dueFinestre),1);
+  DB.filters.splice(DB.filters.indexOf(unaSola),1);
+  console.log(`      mono, due finestre da 7 nm contro una: cielo ${cieloDue.toFixed(5)} `+
+    `contro ${cieloUna.toFixed(5)}, segnale ${segnaleDue.toFixed(5)} contro ${segnaleUna.toFixed(5)}`);
+  chk('su mono il cielo di un canale somma tutte le finestre del filtro',
+    cieloDue>cieloUna*1.8,true);
+  chk('mentre il segnale della riga resta lo stesso',
+    Math.abs(segnaleDue-segnaleUna)/segnaleUna<0.01,true);
 }
 
 const exDual=M.subExposure(dvOSC,{lat:45.95,lon:10.2,sqm:20.8,seeing:1.6,rms:0.9,fwhm:2.2},'Ha+OIII',{});

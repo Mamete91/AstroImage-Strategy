@@ -2065,7 +2065,26 @@ function rates(dv,band,sqm){
      matrice con una finestra da 250: 2.78x che finiva tutto sul cielo e niente sul
      segnale. La larghezza ora entra da bandThroughput(), dalla stessa funzione e
      con la stessa convenzione del fondo, cosi' le due non possono divergere. */
-  const k=bandThroughput(dv,sp,'signal')*cfaSig;
+  /* SEGNALE E CIELO CONTANO LE FINESTRE ALLO STESSO MODO, e non lo facevano.
+
+     Il cielo passa da `throughputFor`, che moltiplica per `sp.windows`; il segnale
+     passava da `bandThroughput`, che sulle sotto-bande fa la MEDIA e le finestre non
+     le vede mai. Con una finestra sola le due coincidono, ed e' il motivo per cui il
+     difetto e' rimasto invisibile: su un dual il fattore due si semplificava fra
+     numeratore e denominatore di `timeFactor`, perche' i due lati usavano lo stesso
+     filtro.
+
+     Ha smesso di semplificarsi appena la spec di una banda SINGOLA e' diventata
+     composita su monocromatica — dove ogni pixel vede tutte le finestre e il cielo
+     va sommato. Li' il segnale dell'Ha attraverso un dual usciva la META' di quello
+     dello stesso Ha attraverso un filtro dedicato di pari larghezza: 0.27869 contro
+     0.55733, mentre la riga passa identica nelle due configurazioni.
+
+     Adesso passano dalla stessa funzione, che e' la sola cosa che garantisce che non
+     divergano piu' — la stessa ragione per cui la larghezza passa tutta da
+     `bandWidth`. `perPixel` resta falso: `k` e' la raccolta per unita' di angolo
+     solido, non quella del singolo fotosito. */
+  const k=throughputFor(dv,sp,'signal',false)*cfaSig;
   /* Dove il modello NON e' validato lo dichiara, invece di restituire un numero
      sicuro di se'. Banda larga su matrice: OSC_BB e f_CFA si sovrappongono. Per L
      la scheda dichiara f_CFA=1.00 e il conto e' pulito (il fattore ~8.8x della 2600MC
@@ -4181,7 +4200,7 @@ function gainModeFor(cam,band,opts){
    finestra con la QE media delle due; su un mono le vede entrambe. */
 function bandSpec(band,cam){
   if(band==='Ha+OIII'||band==='HaOIII'){
-    const f=dualPass(cam)||ownedFilters().filter(x=>x.dual)
+    const f=dualPass(cam)||ownedFilters().filter(x=>x.dual&&adattoA(x,cam))
               .sort((a,b)=>selectivity(a)-selectivity(b))[0];
     if(f){
       /* UNA SOTTO-BANDA PER FINESTRA. Prima il gruppo prendeva `lines[0]`, cioe'
@@ -4248,6 +4267,38 @@ function bandSpec(band,cam){
      FWHM: usciva `undefined`, e da li' NaN nel fondo cielo, NaN nelle ore, Infinity
      nelle settimane — con la prescrizione che lasciava cadere il canale in silenzio. */
   const w=bandWidth(f,band);
+
+  /* SU UNA MONOCROMATICA OGNI PIXEL VEDE TUTTE LE FINESTRE, E IL CIELO SI SOMMA.
+
+     E' il motivo fisico per cui un dual-band su una camera monocromatica non ha
+     senso, e per cui in pratica non lo usa nessuno: il silicio non distingue i
+     colori, quindi in una posa Ha attraverso un L-eXtreme entra anche tutto il cielo
+     della finestra dell'OIII — e quella luce non la puoi separare, perche' non c'e'
+     nessuna maschera che la mandi su fotositi diversi. Paghi il cielo di due
+     finestre e ne usi una.
+
+     Su una matrice di Bayer invece la distinzione esiste ed e' gia' modellata: i
+     fotositi rossi vedono la finestra dell'Ha e i blu-verdi quella dell'OIII, e
+     `throughputFor` prende il massimo per la saturazione e la somma pesata per la
+     fotometria. Il commento di `bandThroughput` lo dice gia' — «su una monocromatica
+     la distinzione non esiste: li' ogni pixel vede davvero entrambe le finestre, e
+     la somma e' giusta anche per il singolo pixel» — ma per una banda SINGOLA la
+     spec veniva costruita con la sola finestra chiesta, e quella somma non avveniva.
+
+     MISURATO prima: su ASI2600MM in Ha, un L-eXtreme (7 nm sull'Ha e 7 sull'OIII)
+     dava 0.012938 e-/px/s di fondo cielo contro 0.012937 di un Ha da 7 nm — cioe'
+     identici, come se la seconda finestra non esistesse.
+
+     Il SEGNALE resta quello della riga chiesta: le altre finestre entrano con forza
+     di riga zero, perche' l'OIII in un canale Ha non e' segnale, e' fondo. */
+  const tutteLeFinestre=f?filterWindows(f):[];
+  const sommaFinestre = !cam.cfa_penalty && tutteLeFinestre.length>1;
+  const subMono = sommaFinestre ? tutteLeFinestre.map(x=>({
+      band, lam:windowLambda(x)||BAND_LAMBDA[band]||550,
+      fwhm:larghezzaNota(x.fwhm_nm)?x.fwhm_nm:larghezzaAssunta(),
+      T:x.peak_t!=null?x.peak_t:(f.peak_t!=null?f.peak_t:0.9), w:1,
+      /* la riga chiesta vive in una finestra sola: le altre portano solo cielo */
+      ls:(x===wn)?(windowStrength(x,band)||1):0, win:x})) : null;
   const T=wn&&wn.peak_t!=null?wn.peak_t:(f?(f.peak_t!=null?f.peak_t:0.9):0.97);
   /* E il segnale e' quello delle righe di QUESTA banda che quella finestra
      contiene: a 3 nm la sola OIII 5007, a 7 o 24 anche la 4959. */
@@ -4255,10 +4306,14 @@ function bandSpec(band,cam){
   return {lines:[wn&&windowLambda(wn)!=null&&(wn.lines||[]).length===1
                    ?windowLambda(wn):(BAND_LAMBDA[band]||550)],fwhm:w,
           T,filter:f||null,lineSum:ls,
+          /* Con piu' finestre su monocromatica la spec diventa composita: il cielo
+             le somma tutte, il segnale resta della sola riga chiesta. */
+          ...(subMono?{sub:subMono,windows:subMono.length}:{}),
           /* Se quella larghezza e' dichiarata o assunta, e da dove viene: chi
              disegna la pagina deve poterlo dire senza rifare il conto. */
           fwhmNota:f?bandWidthNota(f,band):true, fwhmFonte:f?bandWidthFonte(f,band):'unknown',
-          dual:false,narrow:w<50,windows:1};
+          dual:false,narrow:w<50,
+          ...(subMono?{}:{windows:1})};
 }
 /* Il prodotto spettrale della banda: QE(lambda) x T_filtro x larghezza, mediato
    sulle sotto-bande quando la banda e' composita e sequenziale.
@@ -5429,6 +5484,27 @@ const roleFilter=band=>{
      tolto la spunta al filtro, la scelta non puo' resuscitarlo. */
   return (f&&OWNED.indexOf(f.id)>=0)?f:null;
 };
+/* MULTIBANDA E ANTI-INQUINAMENTO SONO FILTRI PER SENSORI A MATRICE.
+
+   Non e' una preferenza, e' l'uso reale — e per i multibanda c'e' anche la ragione
+   fisica, che il motore adesso sa calcolare. Su una monocromatica il silicio e'
+   pancromatico: attraverso un dual-band ogni posa raccoglie il cielo di TUTTE le
+   finestre e ti restituisce una riga sola, perche' non c'e' nessuna maschera che
+   mandi le due su fotositi diversi. Misurato in Ha su ASI2600MM: un dual da 7/7 nm
+   costa il 69% di tempo in piu' di un Ha dedicato della stessa larghezza, un 10/24
+   il 310%. Su una matrice di Bayer invece il costo e' zero — i fotositi rossi vedono
+   una finestra e i blu-verdi l'altra — ed e' esattamente per questo che esistono.
+
+   Gli anti-inquinamento seguono la stessa sorte per un motivo diverso: chi ha una
+   monocromatica ha in ruota la luminanza piena e i narrowband dedicati, e un LPS non
+   gli serve a niente. La pratica e' univoca e il progetto la registra nei dati con
+   `for_cfa`, dichiarando che la fonte e' la pratica e non una scheda tecnica.
+
+   Il filtro resta in catalogo e resta spuntabile: sparisce dalle CANDIDATURE su una
+   camera senza matrice, che e' un'altra cosa. Se e' l'unica cosa che hai, il motore
+   ti dira' che quel canale non lo puoi fare — che e' la verita'. */
+const adattoA=(f,cam)=>!(f&&f.for_cfa)||!!(cam&&cam.cfa_penalty);
+
 /* L'ORDINE DELLA SCELTA AUTOMATICA, che vale solo quando una scelta esplicita non
    c'e'. E che non puo' essere «il piu' stretto», perche' dipende da COSA STAI
    RIPRENDENDO con quel filtro.
@@ -5504,7 +5580,7 @@ function filterFor(band,cam){
     const montato=roleFilter('L');
     if(montato) return montato;
     // senza scelta: la matrice di Bayer fa gia' da RGB, quindi basta non avere filtri
-    const lp=ownedFilters().filter(f=>f.band==='L').sort((a,b)=>primaIlTuo(a,b,'L'))[0];
+    const lp=ownedFilters().filter(f=>f.band==='L'&&adattoA(f,cam)).sort((a,b)=>primaIlTuo(a,b,'L'))[0];
     return lp||{id:'__none',name:'nessun filtro (Bayer)',band:'L',fwhm_nm:BB_NM,peak_t:1,lambda_nm:550};
   }
   if(band==='RGB'){
@@ -5512,7 +5588,8 @@ function filterFor(band,cam){
     if(!(has('R')&&has('G')&&has('B'))) return null;
     return ownedFilters().find(f=>f.band==='G');
   }
-  const c=ownedFilters().filter(f=>f.band===band||(f.bands&&f.bands.includes(band)));
+  const c=ownedFilters().filter(f=>(f.band===band||(f.bands&&f.bands.includes(band)))
+    &&adattoA(f,cam));
   /* Fra due filtri vince il piu' selettivo SU QUESTA BANDA, non in assoluto: conta
      la finestra che porta la banda chiesta. Ordinare per la finestra piu' larga
      sembrava piu' prudente ed era sbagliato — con un L-eNhance e un Ha da 12 nm in
@@ -5529,7 +5606,10 @@ function filterFor(band,cam){
    dichiarato: con un L-Ultimate e un L-eXtreme in ruota e la scelta sull'eXtreme,
    restava montato l'Ultimate. */
 function dualPass(cam){
-  const montato=(cam&&cam.cfa_penalty)?roleFilter('L'):null;
+  /* Un dual raccoglie due righe nella stessa posa solo se qualcosa le separa: senza
+     matrice non le separa niente, e non c'e' nessun «dual-pass» da dichiarare. */
+  if(!cam||!cam.cfa_penalty) return null;
+  const montato=roleFilter('L');
   if(montato&&montato.dual) return montato;
   if(!cam.cfa_penalty) return null;
   const d=ownedFilters().filter(f=>f.dual&&f.bands&&f.bands.includes('Ha')&&f.bands.includes('OIII'))
@@ -6078,7 +6158,7 @@ function start(){
   $('date').value=new Date().toISOString().slice(0,10);
 
   loadGear(); loadReducers(); loadUserFilters(); UTGT=loadUserTargets();
-  ROLES=loadRoles();
+  ROLES_ALL=loadRoles();
   OWNED=loadOwned()||(DB.default_filters||[]).slice();
   try{ const u=JSON.parse(localStorage.getItem('ap_using')||'null');
        USING=(Array.isArray(u)&&u.length)?u:null; }catch(e){ USING=null; }
@@ -7117,6 +7197,9 @@ function readCfg(){
      cambia la strumentazione — preset, tendine, riduttore, form dell'attrezzatura —
      passa comunque da qui. */
   try{ localStorage.setItem('ap_cfg',JSON.stringify({...CFG,scelta:CFG_SCELTA})); }catch(e){}
+  /* I ruoli in vigore sono quelli della camera montata: e' l'unico punto da cui
+     passa ogni cambio di configurazione, quindi e' qui che si aggiornano. */
+  ROLES=rolesFor(CFG.cam);
   syncPreset();
 }
 /* Riporta l'RMS al valore di questa montatura: il tuo se l'hai scritto, altrimenti
@@ -7192,32 +7275,67 @@ const loadOwned=()=>{try{const v=JSON.parse(localStorage.getItem('ap_filters')||
   return Array.isArray(v)?v:null}catch(e){return null}};
 const persistOwned=()=>{try{localStorage.setItem('ap_filters',JSON.stringify(OWNED))}catch(e){}};
 
-/* I RUOLI: quale filtro monti per quale funzione fotografica. Vivono nel motore
-   (`ROLES`), qui c'e' solo il ponte con il browser. */
+/* I RUOLI APPARTENGONO ALLA CAMERA, e non all'app.
+
+   Su una monocromatica i filtri si cambiano in ruota una posa dopo l'altra: la
+   luminanza la fa il filtro L, e la scelta riguarda quale L. Su una camera a matrice
+   il vetro davanti al sensore e' UNO per tutta la notte, e tipicamente non e' lo
+   stesso: chi ha un anti-inquinamento lo avvita li' e riprende a colori, mentre con
+   la monocromatica usa la luminanza pura.
+
+   E' esattamente la pratica che questo progetto ha in casa: IDAS LPS-P2 sulla
+   2600MC, luminanza Optolong sulla 2600MM. Con una mappa sola quella scelta si
+   portava dietro il filtro dell'altra camera — misurato, il ruolo L su idas usciva
+   idas su entrambe — cioe' il contrario di quello che si fa davvero.
+
+   `ROLES` nel motore resta piatto: e' «i ruoli in vigore adesso», e il motore non
+   deve sapere che esistono altre camere. La contabilita' per camera sta qui, dove
+   vive `CFG`, ed e' la stessa forma di `ap_rms`, che tiene un RMS per montatura. */
+let ROLES_ALL={};
 const loadRoles=()=>{try{const v=JSON.parse(localStorage.getItem('ap_roles')||'null');
-  return (v&&typeof v==='object'&&!Array.isArray(v))?v:{}}catch(e){return{}}};
-const persistRoles=()=>{try{localStorage.setItem('ap_roles',JSON.stringify(ROLES||{}))}catch(e){}};
+  if(!v||typeof v!=='object'||Array.isArray(v)) return {};
+  /* MIGRAZIONE. Il formato vecchio era piatto — banda -> id del filtro — e non
+     diceva a quale camera appartenesse. L'unica cosa che si sa e' che l'utente
+     l'aveva impostato con la camera che stava usando, quindi si assegna a quella e
+     non si indovina altro. Si riconosce dal contenuto: nel formato nuovo i valori
+     sono oggetti, nel vecchio sono stringhe. */
+  const piatto=Object.values(v).some(x=>typeof x==='string');
+  if(!piatto) return v;
+  let cam=null; try{ const c=JSON.parse(localStorage.getItem('ap_cfg')||'null'); cam=c&&c.cam; }catch(e){}
+  return cam?{[cam]:v}:{};
+}catch(e){return{}}};
+const rolesFor=cam=>(ROLES_ALL&&ROLES_ALL[cam])||{};
+const persistRoles=()=>{try{localStorage.setItem('ap_roles',JSON.stringify(ROLES_ALL||{}))}catch(e){}};
 /* Le bande per cui ha senso scegliere: quelle che un filtro puo' servire. */
 const RUOLI=['L','Ha','OIII','SII','R','G','B'];
 /* I candidati a un ruolo sono i filtri POSSEDUTI che quella banda la portano. Per la
    luminanza si allarga: qualunque filtro puo' fare da L, se e' quello che vuoi —
    compreso un Ha, che e' una scelta legittima e deliberata. */
 const candidatiRuolo=band=>{
-  const own=DB.filters.filter(f=>OWNED.includes(f.id));
+  const cam=DB.cameras.find(c=>c.id===CFG.cam)||DB.cameras[0];
+  /* Su una monocromatica i multibanda e gli anti-inquinamento non compaiono: non e'
+     una restrizione, e' che non si usano. Restano in catalogo e restano spuntabili
+     — cambiando camera tornano candidati. */
+  const own=DB.filters.filter(f=>OWNED.includes(f.id)&&adattoA(f,cam));
   if(band==='L') return own;
   return own.filter(f=>f.band===band||(f.bands&&f.bands.includes(band)));
 };
 function setRole(band,id){
-  if(!ROLES) ROLES={};
-  if(id) ROLES[band]=id; else delete ROLES[band];
+  const cam=CFG&&CFG.cam; if(!cam) return;
+  if(!ROLES_ALL) ROLES_ALL={};
+  const m=Object.assign({},ROLES_ALL[cam]||{});
+  if(id) m[band]=id; else delete m[band];
+  ROLES_ALL[cam]=m; ROLES=m;
   persistRoles(); openFilters(); filtSummary(); refresh();
 }
 /* Quando un filtro smette di essere posseduto, la scelta che lo nominava cade: una
    scelta non puo' tenere in vita un filtro che hai tolto dalla ruota. */
 function puliscoRuoli(){
   let cambiato=false;
-  for(const b of Object.keys(ROLES||{}))
-    if(!OWNED.includes(ROLES[b])){ delete ROLES[b]; cambiato=true; }
+  for(const cam of Object.keys(ROLES_ALL||{}))
+    for(const b of Object.keys(ROLES_ALL[cam]||{}))
+      if(!OWNED.includes(ROLES_ALL[cam][b])){ delete ROLES_ALL[cam][b]; cambiato=true; }
+  ROLES=rolesFor(CFG&&CFG.cam);
   if(cambiato) persistRoles();
 }
 
@@ -7332,12 +7450,17 @@ function bloccoRuoli(){
         non la stessa più lenta — il numero che leggi qui sotto va preso come tale.</span>`:''}</label>`;
   }).filter(Boolean);
   if(!righe.length) return '';
-  return `<div class="block"><h4>Chi svolge quale ruolo</h4>
+  const nomeCam=(DB.cameras.find(c=>c.id===CFG.cam)||{}).name||CFG.cam;
+  return `<div class="block"><h4>Chi svolge quale ruolo${
+    cam.cfa_penalty?' — il vetro montato sulla '+esc(nomeCam):' — in ruota sulla '+esc(nomeCam)}</h4>
     <p class="small muted" style="margin-bottom:10px">La luminanza è una funzione, non un
       filtro: se preferisci riprenderla con un anti-inquinamento, con un multiband o
       perfino con un Hα, dillo qui e il motore userà quello — e non lo sostituirà. Una
       luminanza di sola riga però è un'<b>altra immagine</b>, non la stessa più lenta: le
       ore della scheda descrivono una banda larga, e il riquadro te lo ricorda se lo fai.
+      <b>Queste scelte valgono per la camera in uso</b>: su una monocromatica i filtri si
+      cambiano in ruota, su una a matrice il vetro davanti al sensore è uno solo per tutta
+      la notte, e quasi mai è lo stesso. Cambiando camera tornano quelle sue.
       Con «automatico» sceglie lui, e sceglie in base al ruolo: su una <b>riga</b> vince il
       più stretto, perché la riga passa comunque e il cielo no; su un <b>continuo</b> vince
       chi raccoglie di più, perché stringere butta via segnale quanto butta via cielo.</p>
@@ -7500,7 +7623,9 @@ function delUserFilter(id){
   if(!f||!f.user) return;
   const i=DB.filters.indexOf(f); if(i>=0) DB.filters.splice(i,1);
   OWNED=OWNED.filter(x=>x!==id);
-  for(const b of Object.keys(ROLES||{})) if(ROLES[b]===id) delete ROLES[b];
+  for(const cam of Object.keys(ROLES_ALL||{}))
+    for(const b of Object.keys(ROLES_ALL[cam]||{})) if(ROLES_ALL[cam][b]===id) delete ROLES_ALL[cam][b];
+  ROLES=rolesFor(CFG&&CFG.cam);
   persistOwned(); persistRoles(); persistUserFilters(); openFilters(); filtSummary(); refresh();
   gearMsg('dim',`«${esc(f.name)}» eliminato.`);
 }
