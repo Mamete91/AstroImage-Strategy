@@ -2183,9 +2183,9 @@ function samplingVerdict(scale,fwhm){
   const lo=fwhm/3.5, hi=fwhm/1.8;
   const range=`ottimale ${lo.toFixed(2)}–${hi.toFixed(2)}″/px con FWHM ${fwhm.toFixed(2)}″`;
   if(scale<lo) return {k:'sovracampionato', cls:'p-dim', reversibile:true,
-    n:`${range}. Non perdi niente: i fotoni ci sono tutti e puoi sommarli in elaborazione`};
+    n:`${range}. Campionamento elevato: non comporta perdita di dettaglio, i fotoni si sommano in elaborazione`};
   if(scale>hi)  return {k:'sottocampionato', cls:'p-warn', reversibile:false,
-    n:`${range}. Il dettaglio che non campioni non torna: questa e' l'unica delle due che costa`};
+    n:`${range}. Campionamento insufficiente: parte del dettaglio risolvibile viene persa e non si recupera`};
   return {k:'corretto', cls:'p-ok', reversibile:true, n:`ottimale ${lo.toFixed(2)}–${hi.toFixed(2)}″/px`};
 }
 
@@ -6529,8 +6529,8 @@ function openTargetForm(editId,prefillName){
     const cur=findCurated($('tf_name').value);
     if(cur&&!editId){
       const i=EVAL.findIndex(e=>e.tg.id===cur.id);
-      $('tf_found').innerHTML=`<span class="pill p-ok">esiste gia'</span> <span class="muted">
-        <b>${esc(cur.names[0])}</b> ha gia' una scheda completa, con righe, soglie e trappole.
+      $('tf_found').innerHTML=`<span class="pill p-ok">esiste già</span> <span class="muted">
+        <b>${esc(cur.names[0])}</b> ha già una scheda completa, con righe, soglie e trappole.
         Ricrearlo a mano ti farebbe perdere tutto questo.</span>
         <div class="row" style="margin-top:8px"><button class="primary" onclick="
           document.getElementById('tgtSheet').classList.remove('on');openSheet(${i})">
@@ -6574,7 +6574,7 @@ function saveTarget(editId){
   const name=g('name'); if(!name) return bad('Serve un nome.');
   if(!editId){
     const cur=findCurated(name);
-    if(cur) return bad(`«${esc(cur.names[0])}» ha gia' una scheda curata: aprila dall'elenco invece di ricrearla.`);
+    if(cur) return bad(`«${esc(cur.names[0])}» ha già una scheda curata: aprila dall'elenco invece di ricrearla.`);
     if(UTGT.some(t=>norm(t.names[0])===norm(name))) return bad('Hai gia\' un oggetto con questo nome.');
   }
   const ra=parseAngle(g('ra'),true), dec=parseAngle(g('dec'),false);
@@ -6832,7 +6832,7 @@ const G={
  floor:'Sotto questa soglia il canale non va nemmeno iniziato: restituisce rumore colorato, non segnale. Le ore spese qui sono perse due volte, perché poi tocca lavorare per spegnere quel rumore.',
  useful:'Il punto in cui il canale dà quello che può dare. Oltre, si continua a guadagnare ma sempre più lentamente.',
  samp_ok:'La dimensione del pixel è ben accoppiata al seeing del tuo cielo: non stai buttando via dettaglio né sprecando ore su pixel che non vedono nulla di nuovo.',
- samp_over:'I pixel sono più fini di quanto il seeing permetta di risolvere. Il dettaglio in più non esiste, ma il segnale viene diviso su più pixel: stesso risultato, più ore.',
+ samp_over:'I pixel sono più fini di quanto il seeing permetta di risolvere: il dettaglio in più non esiste. Non perdi però niente di quello che esiste — su CMOS sommare i pixel in elaborazione dà lo stesso risultato di binnarli in ripresa — e le ore per arrivare a una data profondità sono le stesse. Quello che paghi è spazio su disco e tempo di calibrazione.',
  samp_under:'I pixel sono più grossi del dettaglio che il seeing consentirebbe. Raccogli in fretta, ma perdi risoluzione che il cielo ti stava regalando.',
  fit:'Quanto l\'oggetto riempie il lato corto del campo. Troppo grande vuol dire mosaico; troppo piccolo vuol dire che stai fotografando soprattutto cielo vuoto.',
  fratio:'Focale diviso diametro. È pura geometria e non cambia mai: un RC8 è f/8 e basta. Le perdite di luce sono un\'altra cosa e stanno nella voce accanto.',
@@ -6998,7 +6998,7 @@ function refresh(){
       `<span data-tip="Intervallo in cui il pixel è ben accoppiato alla FWHM reale, cioè seeing e guida messi insieme.">${samp.n.replace(/ con seeing.*/,'')}</span>`+
       (dv.bin>1?`<br><span class="muted">nativi ${fmt(dv.scale0,2)}″/px</span>`:''));
   set('d_fr_k',tip('Rapporto focale','fratio')); set('d_fr','f/'+fmt(dv.fRatio,1));
-  set('d_fr_n',`<span data-tip="${esc(G.thru)}">resa luminosa ${Math.round(dv.thru*100)}%</span>`+
+  set('d_fr_n',`<span data-tip="${esc(G.thru)}">trasmissione ${Math.round(dv.thru*100)}%</span>`+
       (dv.t.obstruction_linear>0?`, ostruzione ${Math.round(dv.t.obstruction_linear*100)}% inclusa`:''));
   set('d_fov',`${fmt(dv.fovX,0)}′ × ${fmt(dv.fovY,0)}′`); set('d_fov_n','');
   set('d_see_k',tip('Seeing medio','seeing'));
@@ -7059,8 +7059,8 @@ function refresh(){
     (SITE.sqm<19.5
       ? `Da qui galassie, ammassi e riflessione sono fuori portata, mentre il bicolore Ha/OIII resta praticabile: la banda stretta rifiuta il continuo artificiale.`
       : SITE.sqm<21
-        ? `La banda larga e' penalizzata ma non impossibile; la banda stretta e' quasi indifferente.`
-        : `Cielo buono: nessuna delle due tecniche e' limitata dall'IL.`)+
+        ? `La banda larga è penalizzata ma non impossibile; la banda stretta è quasi indifferente.`
+        : `Cielo buono: nessuna delle due tecniche è limitata dall'IL.`)+
     ` <a href="https://www.lightpollutionmap.info/#zoom=11&lat=${SITE.lat}&lon=${SITE.lon}" `+
     `target="_blank" rel="noopener">Verifica sulla mappa satellitare →</a></span>`;
 
@@ -7753,28 +7753,28 @@ function renderRx(np){
         Finche’ le ore non bastano a tutti, <b>${esc(cp.id)}</b> pesa
         ${String(cp.peso).replace('.',',')} volte gli altri nel riparto: qui riceve
         <b>${fmt(cp.con,1)} h</b> invece delle <b>${fmt(cp.senza,1)} h</b> che gli
-        toccherebbero a peso uguale. E’ una priorità di questo motore, non una
+        toccherebbero a peso uguale. È una priorità di questo motore, non una
         richiesta della scheda, e sopra le ore che bastano a tutti sparisce da sola.</div>`
     : '';
   const filtNote = off.length && !nonHai.length
     ? `<div class="rx-warn"><b>Hai spento ${esc(off.join(' e '))}, e ogni tecnica di questo
-        oggetto ${off.length>1?'li richiede':'lo richiede'}.</b> La prescrizione qui sotto e' quella
+        oggetto ${off.length>1?'li richiede':'lo richiede'}.</b> La prescrizione qui sotto è quella
         completa: serve a vedere che cosa comporterebbe. Per riprenderla davvero riaccendi
         ${off.length>1?'quei riquadri':'quel riquadro'} in <b>Filtri selezionati</b>, qui a fianco.</div>`
     : pr.missing && pr.missing.length
     ? `<div class="rx-warn bad"><b>Per questo oggetto ti serve un filtro ${esc(nonHai.concat(off).join(' e '))}.</b>
-        Ogni tecnica che la scheda prevede lo richiede: non e' una questione di ore.
-        La prescrizione qui sotto e' quella completa — serve a sapere che cosa
+        Ogni tecnica che la scheda prevede lo richiede: non è una questione di ore.
+        La prescrizione qui sotto è quella completa — serve a sapere che cosa
         comporterebbe — ma con la ruota di adesso ${pr.missing.length>1?'quei canali':'quel canale'}
         non ${pr.missing.length>1?'sono':'e'} riprendibil${pr.missing.length>1?'i':'e'}.${
         off.length?` (${esc(off.join(' e '))} ce l'hai ma ${off.length>1?'sono spenti':'e spento'}.)`:''}
         Se il filtro ce l'hai e non l'ho registrato, aggiungilo da <b>Filtri</b>.</div>`
     : (pr.filterLimited&&pr.blocked&&pr.blocked.length
       ? `<div class="rx-warn"><b>Strategia scelta sui filtri che hai.</b>
-          ${pr.blocked.length===1?'Una tecnica in piu':'Altre tecniche'} si aprirebbe${pr.blocked.length===1?'':'ro'}
+          ${pr.blocked.length===1?'Una tecnica in più':'Altre tecniche'} si aprirebbe${pr.blocked.length===1?'':'ro'}
           con ${esc([...new Set(pr.blocked.flatMap(b=>b.needs))].join(' e '))}:
           <b>${esc(pr.blocked.map(b=>b.name||b.road).join(', '))}</b>.
-          Quella qui sotto e' la migliore percorribile con la ruota di adesso.</div>`
+          Quella qui sotto è la migliore percorribile con la ruota di adesso.</div>`
       : '');
 
   const stellarT=!!(TG.archetypes[t.archetype]||{}).stellar;
@@ -7858,7 +7858,7 @@ function renderRx(np){
     if(!alts.length) return !sottoSoglia ? '' : `<p class="small muted" style="margin-top:14px">Nessun'altra
       configurazione fra le tue porta questo oggetto al livello-obiettivo in
       ${fmt(hours,1)} h. Puoi comunque riprenderlo con quella che hai: la prescrizione
-      qui sopra e' la piu' sensata con queste ore.</p>`;
+      qui sopra è la più sensata con queste ore.</p>`;
     const rigaMia=`<div class="altrow" style="opacity:.85">
       <span class="pill p-dim">quella che hai</span>
       <span class="n"><b>${esc((DB.presets.find(q=>q.telescope===CFG.tel&&String(q.reducer)===String(CFG.red)&&q.camera===CFG.cam)||{}).label||'la tua configurazione')}</b>${(CFG.bin||1)>1?` a <b>bin ${CFG.bin}</b>`:''}
@@ -7871,9 +7871,9 @@ function renderRx(np){
     return `<h4 style="margin:16px 0 4px;font-size:13px">${
       meglio.length?'Con quale strumento viene meglio':'Quella che hai è già la scelta migliore'}</h4>
       ${perResa?`<p class="small muted" style="margin:0 0 6px">Le ore ci sono — il livello
-        e' <b>${esc(RXLVL[pr.level].k)}</b> — ma un'altra delle tue configurazioni consegna
-        <b>${Math.round(guadagno*100)} punti</b> di resa in piu' su questo soggetto. Non e' la
-        profondita' a mancare: e' quanto ne inquadri o a quale dettaglio.</p>`:''}
+        è <b>${esc(RXLVL[pr.level].k)}</b> — ma un'altra delle tue configurazioni consegna
+        <b>${Math.round(guadagno*100)} punti</b> di resa in più su questo soggetto. Non è la
+        profondità a mancare: è quanto ne inquadri o a quale dettaglio.</p>`:''}
       ${!meglio.length?`<p class="small">Nessuna delle tue altre configurazioni rende di più su
         questo soggetto con queste ore. Le ore mancano, lo strumento no: la prescrizione qui
         sopra è la migliore che puoi fare stasera.</p>`:''}
@@ -7882,9 +7882,9 @@ function renderRx(np){
         <span class="pill ${x.pr.level==='pieno'||x.pr.level==='ridotto'?'p-ok':'p-warn'}">${RXLVL[x.pr.level].k}</span>
         <span class="n"><b>${esc(x.preset.label)}</b>${x.bin>1?` a <b>bin ${x.bin}</b>`:''}${
           x.rotPropria?` <span class="pill p-dim" data-tip="${esc(
-            'Questo sistema e’ giudicato alla rotazione che gli conviene, non alla tua: '+
+            'Questo sistema è giudicato alla rotazione che gli conviene, non alla tua: '+
             'girare la camera non costa niente e ogni ottica ha il proprio angolo migliore su '+
-            'questo soggetto. Montandola dritta otterresti numeri diversi.')}">a ${x.rot}°</span>`:''}
+            'questo soggetto. Montandola dritta otterresti numeri diversi.')}">rotazione ${x.rot}°</span>`:''}
           <span class="muted">— ${fmt(x.dv.scale,2)}″/px, campo ${fmt(x.dv.fovX,0)}′×${fmt(x.dv.fovY,0)}′</span>
           <div class="small" style="margin-top:2px">
             ${asse(x.cover,'soggetto','Quanta parte del bersaglio entra nell\'immagine. Satura al 100%: inquadrare più cielo del soggetto non aggiunge niente.')} &middot;
@@ -8571,7 +8571,7 @@ function rxRoadHtml(pr){
         data-tip="${esc('Il motore prende la tecnica piu\u2019 ricca che riesci a completare con le ore che hai. '+
           'E\u2019 un consiglio, non un verdetto: se ne vuoi un\u2019altra, prendila.')}">
         <div class="rc-h"><b>Sceglie il motore</b>${pr.roadPicked?'':'<span class="pill p-ok">in uso</span>'}</div>
-        <div class="rc-w">la piu’ ricca che le ore permettono</div>
+        <div class="rc-w">la più ricca che le ore permettono</div>
         <div class="rc-n">ora sarebbe <b>${esc(auto?auto.name:pr.roadAuto)}</b></div>
       </button>
       ${pr.roadChoices.map(card).join('')}
@@ -9222,7 +9222,7 @@ function openSheet(i){
     ${t.user?`<div class="block"><div class="row">
       <button onclick="closeSheet();openTargetForm('${t.id}')">Modifica questo oggetto</button>
       <span class="small muted" style="align-self:center">Aggiunto da te: geometria e cielo
-      sono calcolati davvero, il budget e' una stima per analogia di classe.</span>
+      sono calcolati davvero, il budget è una stima per analogia di classe.</span>
       </div></div>`:''}
   `;
   $('sheet').classList.add('on');
