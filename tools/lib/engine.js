@@ -30,6 +30,8 @@ const M=new Function(...Object.keys(ctx),pure+`return {derive,refCfg,timeFactor,
   cfaFraction,bandSpec,skyRateFor,subExposure,exposurePlan,objectSatTime,subPlan,
   fitAlternatives,framing,projectPanels,COV_FULL,COV_FRAMING,mountRms,
   coveredSpan,resolutionFidelity,imageYield,PIX_FWHM,filterWindows,windowFor,windowLambda,
-  windowStrength,bandWidth,bandWidthNota,bandWidthFonte,selectivity,ownedFilters,ROLES};`)
+  windowStrength,bandWidth,bandWidthNota,bandWidthFonte,selectivity,ownedFilters,
+  /* i ruoli si impostano, non si leggono: e uno stato del motore */
+  ruoli:(r)=>{ROLES=r||{};}, ruoliCorrenti:()=>ROLES};`)
   (...Object.values(ctx));
 module.exports={M,DB,TG,CAT,CIT,ROOT:R};

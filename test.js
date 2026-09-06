@@ -30,7 +30,9 @@ const fn=new Function(...Object.keys(ctx), pure+`
           synthTarget,inRoad,planNights,moonTolerance,objectExtent,bestRotation,
           nightWindows,nightsBounds,bestStart,balanceSessions,moonExcessMag,moonExcessFlux,lpExcessFlux,skyRef,subExposure,exposurePlan,
           subPlan,skyRateFor,starPeakRate,gainModes,bandSpec,ninaSequence,ninaCheck,mountRms,EXP_GRID,
-          cfaFraction,objectSatTime,framingCenter};`);
+          cfaFraction,objectSatTime,framingCenter,
+          /* i ruoli si impostano: sono uno stato del motore, non un valore da leggere */
+          ruoli:(r)=>{ROLES=r||{};}};`);
 const M=fn(...Object.values(ctx));
 
 const nrm=x=>String(x).toLowerCase().replace(/[\s_'\u2019-]+/g,'');
@@ -1145,6 +1147,20 @@ console.log('\n--- posa e numero di sub ---');
 /* Il banco di prova non e' un valore di catalogo: e' la sequenza N.I.N.A. che
    l'utente usa davvero sull'RC8 a f/8 da Borno — L 120-180 s a gain 0, banda
    stretta 300 s a gain 100. Se il modello si allontana da li', e' il modello. */
+/* LA SEQUENZA DI RIFERIMENTO DICHIARA CON QUALE FILTRO E' STATA RIPRESA.
+
+   L'ancora e' una sequenza N.I.N.A. reale, e finora il filtro con cui era stata
+   ripresa non era scritto da nessuna parte: lo sceglieva l'automatismo, che con la
+   ruota di serie prendeva l'IDAS perche' era il piu' stretto. Da quando la scelta
+   automatica segue il ruolo — su un continuo vince chi raccoglie di piu' — la
+   luminanza passa dal `lum`, e con 300 nm di banda il fondo cielo sale e la posa
+   scende a 60 s.
+
+   Misurato, e' l'IDAS a riprodurre la sequenza vera: 120 s, vincolo saturazione
+   stellare. Con il `lum` uscirebbero 60 s al pavimento operativo. Il filtro
+   dell'ancora si dichiara quindi esplicitamente, invece di dipendere da una regola
+   di scelta che puo' cambiare — che e' esattamente a cosa servono i ruoli. */
+M.ruoli({L:'idas'});
 const dvRC=M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1});
 /* `mountRms` riceve la FOCALE, non la scala del pixel: la difficolta' di guida e'
    meccanica e non sa quale sensore ci sia dietro. Prima riceveva `scale0`, e il ramo

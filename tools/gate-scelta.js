@@ -233,13 +233,37 @@ H('D · SU SENSORE BAYER IL COLORE NON È UN FILTRO IN RUOTA');
       vetro('RGB', osc) === id && vetro('Ha', osc) == null, 'RGB → ' + vetro('RGB', osc));
   }
 
-  /* Fra due banda-larga vince il più selettivo: taglia più fondo cielo. */
+  /* FRA PIU' BANDA-LARGA NON VINCE IL PIU' SELETTIVO, e la regola precedente
+     diceva il contrario.
+
+     Su una RIGA stringere guadagna: la riga passa comunque, il cielo no. Su un
+     CONTINUO — ed e' quello che un filtro di banda larga raccoglie — stringere
+     butta via segnale quanto butta via cielo, e il motore lo sa: le ore che
+     prescrive seguono il prodotto larghezza x trasmissione.
+
+     MISURATO prima della correzione, Askar 71F + 2600MM su M31 con sette filtri di
+     banda larga in ruota: l'automatico sceglieva `idasd3` (180 nm) e poi chiedeva
+     14.9 h a SQM 21.6 contro le 8.0 h di `uvir` (300 nm), l'85% in piu'. A SQM 17.8:
+     383.8 h contro 265.7. A ogni cielo provato il filtro scelto era quello che il
+     motore stesso valutava peggiore.
+
+     Va detto che «piu' largo e' meglio» vale finche' il modello del cielo non
+     riconosce a un anti-inquinamento le righe dei lampioni che blocca: quel credito
+     oggi non c'e', e finche' non c'e' la scelta automatica non puo' giudicare quel
+     compromesso. La scelta resta di chi riprende, attraverso i ruoli. */
   ruota(['idas', 'lpro', 'uvir']);
   const scelto = vetro('RGB', osc);
-  const largh = DB.filters.find(f => f.id === scelto).fwhm_nm;
-  chk('fra più banda-larga il motore prende il più selettivo',
-    DB.filters.filter(f => ['idas', 'lpro', 'uvir'].indexOf(f.id) >= 0)
-      .every(f => f.fwhm_nm >= largh), scelto + ' a ' + F(largh, 0) + ' nm');
+  const fScelto = DB.filters.find(f => f.id === scelto);
+  const costo = f => 1 / (f.fwhm_nm * (f.peak_t != null ? f.peak_t : 0.9));
+  const atteso = ['idas', 'lpro', 'uvir'].map(id => DB.filters.find(f => f.id === id))
+    .sort((a, b) => costo(a) - costo(b))[0];
+  chk('fra piu banda-larga vince quello che il motore stesso valuta migliore',
+    scelto === atteso.id, scelto + ' (' + fScelto.fwhm_nm + ' nm x T ' + fScelto.peak_t +
+    ') fra ' + ['idas', 'lpro', 'uvir'].join(', '));
+  chk('e non il piu stretto, che era la regola di prima',
+    fScelto.fwhm_nm === Math.max.apply(null, ['idas', 'lpro', 'uvir']
+      .map(id => DB.filters.find(f => f.id === id).fwhm_nm)),
+    'il piu stretto sarebbe stato lpro a 220 nm');
 
   /* Il dual SII+OIII apre il sulfuro anche su camera a colori. */
   ruota(['askard2']);

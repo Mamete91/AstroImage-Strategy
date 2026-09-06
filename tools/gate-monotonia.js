@@ -289,7 +289,7 @@ H('E · IL RIFERIMENTO DELLE ORE NON DIPENDE DAI FILTRI CHE POSSIEDI');
     const ctx = { DB, TG, CAT: CATd.objects, CITIES: CITd.cities, OWNED: ruota.slice(),
       console, Math, Date, Object, JSON, isFinite, parseFloat, parseInt, Number, window: {} };
     return new Function(...Object.keys(ctx), pura +
-      'return {refCfg,rates,timeFactor,refSubFor,conRuotaDiRiferimento,derive};')(...Object.values(ctx));
+      'return {refCfg,rates,timeFactor,refSubFor,conRuotaDiRiferimento,derive,ruoli:r=>{ROLES=r||{};}};')(...Object.values(ctx));
   };
   const RUOTE = [
     ['dichiarata nei dati', DB.reference_config.filters],
@@ -315,7 +315,13 @@ H('E · IL RIFERIMENTO DELLE ORE NON DIPENDE DAI FILTRI CHE POSSIEDI');
   const K0 = conRuota(DB.reference_config.filters);
   const dv0 = K0.derive({ tel: DB.reference_config.telescope, red: DB.reference_config.reducer,
     cam: DB.reference_config.camera, mnt: 'am5', bin: 1 });
+  /* L'IDAS va IMPOSTO, non sperato. Da quando la scelta automatica preferisce, per
+     un ruolo di banda larga, il filtro che raccoglie di piu' — larghezza x
+     trasmissione — un IDAS in ruota non viene piu' scelto da solo per la luminanza:
+     vince il `lum`, che e' piu' largo. Per interrogare il denominatore serve che il
+     numeratore usi davvero l'IDAS, e il modo giusto e' il meccanismo dei ruoli. */
   const conIdas = conRuota(DB.reference_config.filters.concat(['idas']));
+  conIdas.ruoli({ L: 'idas' });
   const dvI = conIdas.derive({ tel: DB.reference_config.telescope, red: DB.reference_config.reducer,
     cam: DB.reference_config.camera, mnt: 'am5', bin: 1 });
   const fL = conIdas.timeFactor(dvI, 'L');

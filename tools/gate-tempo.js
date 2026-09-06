@@ -530,7 +530,7 @@ H('IL RIFERIMENTO NON DIPENDE DA CHI LO INTERROGA');
     const ctxx = { DB: DBx, TG: TGx, CAT: CATx.objects, CITIES: CITx.cities, OWNED: OWNEDx,
       console, Math, Date, Object, JSON, isFinite, parseFloat, parseInt, Number, window: {} };
     const Mx = new Function(...Object.keys(ctxx), purex +
-      `return {refSubFor,derive,evaluate,prescribe,nightProfile,effFWHM,timeFactor};`)(...Object.values(ctxx));
+      `return {refSubFor,derive,evaluate,prescribe,nightProfile,effFWHM,timeFactor,ruoli:r=>{ROLES=r||{};}};`)(...Object.values(ctxx));
     return { rif: ['Ha', 'OIII', 'SII', 'L'].map(b => Mx.refSubFor(b)), M: Mx, OWNED: OWNEDx };
   };
   const RUOTE = [
@@ -594,7 +594,13 @@ H('IL RIFERIMENTO NON DIPENDE DA CHI LO INTERROGA');
     bandeRif.every(b => Math.abs(RIF.M.timeFactor(dvR, b) - 1) < 1e-12),
     bandeRif.map(b => b + ' ' + RIF.M.timeFactor(dvR, b).toFixed(6)).join(' · '));
 
+  /* L'IDAS va IMPOSTO col ruolo, non sperato. Da quando la scelta automatica
+     preferisce, per un ruolo di banda larga, il filtro che raccoglie di piu' —
+     larghezza x trasmissione — un IDAS in ruota non viene piu' scelto da solo per la
+     luminanza: vince il `lum`, che e' piu' largo. Per interrogare il denominatore
+     serve che il numeratore usi davvero l'IDAS. */
   const ALT = conRuota(DBx.default_filters);
+  ALT.M.ruoli({ L: 'idas' });
   const dvA = ALT.M.derive({ tel: DBx.reference_config.telescope, red: DBx.reference_config.reducer,
                              cam: DBx.reference_config.camera, mnt: 'am5', bin: 1 });
   chk('e la banda stretta resta uno anche con una ruota piu ricca: il metro non si muove',

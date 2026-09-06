@@ -5419,20 +5419,55 @@ const roleFilter=band=>{
      tolto la spunta al filtro, la scelta non puo' resuscitarlo. */
   return (f&&OWNED.indexOf(f.id)>=0)?f:null;
 };
-/* L ORDINE DELLA SCELTA AUTOMATICA, che vale solo quando una scelta esplicita non
-   c e. Tre criteri, in questo ordine:
+/* L'ORDINE DELLA SCELTA AUTOMATICA, che vale solo quando una scelta esplicita non
+   c'e'. E che non puo' essere «il piu' stretto», perche' dipende da COSA STAI
+   RIPRENDENDO con quel filtro.
 
-     1. un filtro di cui la larghezza e DICHIARATA batte uno di cui e assunta. Un
-        valore che non conosciamo non deve vincere per via dell assunzione che lo
-        sostituisce: sarebbe un vantaggio regalato a chi ha meno documentazione.
-     2. poi il piu stretto SU QUESTA BANDA, che e la regola di sempre.
-     3. a parita, il TUO. Un filtro che hai descritto tu e una cosa che hai in mano;
-        uno di catalogo e una voce di elenco, e prima vinceva sempre lui perche i
-        filtri aggiunti a mano finiscono in coda. */
+   La regola precedente era «vince il piu' stretto», sempre. Su una riga di
+   emissione e' giusta: la riga passa comunque, il cielo no, quindi stringere
+   guadagna. Su un CONTINUO e' rovesciata: il segnale di una galassia sta in tutta
+   la banda, e stringere ne butta via quanto ne butta via del cielo.
+
+     riga     segnale ~ T          cielo ~ larghezza x T   ->  meglio T/larghezza alto
+     continuo segnale ~ larghezza x T                      ->  meglio larghezza x T alto
+
+   MISURATO, e la divergenza era sistematica. Askar 71F + 2600MM, M31, con sette
+   filtri di banda larga in ruota: l'automatico sceglieva `idasd3` (180 nm, il piu'
+   stretto) e la prescrizione chiedeva poi 14.9 h a SQM 21.6 contro le 8.0 h di
+   `uvir` (300 nm) — l'85% in piu'. A SQM 17.8: 383.8 h contro 265.7, il 44% in piu'.
+   A ogni cielo provato, il filtro scelto era quello che il motore stesso valutava
+   peggiore. Chi sceglie e chi valuta si contraddicevano.
+
+   Con questa regola coincidono per costruzione: l'ordine che ne esce riproduce
+   esattamente quello delle ore prescritte — uvir 291, lum 285, idas 230, lpro 205,
+   cls 184, idasd3 166 come prodotto larghezza x trasmissione.
+
+   ATTENZIONE, E VA DETTO: che su continuo «piu' largo e' meglio» sia vero SEMPRE e'
+   una conseguenza del modello del cielo attuale, dove l'eccesso di inquinamento
+   luminoso scala con la larghezza e satura a 250 nm — quindi un anti-inquinamento
+   non riceve nessun credito per le righe dei lampioni che blocca. Nella realta' un
+   LPS sotto un cielo cittadino conviene eccome. Finche' quel credito non esiste, la
+   scelta automatica non e' in grado di giudicare quel compromesso: fa la cosa
+   coerente con la fisica che il motore conosce, e l'interfaccia dice che la scelta,
+   li', e' di chi riprende. */
 const primaIlTuo=(a,b,band)=>{
+  /* Un valore assunto non deve vincere per via dell'assunzione che lo sostituisce:
+     sarebbe un vantaggio regalato a chi ha meno documentazione. */
   const assunto=x=>bandWidthNota(x,band)?0:1;
+  const trasm=x=>{ const w=windowFor(x,band);
+    const t=(w&&w.peak_t!=null)?w.peak_t:(x.peak_t!=null?x.peak_t:0.9);
+    return t>0?t:0.9; };
+  /* Il costo relativo del filtro per QUESTA banda, nella forma che il motore usa a
+     valle: piu' basso e' meglio. */
+  const costo=x=>BB_BANDS.includes(band)
+    ? 1/(bandWidth(x,band)*trasm(x))     // continuo: la banda larga raccoglie di piu'
+    : bandWidth(x,band)/trasm(x);        // riga: la banda stretta taglia solo cielo
+  const ca=costo(a), cb=costo(b);
   return (assunto(a)-assunto(b))
-      || (bandWidth(a,band)-bandWidth(b,band))
+      || (ca<cb?-1:ca>cb?1:0)
+      /* A parita', il TUO. Un filtro che hai descritto tu e' una cosa che hai in
+         mano; uno di catalogo e' una voce di elenco, e prima vinceva sempre lui
+         perche' i filtri aggiunti a mano finiscono in coda. */
       || ((b.user?1:0)-(a.user?1:0));
 };
 function filterFor(band,cam){
@@ -7258,10 +7293,18 @@ function bloccoRuoli(){
   }).filter(Boolean);
   if(!righe.length) return '';
   return `<div class="block"><h4>Chi svolge quale ruolo</h4>
-    <p class="small muted" style="margin-bottom:10px">La luminanza e' una funzione, non un
+    <p class="small muted" style="margin-bottom:10px">La luminanza è una funzione, non un
       filtro: se preferisci riprenderla con un anti-inquinamento, con un multiband o
-      perfino con un Ha, dillo qui e il motore userà quello. Con «automatico» sceglie lui,
-      preferendo il più selettivo fra quelli di cui la larghezza è dichiarata.</p>
+      perfino con un Hα, dillo qui e il motore userà quello — e non lo sostituirà.
+      Con «automatico» sceglie lui, e sceglie in base al ruolo: su una <b>riga</b> vince il
+      più stretto, perché la riga passa comunque e il cielo no; su un <b>continuo</b> vince
+      chi raccoglie di più, perché stringere butta via segnale quanto butta via cielo.</p>
+    <p class="small muted" style="margin-bottom:10px"><b>Un avvertimento onesto sugli
+      anti-inquinamento.</b> Il modello del cielo non riconosce ancora a un LPS le righe
+      dei lampioni che blocca — mercurio a 546 e 578 nm, sodio a 589 — e le tratta come
+      una fetta qualunque di spettro. Perciò, per il motore, restringere la banda larga
+      costa sempre: se hai un IDAS, un L-Pro o un CLS e riprendi da un cielo cittadino,
+      quella scelta la sai fare tu meglio di lui. Dilla qui.</p>
     <div class="row">${righe.join('')}</div></div>`;
 }
 

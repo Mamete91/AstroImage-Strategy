@@ -129,9 +129,14 @@ H('A · OGNI TIPOLOGIA ATTRAVERSA IL MOTORE SENZA NUMERI ROTTI');
     const male = numeri.filter(x => !sano(x)).length;
     if (male) rotti.push(etichetta + '/' + cam + ': ' + male + ' numeri non finiti');
     /* «Non escluso» significa che il motore lo trova quando lo cerca per una delle
-       sue bande: un filtro valido non deve sparire perche' gli manca un parametro. */
+       sue bande. Va provato SENZA concorrenti: con un `lum` in ruota, un filtro di
+       banda larga piu' stretto legittimamente non viene scelto — non e' esclusione,
+       e' la scelta automatica che fa il suo mestiere. Qui interessa l'altra cosa:
+       che un filtro valido non sparisca perche' gli manca un parametro. */
     const bande = f.bands || [f.band];
-    const trovato = bande.some(b => { const ff = M.filterFor(b, dv.c); return ff && ff.id === f.id; });
+    const solo = motore([f], [f.id]);
+    const dvSolo = solo.derive({ tel: 'rc8', red: 1, cam, mnt: 'am5', bin: 1 });
+    const trovato = bande.some(b => { const ff = solo.filterFor(b, dvSolo.c); return ff && ff.id === f.id; });
     if (!trovato) esclusi.push(etichetta + '/' + cam);
   }
   chk('il campionario copre le tipologie del commercio', CAMPIONARIO.length >= 8,
@@ -288,6 +293,103 @@ H('F · L-QEF, PRIMO ESEMPIO CONCRETO DELL ARCHITETTURA');
     sano(e.roadHTot) && sano(e.nights) && sano(pr.spent) && pr.alloc.every(g => sano(g.hours)),
     'progetto ' + F(e.roadHTot) + ' h · notti ' + F(e.nights, 1) + ' · canali ' +
     pr.alloc.filter(g => !g.dropped).map(g => g.id).join('+'));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+H('G · CHI SCEGLIE IL FILTRO E CHI LO VALUTA DEVONO DIRE LA STESSA COSA');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* Il motore ha due meccanismi che parlano di filtri: uno li SCEGLIE quando il
+     ruolo e' automatico, l'altro li VALUTA calcolando le ore. Se si contraddicono,
+     l'app consiglia un filtro e poi lo punisce.
+
+     Si contraddicevano. La regola di scelta era «vince il piu' stretto», sempre.
+     Su una riga e' giusta: la riga passa comunque, il cielo no. Su un CONTINUO —
+     ed e' quello che raccoglie un filtro di banda larga — e' rovesciata, perche'
+     stringere butta via segnale quanto butta via cielo.
+
+     MISURATO prima della correzione, Askar 71F + 2600MM su M31 con sette banda-larga
+     in ruota: l'automatico prendeva `idasd3` (180 nm) e la prescrizione chiedeva poi
+     14.9 h a SQM 21.6 contro le 8.0 h di `uvir` (300 nm), l'85% in piu'; a SQM 17.8
+     383.8 contro 265.7, il 44% in piu'. A ogni cielo provato il filtro scelto era
+     quello che il motore stesso valutava peggiore. */
+  const BB = ['lum', 'uvir', 'idas', 'idasd1', 'lpro', 'cls', 'idasd3'];
+  const NB = ['ha3', 'ha35', 'ha5', 'ha65', 'ha7', 'ha12'];
+  const CIELI = [21.6, 20.8, 19.5, 18.5, 17.8];
+  const tM31 = motore([], BB).TG.targets.find(x => /M31|Andromeda/i.test(x.names.join(' ')));
+
+  const orePer = (ruota, ruolo, band, sqm, cam) => {
+    const K = motore([], ruota, ruolo ? { [band]: ruolo } : {});
+    const dv = K.derive({ tel: 'askar71f', red: 1, cam, mnt: 'am5', bin: 1 });
+    const st = { lat: 46.0167, lon: 10.3333, sqm, seeing: 1.6, rms: 0.9, horizonMin: 20, clearFrac: 0.35 };
+    st.fwhm = K.effFWHM(1.6, 0.9);
+    const np = K.nightProfile(new Date(2026, 8, 11), st.lat, st.lon);
+    const e = K.evaluate(tM31, dv, st, np, {}, 'full');
+    return (e.budget[band] || {}).useful;
+  };
+
+  let confronti = 0, divergenze = 0, peggio = 0, esDiv = null;
+  for (const sqm of CIELI) for (const cam of ['asi2600mm', 'asi2600mc']) {
+    const K = motore([], BB.concat(['red', 'grn', 'blu']));
+    const dv = K.derive({ tel: 'askar71f', red: 1, cam, mnt: 'am5', bin: 1 });
+    const auto = (K.filterFor('L', dv.c) || {}).id;
+    if (!auto) continue;
+    const ore = {};
+    for (const id of BB) ore[id] = orePer(BB.concat(['red', 'grn', 'blu']), id, 'L', sqm, cam);
+    const validi = Object.entries(ore).filter(([, v]) => sano(v));
+    if (validi.length < 3) continue;
+    confronti++;
+    const migliore = validi.sort((a, b) => a[1] - b[1])[0];
+    const scelto = ore[auto];
+    if (migliore[0] !== auto && sano(scelto)) {
+      divergenze++;
+      const d = scelto / migliore[1] - 1;
+      if (d > peggio) { peggio = d;
+        esDiv = 'SQM ' + sqm + '/' + cam + ': scelto ' + auto + ' (' + F(scelto) + ' h), migliore ' +
+          migliore[0] + ' (' + F(migliore[1]) + ' h)'; }
+    }
+  }
+  chk('il campione copre piu cieli e tutti e due i sensori', confronti >= 8,
+    confronti + ' confronti su ' + BB.length + ' filtri di banda larga');
+  chk('per il ruolo di banda larga la scelta coincide con la valutazione',
+    divergenze === 0, divergenze ? divergenze + ' divergenze, la peggiore ' +
+    F(peggio * 100, 1) + '%: ' + esDiv : confronti + ' confronti, sempre lo stesso filtro');
+
+  /* La verifica non e' vuota: con la regola precedente — il piu' stretto — la
+     divergenza c'era, e si ricostruisce qui. */
+  const K0 = motore([], BB.concat(['red', 'grn', 'blu']));
+  const dv0 = K0.derive({ tel: 'askar71f', red: 1, cam: 'asi2600mm', mnt: 'am5', bin: 1 });
+  const piuStretto = K0.ownedFilters().filter(f => f.band === 'L')
+    .sort((a, b) => K0.bandWidth(a, 'L') - K0.bandWidth(b, 'L'))[0];
+  const oreStretto = orePer(BB.concat(['red', 'grn', 'blu']), piuStretto.id, 'L', 20.8, 'asi2600mm');
+  const oreScelto = orePer(BB.concat(['red', 'grn', 'blu']), (K0.filterFor('L', dv0.c) || {}).id, 'L', 20.8, 'asi2600mm');
+  chk('e la regola precedente divergeva davvero, quindi non passa per vacuita',
+    oreStretto > oreScelto * 1.2,
+    'il piu stretto (' + piuStretto.id + ') chiederebbe ' + F(oreStretto) + ' h contro ' +
+    F(oreScelto) + ' h — ' + F((oreStretto / oreScelto - 1) * 100, 1) + '% in piu');
+
+  /* E sulla RIGA la regola opposta resta quella giusta: li' stringere guadagna. */
+  const Kn = motore([], NB.concat(['lum']));
+  const dvn = Kn.derive({ tel: 'askar71f', red: 1, cam: 'asi2600mm', mnt: 'am5', bin: 1 });
+  const autoHa = (Kn.filterFor('Ha', dvn.c) || {}).id;
+  chk('mentre su una riga di emissione vince ancora il piu stretto',
+    autoHa === 'ha3', autoHa + ' fra ' + NB.join(', '));
+  const oreNB = {};
+  for (const id of NB) oreNB[id] = orePer(NB.concat(['lum']), id, 'Ha', 20.8, 'asi2600mm');
+  const migliorNB = Object.entries(oreNB).filter(([, v]) => sano(v)).sort((a, b) => a[1] - b[1])[0];
+  chk('e anche li scelta e valutazione coincidono', migliorNB[0] === autoHa,
+    'scelto ' + autoHa + ', migliore ' + migliorNB[0] + ' (' + F(migliorNB[1]) + ' h)');
+
+  /* Un filtro a banda stretta non deve diventare candidato AUTOMATICO per la
+     luminanza solo perche' e' piu' selettivo: e' uno strumento con un altro ruolo.
+     Restare scegliibile a mano e' un'altra cosa, ed e' voluto. */
+  const Km = motore([], ['lum', 'ha3', 'o3_3', 's2_3', 'red', 'grn', 'blu']);
+  for (const cam of ['asi2600mm', 'asi2600mc']) {
+    const d = Km.derive({ tel: 'askar71f', red: 1, cam, mnt: 'am5', bin: 1 });
+    const l = (Km.filterFor('L', d.c) || {}).id;
+    chk('e una banda stretta non diventa mai luminanza da sola (' + cam + ')', l === 'lum',
+      'ruolo L automatico -> ' + l);
+  }
 }
 
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
