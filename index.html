@@ -3078,9 +3078,30 @@ function prescribe(e,hours,dv,panels,opts){
    pure, perché serve anche a confrontare configurazioni con montature diverse:
    cambiare tubo spesso vuol dire cambiare anche la montatura, e con essa la FWHM
    reale. Ignorarlo farebbe sembrare gratuito uno scambio che gratuito non è. */
-function mountRms(mountId,scale){
+/* LA DIFFICOLTA' DI GUIDA E' UNA PROPRIETA' MECCANICA, e si misura in millimetri
+   di focale, non in arcosecondi per pixel.
+
+   Il catalogo delle montature distingue `rms_typ_arcsec` da `rms_long_fl_arcsec`,
+   cioe' «uso normale» da «lunga focale»: l'errore periodico, la flessione e il vento
+   pesano di piu' quando il tubo e' lungo, e non hanno la minima idea di quale
+   sensore ci sia dietro. Il motore pero' commutava su `scale0 = 206.265 x pixel / F`,
+   che il pixel della camera lo contiene: cambiare camera a telescopio fermo spostava
+   il ramo.
+
+   Misurato: RC8 a 1300 mm, focale identica in entrambi i casi. Con una 2600MM
+   (3.76 um, 0.597"/px) usciva il ramo «lunga focale», 1.3"; con una full-frame da
+   5.90 um (0.936"/px) il ramo «tipico», 0.9". Il 23.2% di scarto sulla FWHM efficace
+   per aver cambiato sensore. Su 46 ottiche del catalogo, 16 hanno camere ai due lati
+   della soglia.
+
+   LA SOGLIA. Mille millimetri: e' cio' a cui equivaleva la soglia precedente con il
+   pixel piu' diffuso — 206.265 x 3.76 / 0.8 = 969 mm — ed e' anche dove il catalogo
+   si divide da solo, fra rifrattori e newton corti da un lato e SCT e Ritchey-Chretien
+   dall'altro. Il pixel continua a decidere il CAMPIONAMENTO, che e' la sua domanda. */
+const FOCALE_LUNGA_MM=1000;
+function mountRms(mountId,focale){
   const m=(DB.mounts||[]).find(x=>x.id===mountId)||DB.mounts[0];
-  return (scale<0.8?m.rms_long_fl_arcsec:m.rms_typ_arcsec)||0.8;
+  return (focale>=FOCALE_LUNGA_MM?m.rms_long_fl_arcsec:m.rms_typ_arcsec)||0.8;
 }
 
 /* `cov` in coda: la stessa configurazione vale diversamente a seconda che tu
@@ -3127,7 +3148,7 @@ function fitAlternatives(tg,cfg,site,np,state,hours,presets,maxN,rot,cov,rmsFor)
       // la montatura del preset porta con sé il suo errore di guida: quello che hai
       // misurato tu se c'e', altrimenti quello di catalogo
       const rmsUt=rmsFor?rmsFor(p.mount):null;
-      const rms2=(rmsUt>0)?rmsUt:mountRms(p.mount,dv2.scale0);
+      const rms2=(rmsUt>0)?rmsUt:mountRms(p.mount,dv2.F);
       const site2={...site,rms:rms2,fwhm:effFWHM(site.seeing,rms2)};
       const e2=evaluate(tg,dv2,site2,np,state,cov);
       /* Ogni configurazione porta la propria geometria: un tubo corto copre il
@@ -6919,7 +6940,7 @@ function readCfg(){
 function syncRms(){
   if(!CFG) return;
   // scala nativa, non binnata: il binning non cambia l'errore di inseguimento
-  $('rms').value=fmt(rmsForMount(CFG.mnt,derive(CFG).scale0),2);
+  $('rms').value=fmt(rmsForMount(CFG.mnt,derive(CFG).F),2);
 }
 /* LA TENDINA IN DUE GRUPPI: le tue configurazioni e gli esempi di catalogo.
 
@@ -6971,12 +6992,14 @@ function persistRms(){
   const m=loadRms(); m[CFG.mnt]=+$('rms').value; 
   try{localStorage.setItem('ap_rms',JSON.stringify(m))}catch(e){}
 }
-function rmsForMount(mntId,scale){
+/* Il gemello di `mountRms` lato interfaccia, che in piu' onora il valore misurato
+   dall'utente. La soglia e' la stessa e per la stessa ragione: la guida la decide la
+   focale, il pixel decide il campionamento. */
+function rmsForMount(mntId,focale){
   const saved=loadRms()[mntId];
   if(saved!=null) return saved;
   const m=DB.mounts.find(x=>x.id===mntId)||DB.mounts[0];
-  // a scala fine conta il valore a lunga focale, che e' quello realistico
-  return (scale<0.8?m.rms_long_fl_arcsec:m.rms_typ_arcsec)||0.8;
+  return (focale>=FOCALE_LUNGA_MM?m.rms_long_fl_arcsec:m.rms_typ_arcsec)||0.8;
 }
 
 /* ---------- filtri posseduti ---------- */

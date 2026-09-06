@@ -1146,7 +1146,10 @@ console.log('\n--- posa e numero di sub ---');
    l'utente usa davvero sull'RC8 a f/8 da Borno — L 120-180 s a gain 0, banda
    stretta 300 s a gain 100. Se il modello si allontana da li', e' il modello. */
 const dvRC=M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1});
-const siteRC={...bornoSite}; siteRC.rms=M.mountRms('cem70g',dvRC.scale);
+/* `mountRms` riceve la FOCALE, non la scala del pixel: la difficolta' di guida e'
+   meccanica e non sa quale sensore ci sia dietro. Prima riceveva `scale0`, e il ramo
+   del catalogo cambiava cambiando camera a telescopio fermo. */
+const siteRC={...bornoSite}; siteRC.rms=M.mountRms('cem70g',dvRC.F);
 siteRC.fwhm=M.effFWHM(siteRC.seeing,siteRC.rms);
 for(const b of ['L','R','Ha','OIII']){
   const e=M.subExposure(dvRC,siteRC,b,{});
@@ -1241,7 +1244,7 @@ chk('lo scarto fra ore chieste e ore reali resta sotto i cinque minuti',
 /* ─── i tetti che vengono dal soggetto, non dalla stella di campo ─── */
 console.log('\n--- la posa la decide il soggetto, non solo le stelle di campo ---');
 const dvRC2=M.derive({tel:'rc8',red:1,cam:'asi2600mm',mnt:'cem70g',bin:1});
-const siteRC2={...bornoSite}; siteRC2.rms=M.mountRms('cem70g',dvRC2.scale);
+const siteRC2={...bornoSite}; siteRC2.rms=M.mountRms('cem70g',dvRC2.F);
 siteRC2.fwhm=M.effFWHM(siteRC2.seeing,siteRC2.rms);
 /* Il bacino della prova: schede curate, catalogo curato e — per gli oggetti che
    stanno solo li', come NGC 7027 — lo strato OpenNGC, esattamente come in app. */

@@ -482,5 +482,66 @@ H('G · IL BINNING NON CREA FOTONI');
     opt.map(o => 'bin' + o.bin + ' ' + o.scale.toFixed(2) + '"/px ' + o.samp.k).join(' · '));
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+H('H · LA GUIDA DIPENDE DALLA FOCALE, IL CAMPIONAMENTO DAL PIXEL');
+// ═══════════════════════════════════════════════════════════════════════════
+{
+  /* Il catalogo delle montature distingue «uso normale» da «lunga focale»: errore
+     periodico, flessioni e vento pesano di piu' quando il tubo e' lungo, e non hanno
+     la minima idea di quale sensore ci sia dietro. Il motore pero' commutava su
+     `scale0 = 206.265 x pixel / F`, che il pixel lo contiene.
+
+     Misurato prima: RC8 a 1300 mm, focale identica. Con una 2600MM (3.76 um) usciva
+     il ramo «lunga focale» 1.3"; con una full-frame da 5.90 um il ramo «tipico»
+     0.9". Il 23.2% di scarto sulla FWHM efficace per aver cambiato sensore, su 16
+     ottiche del catalogo su 46. */
+  let mobili = 0, tot = 0, esempio = null;
+  for (const t of DB.telescopes) for (const r of (t.reducers || [{ factor: 1 }])) {
+    const rami = new Set(); const det = [];
+    for (const c of DB.cameras) {
+      let dv; try { dv = M.derive({ tel: t.id, red: r.factor, cam: c.id, mnt: 'am5', bin: 1 }); }
+      catch (e) { continue; }
+      const v = M.mountRms('am5', dv.F);
+      rami.add(v); det.push({ cam: c.id, px: dv.c.pixel_um, F: dv.F, v });
+    }
+    if (!det.length) continue;
+    tot++;
+    if (rami.size > 1) { mobili++; if (!esempio) esempio = t.id + ' ' + r.factor + 'x: ' +
+      det.slice(0, 2).map(d => d.cam + ' → ' + d.v + '"').join(', '); }
+  }
+  chk('il campione copre tutto il catalogo ottico', tot >= 40, tot + ' ottiche');
+  chk('a focale ferma, cambiare camera non cambia l RMS meccanico assunto', mobili === 0,
+    mobili ? mobili + ' ottiche ancora mobili, per esempio ' + esempio
+           : tot + ' ottiche, nessuna cambia ramo con la camera');
+
+  /* La controprova: la regola PRECEDENTE, ricostruita, cambiava eccome. */
+  let mobiliVecchia = 0;
+  for (const t of DB.telescopes) for (const r of (t.reducers || [{ factor: 1 }])) {
+    const rami = new Set();
+    for (const c of DB.cameras) {
+      let dv; try { dv = M.derive({ tel: t.id, red: r.factor, cam: c.id, mnt: 'am5', bin: 1 }); }
+      catch (e) { continue; }
+      rami.add(dv.scale0 < 0.8);          // la soglia di prima, sulla scala del pixel
+    }
+    if (rami.size > 1) mobiliVecchia++;
+  }
+  chk('e la verifica non e vuota: la regola precedente cambiava con la camera',
+    mobiliVecchia > 0, mobiliVecchia + ' ottiche su ' + tot + ' con la soglia sulla scala');
+
+  /* Ma la focale deve continuare a contare, altrimenti la verifica passerebbe su un
+     motore che assegna sempre lo stesso numero. */
+  const corto = M.mountRms('am5', 400), lungo = M.mountRms('am5', 2000);
+  chk('mentre la focale continua a decidere, come deve', lungo > corto,
+    '400 mm → ' + corto + '"  ·  2000 mm → ' + lungo + '"');
+
+  /* E il pixel deve continuare a decidere il CAMPIONAMENTO: e' la sua domanda. */
+  const a = M.derive({ tel: 'rc8', red: 0.8, cam: 'asi183mm', mnt: 'am5', bin: 1 });
+  const b = M.derive({ tel: 'rc8', red: 0.8, cam: 'asi2400mc', mnt: 'am5', bin: 1 });
+  chk('e il pixel continua a decidere il campionamento',
+    Math.abs(a.scale0 - b.scale0) > 0.3 && M.mountRms('am5', a.F) === M.mountRms('am5', b.F),
+    'stessa focale ' + F(a.F, 0) + ' mm: scala ' + F(a.scale0, 3) + '" contro ' +
+    F(b.scale0, 3) + '", stesso RMS ' + M.mountRms('am5', a.F) + '"');
+}
+
 console.log('\n' + (ko ? '\x1b[31m' : '\x1b[32m') + ok + ' verifiche superate, ' + ko + ' fallite\x1b[0m');
 process.exit(ko ? 1 : 0);

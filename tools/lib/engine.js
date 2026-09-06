@@ -28,7 +28,7 @@ const M=new Function(...Object.keys(ctx),pure+`return {derive,refCfg,timeFactor,
   exposureStrategies,refSubFor,STRATEGIES,strategyOf,EXP_GRID,subPlan,resolutionFidelity,
   dualPass,BAND_LAMBDA,BB_NM,leakOf,kExt,mosaicPanels,binOptions,binAdvice,bestRotation,expectFor,
   cfaFraction,bandSpec,skyRateFor,subExposure,exposurePlan,objectSatTime,subPlan,
-  fitAlternatives,framing,projectPanels,COV_FULL,COV_FRAMING,
+  fitAlternatives,framing,projectPanels,COV_FULL,COV_FRAMING,mountRms,
   coveredSpan,resolutionFidelity,imageYield,PIX_FWHM};`)
   (...Object.values(ctx));
 module.exports={M,DB,TG,CAT,CIT,ROOT:R};
